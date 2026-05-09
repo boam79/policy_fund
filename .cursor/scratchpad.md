@@ -164,7 +164,7 @@ PRD §6.2 요청 예시 필드를 **타입 정본**으로 한다. 구 「7문항
 
 ## Executor's Feedback or Assistance Requests
 
-_비어 있음 — Executor 착수 후 여기에 블로커·로그를 기록_
+- **2026-05-09**: 초기 커밋 `ef7f9bf`를 `origin/main`에 푸시 완료(SSH). 저장소는 기존에 비어 있었음.
 
 ---
 
