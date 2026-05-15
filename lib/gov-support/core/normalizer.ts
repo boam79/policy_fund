@@ -1,13 +1,14 @@
 /**
- * 기업마당/K-Startup 원본 공고 → 내부 표준 필드로 정규화
+ * 기업마당/K-Startup/중소벤처24 원본 공고 → 내부 표준 필드로 정규화
  * PRD §19.3 공통 필드 매핑 기준
  */
 
 import type { BizinfoItem } from '../clients/bizinfo'
 import type { KStartupItem } from '../clients/kstartup'
+import type { Smes24Item } from '../clients/smes24'
 
 export interface NormalizedProgram {
-  source: 'bizinfo' | 'kstartup'
+  source: 'bizinfo' | 'kstartup' | 'smes24'
   external_id: string
   title: string
   organization: string
@@ -84,6 +85,29 @@ export function normalizeKStartupItem(item: KStartupItem): NormalizedProgram {
     eligibility_text: item.tgEtrpsInfo ?? null,
     exclusion_text: null,
     required_docs: null,
+    application_url: item.pbancUrl ?? null,
+    raw_content: item as unknown as Record<string, unknown>,
+    status: deriveStatus(endDate),
+  }
+}
+
+export function normalizeSmes24Item(item: Smes24Item): NormalizedProgram {
+  const endDate = toISODate(item.reqstEndDt)
+  return {
+    source: 'smes24',
+    external_id: item.pbancId ?? `smes24-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    title: item.pbancNm?.trim() ?? '',
+    organization: item.jrsdInsttNm?.trim() ?? '',
+    region: item.ereAtrgNm ?? null,
+    industry: item.bizTpcdNm ?? null,
+    support_type: item.bizTpcdNm ?? null,
+    support_amount_min_krw: null,
+    support_amount_max_krw: null,
+    application_start_date: toISODate(item.reqstBgnDt),
+    application_end_date: endDate,
+    eligibility_text: item.tgtEntrpNm ?? null,
+    exclusion_text: item.excluTrgetNm ?? null,
+    required_docs: item.reqstDocuNm ?? null,
     application_url: item.pbancUrl ?? null,
     raw_content: item as unknown as Record<string, unknown>,
     status: deriveStatus(endDate),

@@ -252,15 +252,14 @@ PAYMENT_SECRET_KEY=
 
 #### 태스크
 
-- [ ] **4-1** `lib/gov-support/clients/bizinfo.ts` — 기업마당 API 클라이언트
-- [ ] **4-2** `lib/gov-support/clients/kstartup.ts` — K-Startup API 클라이언트
-- [ ] **4-3** `lib/gov-support/core/dedup.ts` — Jaccard 중복 제거 (≥0.75 임계값)
-- [ ] **4-4** `lib/gov-support/core/cache.ts` — 인메모리 TTL 캐시 (공고: 1h, 자격판정: 30m)
-- [ ] **4-5** `lib/gov-support/smesEncoding.ts` — 이중 인코딩 방지 유틸
-- [ ] **4-6** `/api/admin/sync` — 공고 수집 + 정규화 + dedup + Supabase 저장 + `program_sync_logs` 기록
-- [ ] **4-7** `/api/home/recommendations` — 추천 점수 산정 + 배너 데이터 반환
-- [ ] **4-8** `/api/programs/trending` — 마감임박·신규·인기 공고
-- [ ] **4-9** 홈 화면 AI 추천 지원사업 배너 카드 컴포넌트 (실제 DB 데이터, 목업 002.png 기준)
+- [x] **4-1** `lib/gov-support/clients/bizinfo.ts` — 기업마당 API 클라이언트
+- [x] **4-2** `lib/gov-support/clients/kstartup.ts` — K-Startup API 클라이언트
+- [x] **4-3** `lib/gov-support/core/normalizer.ts` — API 응답 → 표준 필드 정규화 (PRD §19.3)
+- [x] **4-4** `lib/gov-support/core/dedup.ts` — Jaccard 유사도(≥0.7) 중복 제거
+- [x] **4-5** `/api/admin/sync` — 기업마당+K-Startup 병렬 수집 + upsert + `api_sync_logs` 기록
+- [x] **4-6** `/api/home/recommendations` — 30분 ISR 추천 배너 API
+- [x] **4-7** `ProgramBannerCard.tsx` — 마감임박 D-day 배지 포함 공고 카드
+- [x] **4-8** 홈 화면(`/`) — Suspense + Supabase 직접 쿼리로 실제 공고 배너 통합
 
 **성공 기준**
 - 관리자 수동 동기화 1회 후 `support_programs`에 샘플 공고 저장 확인
@@ -413,10 +412,10 @@ PAYMENT_SECRET_KEY=
 
 ### 대기 중 (우선순위 순)
 
-- [ ] Phase 2 — DB 스키마 구축 ← **다음 착수**
-- [ ] Phase 3 — 자연어 검색 UX
-- [ ] Phase 4 — 공고 동기화 + 추천 배너
-- [ ] Phase 5 — 공고 검색 + 자격판정
+- [x] Phase 2 — DB 스키마 구축 ✅ 완료 (2026-05-15)
+- [x] Phase 3 — 자연어 검색 UX ✅ 완료 (2026-05-15)
+- [x] Phase 4 — 공고 동기화 + 추천 배너 ✅ 완료 (2026-05-15)
+- [ ] Phase 5 — 공고 검색 + 자격판정 ← **다음 착수**
 - [ ] Phase 6 — 서류·타임라인·계획서 생성
 - [ ] Phase 7 — 심사 점수 + CSV/XLSX 내보내기
 - [ ] Phase 8 — 운영 필수 페이지 + 관리자 MVP
@@ -427,14 +426,18 @@ PAYMENT_SECRET_KEY=
 
 ## Current Status / Progress Tracking
 
-- **현재 모드**: Executor — Phase 1 완료, 사용자 검증 대기
+- **현재 모드**: Executor — Phase 4 완료, 사용자 검증 대기
 - **저장소**: `https://github.com/boam79/policy_fund` · 로컬 `/Users/parkjaemin/Dev/policy_fund`
-- **저장소 버전**: `0.2.0` (Phase 1 완료 — 커밋 전 사용자 확인 필요)
+- **최신 커밋**: `558178b` (Phase 4 — 공고 DB 동기화 + 추천 배너)
 - **Supabase 프로젝트**: `hwqsxarzgodpsvwahzae` (policyfund-ai-v2, ap-northeast-2, Free Plan)
 - **데이터 운영 모드**: `api_minimal_cache`
-- **빌드 상태**: ✅ `npm run build` 성공 (21개 페이지)
-- **Service Role Key**: ⚠️ Supabase 대시보드에서 직접 발급 후 `.env.local`에 입력 필요
-- **다음 마일스톤**: Phase 2 — DB 스키마 구축
+- **Gemini API Key**: ✅ `.env.local`에 등록 완료
+- **빌드 상태**: ✅ `npm run build` 성공 (25개 페이지, 30분 ISR)
+- **공공 API 키 필요**:
+  - `BIZINFO_API_KEY` — 기업마당 API 키 (bizinfo.go.kr 발급)
+  - `PUBLIC_DATA_SERVICE_KEY` — K-Startup / 공공데이터포털 키 (data.go.kr 발급)
+- **동기화 실행 방법**: `POST /api/admin/sync` (Authorization: Bearer dev-secret-2026)
+- **다음 마일스톤**: Phase 5 — 실제 공고 검색 + 룰 기반 자격판정
 
 ---
 

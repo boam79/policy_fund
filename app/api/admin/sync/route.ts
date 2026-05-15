@@ -8,7 +8,12 @@ import type { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchBizinfo } from '@/lib/gov-support/clients/bizinfo'
 import { fetchKStartup } from '@/lib/gov-support/clients/kstartup'
-import { normalizeBizinfoItem, normalizeKStartupItem } from '@/lib/gov-support/core/normalizer'
+import { fetchSmes24 } from '@/lib/gov-support/clients/smes24'
+import {
+  normalizeBizinfoItem,
+  normalizeKStartupItem,
+  normalizeSmes24Item,
+} from '@/lib/gov-support/core/normalizer'
 import { deduplicate } from '@/lib/gov-support/core/dedup'
 
 export const dynamic = 'force-dynamic'
@@ -27,37 +32,56 @@ export async function POST(request: NextRequest) {
 
   let bizinfoCount = 0
   let kstartupCount = 0
+  let smes24Count = 0
   let upsertedCount = 0
   const errors: string[] = []
 
-  // 기업마당 수집 (3개 주요 분야 병렬)
-  const bizinfoFields = ['창업', '금융', '기술']
-  const bizinfoResults = await Promise.allSettled(
-    bizinfoFields.map((field) => fetchBizinfo({ field, pageUnit: 50 }))
-  )
+  // 기업마당 + K-Startup + 중소벤처24 병렬 수집
+  const [bizinfoResults, kstartupResult, smes24Result] = await Promise.allSettled([
+    // 기업마당: 3개 분야 병렬
+    Promise.allSettled(
+      ['창업', '금융', '기술', '인력'].map((field) =>
+        fetchBizinfo({ field, pageUnit: 50 })
+      )
+    ),
+    // K-Startup: 모집 중 전체
+    fetchKStartup({ rcrtPrgsYn: 'Y', numOfRows: 50 }),
+    // 중소벤처24: 최근 90일 공고
+    fetchSmes24(),
+  ])
 
-  const bizinfoItems = bizinfoResults
-    .flatMap((result) => {
-      if (result.status === 'fulfilled') return result.value.list
-      errors.push(`bizinfo: ${result.reason?.message ?? '알 수 없는 오류'}`)
-      return []
-    })
-    .map(normalizeBizinfoItem)
+  // 기업마당 결과 처리
+  const bizinfoItems =
+    bizinfoResults.status === 'fulfilled'
+      ? bizinfoResults.value
+          .flatMap((r) => {
+            if (r.status === 'fulfilled') return r.value.list
+            errors.push(`bizinfo: ${r.reason?.message ?? '알 수 없는 오류'}`)
+            return []
+          })
+          .map(normalizeBizinfoItem)
+      : (errors.push(`bizinfo: ${bizinfoResults.reason?.message}`), [])
 
   bizinfoCount = bizinfoItems.length
 
-  // K-Startup 수집 (모집 중 전체)
-  let kstartupItems: ReturnType<typeof normalizeKStartupItem>[] = []
-  try {
-    const ks = await fetchKStartup({ rcrtPrgsYn: 'Y', numOfRows: 50 })
-    kstartupItems = ks.list.map(normalizeKStartupItem)
-    kstartupCount = kstartupItems.length
-  } catch (e) {
-    errors.push(`kstartup: ${e instanceof Error ? e.message : '알 수 없는 오류'}`)
-  }
+  // K-Startup 결과 처리
+  const kstartupItems =
+    kstartupResult.status === 'fulfilled'
+      ? kstartupResult.value.list.map(normalizeKStartupItem)
+      : (errors.push(`kstartup: ${kstartupResult.reason?.message ?? '알 수 없는 오류'}`), [])
+
+  kstartupCount = kstartupItems.length
+
+  // 중소벤처24 결과 처리
+  const smes24Items =
+    smes24Result.status === 'fulfilled'
+      ? smes24Result.value.list.map(normalizeSmes24Item)
+      : (errors.push(`smes24: ${smes24Result.reason?.message ?? '알 수 없는 오류'}`), [])
+
+  smes24Count = smes24Items.length
 
   // 중복 제거
-  const allItems = deduplicate([...bizinfoItems, ...kstartupItems])
+  const allItems = deduplicate([...bizinfoItems, ...kstartupItems, ...smes24Items])
 
   // Supabase upsert (배치 50건)
   const BATCH = 50
@@ -113,6 +137,8 @@ export async function POST(request: NextRequest) {
     ok: true,
     bizinfoCount,
     kstartupCount,
+    smes24Count,
+    totalFetched: bizinfoCount + kstartupCount + smes24Count,
     deduplicatedCount: allItems.length,
     upsertedCount,
     errors: errors.length > 0 ? errors : undefined,
