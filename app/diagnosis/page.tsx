@@ -27,6 +27,21 @@ const CONDITION_LABELS: Record<string, string> = {
   tax_arrears: '📂 세금 체납',
 }
 
+const MISSING_LABELS: Record<string, string> = {
+  region: '지역',
+  city: '시군구',
+  industry: '업종',
+  business_age_years: '업력',
+  employee_count: '직원 수',
+  annual_revenue_krw: '연 매출',
+  desired_amount_krw: '희망 지원금',
+  support_purpose: '지원 목적',
+  business_type: '사업자 유형',
+  startup_stage: '창업 단계',
+  credit_score: '신용점수',
+  tax_arrears: '세금 체납',
+}
+
 const REGION_NORMALIZE_MAP: Record<string, string> = {
   서울특별시: '서울',
   경기도: '경기',
@@ -97,6 +112,11 @@ function DiagnosisContent() {
   useEffect(() => {
     const dataParam = searchParams.get('data')
     if (!dataParam) {
+      const programId = searchParams.get('program_id')
+      if (programId) {
+        router.replace(`/eligibility?program_id=${encodeURIComponent(programId)}`)
+        return
+      }
       setError('검색 조건이 없습니다. 홈으로 돌아가 검색해주세요.')
       return
     }
@@ -112,7 +132,7 @@ function DiagnosisContent() {
     } catch {
       setError('조건 데이터가 유효하지 않습니다.')
     }
-  }, [searchParams])
+  }, [searchParams, router])
 
   function handleEditSave(key: string) {
     setEditMode(null)
@@ -263,7 +283,7 @@ function DiagnosisContent() {
           <div className="flex flex-wrap gap-1.5">
             {parsed.missing_important.map((item) => (
               <Badge key={item} variant="outline" className="border-yellow-300 bg-white text-xs text-yellow-700">
-                {item}
+                {MISSING_LABELS[item] ?? item}
               </Badge>
             ))}
           </div>

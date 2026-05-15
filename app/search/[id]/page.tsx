@@ -160,7 +160,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
             내 기업 정보를 입력하면 AI가 이 공고에 대한 자격 충족 여부를 즉시 분석해드립니다.
           </p>
           <Link
-            href={`/diagnosis?program_id=${program.id}`}
+            href={`/eligibility?program_id=${program.id}`}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
           >
             자격판정 시작하기
