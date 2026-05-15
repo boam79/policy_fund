@@ -30,10 +30,14 @@ function SearchContent() {
   const autoSearched = useRef(false)
 
   const [region, setRegion] = useState(() => searchParams.get('region') ?? '')
+  const [city] = useState(() => searchParams.get('city') ?? '')
   const [industry, setIndustry] = useState(() => searchParams.get('industry') ?? '')
-  const [keyword, setKeyword] = useState(() => searchParams.get('keyword') ?? '')
+  const [keyword, setKeyword] = useState(() => searchParams.get('keyword') ?? searchParams.get('q') ?? '')
+  const [supportPurpose] = useState(() => searchParams.get('support_purpose') ?? '')
   const [businessAge, setBusinessAge] = useState(() => searchParams.get('business_age_years') ?? '')
   const [employeeCount, setEmployeeCount] = useState(() => searchParams.get('employee_count') ?? '')
+  const [annualRevenue] = useState(() => searchParams.get('annual_revenue_krw') ?? '')
+  const [creditScore] = useState(() => searchParams.get('credit_score') ?? '')
   const [taxArrears, setTaxArrears] = useState<'yes' | 'no' | ''>(() => {
     const v = searchParams.get('tax_arrears')
     return (v === 'yes' || v === 'no') ? v : ''
@@ -58,11 +62,15 @@ function SearchContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           region: region || undefined,
+          city: city || undefined,
           industry: industry || undefined,
           keyword: keyword || undefined,
           business_age_years: businessAge ? Number(businessAge) : undefined,
           employee_count: employeeCount ? Number(employeeCount) : undefined,
+          annual_revenue_krw: annualRevenue ? Number(annualRevenue) : undefined,
+          credit_score: creditScore ? Number(creditScore) : undefined,
           tax_arrears: taxArrears === 'yes' ? true : taxArrears === 'no' ? false : undefined,
+          support_purpose: supportPurpose || undefined,
           page: p,
           limit: LIMIT,
         }),
@@ -76,12 +84,13 @@ function SearchContent() {
     } finally {
       setLoading(false)
     }
-  }, [region, industry, keyword, businessAge, employeeCount, taxArrears])
+  }, [region, city, industry, keyword, supportPurpose, businessAge, employeeCount, annualRevenue, creditScore, taxArrears])
 
   // diagnosis 페이지에서 조건 전달 시 자동 검색
   useEffect(() => {
     const hasParams = searchParams.get('region') || searchParams.get('industry') ||
-      searchParams.get('keyword') || searchParams.get('business_age_years') ||
+      searchParams.get('keyword') || searchParams.get('q') || searchParams.get('support_purpose') ||
+      searchParams.get('business_age_years') ||
       searchParams.get('employee_count') || searchParams.get('tax_arrears')
     if (hasParams && !autoSearched.current) {
       autoSearched.current = true

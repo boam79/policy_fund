@@ -8,6 +8,7 @@ import type { Database } from '@/types/database.types'
 
 export interface SearchParams {
   region?: string
+  city?: string
   industry?: string
   business_age_years?: number | null
   employee_count?: number | null
@@ -60,7 +61,9 @@ function normalizeRegion(raw: string): string {
 export async function unifiedSearch(params: SearchParams): Promise<SearchResult> {
   const {
     region,
+    city,
     industry,
+    support_purpose,
     keyword,
     page = 1,
     limit = 20,
@@ -91,6 +94,8 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
     query = query.or(
       `region.ilike.%${normalized}%,region.ilike.%전국%,region.is.null`
     )
+  } else if (city) {
+    query = query.or(`region.ilike.%${city}%,region.ilike.%전국%,region.is.null`)
   }
 
   // 업종 필터
@@ -101,9 +106,10 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
   }
 
   // 키워드 검색
-  if (keyword) {
+  const effectiveKeyword = keyword ?? support_purpose ?? null
+  if (effectiveKeyword) {
     query = query.or(
-      `title.ilike.%${keyword}%,organization.ilike.%${keyword}%,support_type.ilike.%${keyword}%`
+      `title.ilike.%${effectiveKeyword}%,organization.ilike.%${effectiveKeyword}%,support_type.ilike.%${effectiveKeyword}%,eligibility_text.ilike.%${effectiveKeyword}%`
     )
   }
 

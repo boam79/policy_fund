@@ -38,6 +38,22 @@ function formatConditionValue(key: string, value: unknown): string {
   return String(value)
 }
 
+function coerceValueByKey(key: string, raw: string): unknown {
+  const value = raw.trim()
+  if (value.length === 0) return undefined
+
+  if (['business_age_years', 'employee_count', 'annual_revenue_krw', 'desired_amount_krw', 'credit_score'].includes(key)) {
+    const n = Number(value.replace(/,/g, ''))
+    return Number.isFinite(n) ? n : undefined
+  }
+  if (key === 'tax_arrears') {
+    if (['있음', 'yes', 'true', '1'].includes(value.toLowerCase())) return true
+    if (['없음', 'no', 'false', '0'].includes(value.toLowerCase())) return false
+    return undefined
+  }
+  return value
+}
+
 // ─── 메인 컨텐츠 ───────────────────────────────────────────
 function DiagnosisContent() {
   const searchParams = useSearchParams()
@@ -252,14 +268,37 @@ function DiagnosisContent() {
             if (!parsed) { router.push('/search'); return }
             const c = parsed.conditions
             const params = new URLSearchParams()
-            if (c.region?.value) params.set('region', String(c.region.value))
-            if (c.industry?.value) params.set('industry', String(c.industry.value))
-            if (c.business_age_years?.value != null) params.set('business_age_years', String(c.business_age_years.value))
-            if (c.employee_count?.value != null) params.set('employee_count', String(c.employee_count.value))
-            if (c.annual_revenue_krw?.value != null) params.set('annual_revenue_krw', String(c.annual_revenue_krw.value))
-            if (c.credit_score?.value != null) params.set('credit_score', String(c.credit_score.value))
-            if (c.tax_arrears?.value != null) params.set('tax_arrears', c.tax_arrears.value ? 'yes' : 'no')
-            if (c.support_purpose?.value) params.set('keyword', String(c.support_purpose.value))
+
+            const getValue = (key: keyof ParsedConditions) => {
+              const edited = editValues[key]
+              if (typeof edited === 'string') {
+                return coerceValueByKey(String(key), edited)
+              }
+              return c[key]?.value
+            }
+
+            const region = getValue('region')
+            const city = getValue('city')
+            const industry = getValue('industry')
+            const businessAge = getValue('business_age_years')
+            const employeeCount = getValue('employee_count')
+            const annualRevenue = getValue('annual_revenue_krw')
+            const creditScore = getValue('credit_score')
+            const taxArrears = getValue('tax_arrears')
+            const supportPurpose = getValue('support_purpose')
+
+            if (region) params.set('region', String(region))
+            if (city) params.set('city', String(city))
+            if (industry) params.set('industry', String(industry))
+            if (businessAge != null) params.set('business_age_years', String(businessAge))
+            if (employeeCount != null) params.set('employee_count', String(employeeCount))
+            if (annualRevenue != null) params.set('annual_revenue_krw', String(annualRevenue))
+            if (creditScore != null) params.set('credit_score', String(creditScore))
+            if (typeof taxArrears === 'boolean') params.set('tax_arrears', taxArrears ? 'yes' : 'no')
+            if (supportPurpose) params.set('support_purpose', String(supportPurpose))
+
+            // 자연어 검색 맥락 유지를 위해 원문 질의를 항상 keyword 폴백으로 전달
+            params.set('keyword', String(parsed.raw_query ?? ''))
             router.push(`/search?${params.toString()}`)
           }}
           className={cn(

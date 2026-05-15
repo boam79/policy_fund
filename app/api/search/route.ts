@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       region,
+      city,
       industry,
       business_age_years,
       employee_count,
@@ -32,10 +33,12 @@ export async function POST(request: NextRequest) {
     // 공고 검색
     const result = await unifiedSearch({
       region: region ?? undefined,
+      city: city ?? undefined,
       industry: industry ?? undefined,
       business_age_years,
       employee_count,
       annual_revenue_krw,
+      support_purpose,
       keyword,
       page,
       limit,
@@ -43,6 +46,7 @@ export async function POST(request: NextRequest) {
 
     const profile: CompanyProfile = {
       region,
+      city,
       industry,
       business_age_years,
       employee_count,
