@@ -40,6 +40,53 @@ export interface ParseNLResult {
   raw_query: string
 }
 
+const REGION_ALIASES: Record<string, string[]> = {
+  서울: ['서울', '서울특별시'],
+  경기: ['경기', '경기도'],
+  인천: ['인천', '인천광역시'],
+  부산: ['부산', '부산광역시'],
+  대구: ['대구', '대구광역시'],
+  광주: ['광주', '광주광역시'],
+  대전: ['대전', '대전광역시'],
+  울산: ['울산', '울산광역시'],
+  세종: ['세종', '세종특별자치시'],
+  강원: ['강원', '강원도', '강원특별자치도'],
+  충북: ['충북', '충청북도'],
+  충남: ['충남', '충청남도'],
+  전북: ['전북', '전라북도', '전북특별자치도'],
+  전남: ['전남', '전라남도'],
+  경북: ['경북', '경상북도'],
+  경남: ['경남', '경상남도'],
+  제주: ['제주', '제주도', '제주특별자치도'],
+}
+
+const INDUSTRY_KEYWORDS = [
+  '제조업',
+  '서비스업',
+  'IT',
+  '소프트웨어',
+  '유통',
+  '도소매',
+  '음식',
+  '외식',
+  '건설업',
+  '농업',
+  '수산업',
+]
+
+const PURPOSE_KEYWORDS = [
+  '운전자금',
+  '시설자금',
+  '사업화',
+  '마케팅',
+  '수출',
+  '고용',
+  '인력',
+  '연구개발',
+  'R&D',
+  '창업',
+]
+
 // Context7 패턴: Type.OBJECT + properties + nested schema
 const EXTRACTED_CONDITION_STRING: Schema = {
   type: Type.OBJECT,
@@ -127,6 +174,105 @@ export async function parseNaturalLanguage(query: string): Promise<ParseNLResult
   })
 
   return { ...result, raw_query: query }
+}
+
+/**
+ * LLM 장애 시 규칙 기반 최소 조건 추출 폴백
+ */
+export function parseNaturalLanguageFallback(query: string): ParseNLResult {
+  const conditions: ParsedConditions = {}
+
+  for (const [region, aliases] of Object.entries(REGION_ALIASES)) {
+    if (aliases.some((alias) => query.includes(alias))) {
+      conditions.region = { value: region, confidence: 0.75, source_text: region }
+      break
+    }
+  }
+
+  const cityMatch = query.match(/([가-힣]{2,12})(시|군|구)/u)
+  if (cityMatch) {
+    conditions.city = {
+      value: `${cityMatch[1]}${cityMatch[2]}`,
+      confidence: 0.65,
+      source_text: cityMatch[0].slice(0, 20),
+    }
+  }
+
+  const industry = INDUSTRY_KEYWORDS.find((k) => query.includes(k))
+  if (industry) {
+    conditions.industry = { value: industry, confidence: 0.7, source_text: industry }
+  }
+
+  const ageUnderMatch = query.match(/(\d+(?:\.\d+)?)\s*년\s*미만/u)
+  if (ageUnderMatch) {
+    const upper = Number(ageUnderMatch[1])
+    const normalized = Math.max(0, upper - 1)
+    conditions.business_age_years = {
+      value: normalized,
+      confidence: 0.7,
+      source_text: ageUnderMatch[0].slice(0, 20),
+    }
+  } else {
+    const ageMatch = query.match(/(\d+(?:\.\d+)?)\s*년차/u)
+    if (ageMatch) {
+      conditions.business_age_years = {
+        value: Number(ageMatch[1]),
+        confidence: 0.7,
+        source_text: ageMatch[0].slice(0, 20),
+      }
+    } else {
+      const monthMatch = query.match(/(\d+)\s*개월/u)
+      if (monthMatch) {
+        conditions.business_age_years = {
+          value: Math.round((Number(monthMatch[1]) / 12) * 10) / 10,
+          confidence: 0.6,
+          source_text: monthMatch[0].slice(0, 20),
+        }
+      }
+    }
+  }
+
+  const employeeMatch = query.match(/(?:직원|상시근로자)?\s*(\d+)\s*명/u)
+  if (employeeMatch) {
+    conditions.employee_count = {
+      value: Number(employeeMatch[1]),
+      confidence: 0.65,
+      source_text: employeeMatch[0].slice(0, 20),
+    }
+  }
+
+  if (/체납\s*(없|무)/u.test(query)) {
+    conditions.tax_arrears = { value: false, confidence: 0.7, source_text: '체납 없음' }
+  } else if (/체납\s*(있|유)/u.test(query)) {
+    conditions.tax_arrears = { value: true, confidence: 0.7, source_text: '체납 있음' }
+  }
+
+  const purpose = PURPOSE_KEYWORDS.find((k) => query.toLowerCase().includes(k.toLowerCase()))
+  if (purpose) {
+    conditions.support_purpose = { value: purpose, confidence: 0.7, source_text: purpose }
+  }
+
+  const importantKeys: (keyof ParsedConditions)[] = ['region', 'industry', 'business_age_years']
+  const missing_important = importantKeys.filter((k) => !conditions[k]).map((k) => String(k))
+
+  const summaryParts: string[] = []
+  if (conditions.region?.value) summaryParts.push(`지역은 ${conditions.region.value}`)
+  if (conditions.city?.value) summaryParts.push(`시군구는 ${conditions.city.value}`)
+  if (conditions.industry?.value) summaryParts.push(`업종은 ${conditions.industry.value}`)
+  if (conditions.business_age_years?.value != null) summaryParts.push(`업력은 ${conditions.business_age_years.value}년`)
+  if (conditions.support_purpose?.value) summaryParts.push(`지원 목적은 ${conditions.support_purpose.value}`)
+
+  const summary =
+    summaryParts.length > 0
+      ? `${summaryParts.join(', ')}로 추정됩니다. 누락된 조건은 직접 확인 후 수정해주세요.`
+      : '질문에서 명확한 조건을 충분히 찾지 못했습니다. 조건을 보완해 다시 확인해주세요.'
+
+  return {
+    conditions,
+    summary,
+    missing_important,
+    raw_query: query,
+  }
 }
 
 /**
