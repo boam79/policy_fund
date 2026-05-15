@@ -166,6 +166,29 @@ interface ChecklistItem {
   isStandardDocument: boolean;
 }
 
+function pushStandardDoc(
+  checklist: ChecklistItem[],
+  foundNames: Set<string>,
+  doc: StandardDocument,
+  deadline: string | undefined,
+  requirementType: ChecklistItem["requirementType"] = "필수",
+  sourceSentence = "공고문 기본 제출서류 폴백"
+) {
+  if (foundNames.has(doc.name)) return;
+  foundNames.add(doc.name);
+  checklist.push({
+    name: doc.name,
+    issuer: doc.issuer,
+    issuanceDays: doc.issuanceDays,
+    collectBy: collectByDate(deadline, doc.issuanceDays),
+    url: doc.issuanceUrl,
+    note: doc.note,
+    sourceSentence,
+    requirementType,
+    isStandardDocument: true,
+  });
+}
+
 function collectByDate(deadlineStr: string | undefined, daysNeeded: number): string {
   if (!deadlineStr) return "마감일 기준으로 역산";
   try {
@@ -190,7 +213,7 @@ function determineRequirementType(sentence: string): ChecklistItem["requirementT
 export async function handleGenerateDocumentChecklist(
   input: GenerateDocumentChecklistInput
 ): Promise<unknown> {
-  const { announcementText, deadline, businessType } = input;
+  const { announcementTitle, announcementText, deadline, businessType } = input;
   const checklist: ChecklistItem[] = [];
   const foundNames = new Set<string>();
   const sentences = announcementText.split(/[.。\n]/);
@@ -262,7 +285,26 @@ export async function handleGenerateDocumentChecklist(
     }
   }
 
-  // 3. 필수 → 해당시 → 가점 순 정렬
+  // 3. 공고문 정보가 빈약할 때 기본 제출서류를 최소 보장
+  //    (사용자가 "0건"을 받지 않도록 핵심 서류를 자동 보강)
+  const combinedText = `${announcementTitle}\n${announcementText}`.toLowerCase();
+  const financeLikeNotice = /(지원사업|융자|자금|보조금|정책자금|사업화|공고)/.test(combinedText);
+  if (checklist.length === 0 || (financeLikeNotice && checklist.length < 2)) {
+    const baseDocNames = businessType === "법인"
+      ? ["사업자등록증", "법인등기부등본", "국세납세증명서", "지방세납세증명서", "사업계획서"]
+      : ["사업자등록증", "국세납세증명서", "지방세납세증명서", "사업계획서"];
+
+    for (const name of baseDocNames) {
+      const doc = STANDARD_DOCS.find((d) => d.name === name);
+      if (!doc) continue;
+      if (doc.applicableTo && doc.applicableTo !== "both" && doc.applicableTo !== businessType) {
+        continue;
+      }
+      pushStandardDoc(checklist, foundNames, doc, deadline, "필수");
+    }
+  }
+
+  // 4. 필수 → 해당시 → 가점 순 정렬
   const order = { 필수: 0, "해당 시": 1, 가점용: 2, "기관 요청 시": 3 };
   checklist.sort((a, b) => (order[a.requirementType] ?? 4) - (order[b.requirementType] ?? 4));
 
