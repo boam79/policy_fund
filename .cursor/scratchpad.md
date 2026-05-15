@@ -1,198 +1,466 @@
 # PolicyFund AI v2 — Planner Scratchpad
 
-**역할**: Planner 주도 계획 / Executor는 사용자 승인 후 단계 실행  
-**기준 문서**: `~/Downloads/policyfund_v2_prd.md` (PF-WEB-001 v1.0, 2026-05-09)  
-**최종 Planner 갱신**: 2026-05-09 — P0 라우트·프로필 스키마 확정 반영  
+**역할**: Planner 주도 계획 / Executor는 사용자 승인 후 단계별 실행  
+**기준 문서**: `policyfund_v2_prd_v2_0_free_plan_db_switch_ready.md` (PF-WEB-001 v2.0, 2026-05-11)  
+**UI 목업 기준**: `KakaoTalk_Photo_2026-05-11-18-15-52 001.png` (관리자 대시보드), `KakaoTalk_Photo_2026-05-11-18-15-53 002.png` (사용자 홈)  
+**Planner 최종 갱신**: 2026-05-15
 
 ---
 
 ## Background and Motivation
 
-PolicyFund AI v2는 GitHub Pages MVP(`policyfundapp`)의 한계(프론트 API 키, CORS, 가상 자격판정, Sheets 영속성)를 해소하고, **`gov_support_mcp` v1.2.3 로직을 Next.js `lib/gov-support/`로 이식**한 뒤 **Vercel + Supabase**로 상용화하는 것이 목표다.
+PolicyFund AI v2는 기존 GitHub Pages 단일페이지 MVP(`policyfundapp`)의 구조적 한계를 해소하는 **신규 웹서비스 개발** 프로젝트다.
 
-핵심 가치 제안:
+### 기존 MVP의 핵심 문제점
 
-- 실제 공고 소스(기업마당·K-Startup·중소벤처24) 기반 검색·매칭
-- 서버 전용 비밀·Route Handler로 보안 정렬(PR와 일치)
-- 진단 후 **빠른 AI 진단** vs **실제 공고 맞춤 검색** 이원화로 신뢰와 속도 균형
+| 우선순위 | 문제 | 영향 |
+|---|---|---|
+| 긴급 | Anthropic API Key 프론트 노출 시도 | 보안 취약 |
+| 긴급 | CORS로 LLM 호출 실패 → 전원 fallback 결과 | 서비스 신뢰도 0 |
+| 높음 | 실제 공고 데이터 없음 → 가상 결과 | 사용자 오도 위험 |
+| 높음 | `debtRatio` 하드코딩 200 | 결과 차별화 불가 |
 
----
+### 신규 서비스 핵심 가치
 
-## MCP 정찰 요약 (Planner가 2026-05-09 호출)
-
-실행 가능했던 MCP와 결과·계획 반영:
-
-| MCP 서버 | 활용 | 결과 요약 |
-|----------|------|-----------|
-| **user-public-data-api-finder** | 공공데이터 API 후보 | 중소벤처24 공고정보 API(`data.go.kr` 15113191 등) 후보 확인 → PRD SMES24 연계 근거 보강 |
-| **user-context7** | Next.js·Supabase 문서 | `/vercel/next.js` Route Handler·`process.env` 서버 전용 패턴, `/supabase/supabase-js` 라이브러리 ID 확보 → Phase 1 스택 검증 |
-| **user-korean-law** | 법령 식별자 | 「중소기업진흥에 관한 법률」 및 시행령·시행규칙 검색 성공 → 장기적으로 면책·정책근거 UI에 인용 후보(변호사 검토 전제) |
-| **user-gov-support-mcp** | 통합 검색 스모크 | `bizinfo`+`kstartup`, 키워드「창업」, dedup 정상, 공고 메타·detailUrl 수신 → 이식 후 동일 계약으로 API 연결 가능성 높음 |
-| **user-depreciation-mcp** | 부대 기능 후보 | 법인세 내용연수 참조 데이터 확인 → **코어 범위 밖**. 향후 「보조금 집행·정산 후 세무 참고」 확장 시만 검토 |
-
-인증만 제공·이번 턴 미호출:
-
-| MCP 서버 | 비고 |
-|----------|------|
-| **plugin-supabase-supabase**, **plugin-vercel-vercel**, **user-render** | `mcp_auth` 후 프로젝트 연결·배포 자동화 가능 → Executor Phase 1에서 필요 시 인증 |
-| **cursor-ide-browser**, **user-playwright** | 검색·wizard E2E·스냅샷 검증에 Executor Phase 4~6에서 사용 |
-| **user-Framelink Figma MCP** | UI 확정 시 디자인 토큰 반영 |
-| **cursor-app-control** | 저장소 생성·워크스페이스 이동 시 사용 |
+- **실제 공공 API 기반**: 기업마당 · K-Startup · 중소벤처24 연동
+- **서버 전용 보안**: 모든 API 키는 Next.js API Routes에서만 사용
+- **LLM 역할 제한**: 조건 추출 + 설명 보완에만 사용 (공고 생성·검색 금지)
+- **무료 플랜 기반 운영**: Vercel Hobby + Supabase Free (500MB 한도 내 설계)
+- **원클릭 DB 전환 구조**: `api_minimal_cache` → `db_centric` 모드 전환 준비
 
 ---
 
 ## Key Challenges and Analysis
 
-1. ~~**라우트 명세 불일치**~~ → **P0 결정 사항**의 단일 라우트 표를 정본으로 채택. §4.1 다이어그램의 `/app/page.tsx`=wizard 표현은 **폐기**하고 홈·진단 분리.
-2. ~~**7문항 vs 10문항**~~ → **API·타입 정본은 PRD §6.2 `companyProfile`**(필드 목록은 아래 P0.2). 구 MVP 「7문항」표기와 수치 불일치는 **문서 유물**로 처리하고, 확장 문항은 Phase 4 이후 옵션으로 후술.
-3. **중소벤처24**: IP 허용 등 인프라 의존 — PRD대로 Phase 후반 플래그(`sources`에 `smes24` 가드) 권장.
-4. **Supabase Auth와 `users` 테이블**: 문서의 `users`는 `auth.users`와 프로필 분리 패턴과 충돌 가능 — 마이그레이션에서 **트리거·RLS** 명세가 필요(Context7·공식 가이드로 Executor가 보완).
-5. **법적 고지**: PRD §14 문구 + MCP 관측상 「중소기업진흥에 관한 법률」 등 상위 규범 존재 — **UI 고정 컴포넌트**로 노출, 법률 해석은 전문가 검토 전제.
+1. **무료 플랜 한도**: Supabase Free 500MB 초과 시 read-only 트리거 — 공고 원문 전체 저장 금지, 핵심 필드만 저장
+2. **공공 API 안정성**: 기업마당/K-Startup은 즉시 사용 가능, 중소벤처24는 서버 IP 등록 필요 → Phase 후반 활성화
+3. **LLM 환각 방지**: 자격판정 상태값(`likely_eligible` 등)은 룰 엔진이 결정, LLM은 설명 문구만 생성
+4. **데이터 운영 이원화**: 현재 `api_minimal_cache` → 향후 유료 전환 시 `db_centric` 원클릭 전환 구조 필수
+5. **표준 필드명 통일**: 자연어 입력·API 요청·DB 간 필드명 혼재 방지 (`bizAge` → `business_age_years` 등)
 
 ---
 
-## P0 결정 사항 (Planner 확정)
+## 재분석 결과 — 현재 저장소 상태 (2026-05-15 기준)
 
-### P0.1 단일 라우트 표 — 프론트 (정본)
+### 커밋 이력
 
-PRD §8.1을 채택하고 §4.1 화면 나열과 통합. **`/`는 랜딩 전용**, wizard는 **`/diagnosis`**로 고정.
+| 커밋 | 내용 | 날짜 |
+|---|---|---|
+| `05b5837` | docs(readme): 버전 정책 및 변경 이력(0.1.0–0.1.1) 추가 | 2026-05-09 |
+| `e6f2cec` | docs: Executor 피드백에 초기 푸시 기록 추가 | 2026-05-09 |
+| `ef7f9bf` | chore: 초기 계획 문서 및 환경 변수 예시 추가 | 2026-05-09 |
 
-| 화면 | 경로 | App Router 파일 | 다음 단계(네비) |
-|------|------|-----------------|-----------------|
-| 홈·소개 | `/` | `app/page.tsx` | → `/diagnosis` |
-| 진단 wizard + 방식 선택 | `/diagnosis` | `app/diagnosis/page.tsx` | → `/report/quick` 또는 `/search` |
-| 빠른 AI 진단 결과 | `/report/quick` | `app/report/quick/page.tsx` | 상담 CTA 등 |
-| 실제 공고 검색 결과 | `/search` | `app/search/page.tsx` | → `/search/[id]` |
-| 공고 상세·관련 액션 | `/search/[id]` | `app/search/[id]/page.tsx` | 서류·타임라인·계획서 진입 |
-| 계획서 생성 | `/documents/plan` | `app/documents/plan/page.tsx` | query로 `programId` 등 연계 가능 |
-| 심사 점수·품질 | `/evaluate` | `app/evaluate/page.tsx` | 3단계 파이프라인 UI |
-| 내 신청 관리 | `/manage` | `app/manage/page.tsx` | 인증 후(Phase 7 연계) |
-| 관리자 | `/admin` | `app/admin/page.tsx` | Cron·동기화 — 인증·역할 필수 |
+→ **3개 커밋 모두 문서/설정 전용. 실제 Next.js 앱 코드 없음.**
 
-**공고 상세 `[id]` 규칙**: MCP·PRD의 공고 키(`bizinfo:PBLN_…`, `kstartup:177560` 등)를 **URL 안전 문자열로 인코딩**(예: Base64URL 또는 `encodeURIComponent` 단일 세그먼트). Executor는 디코딩 유틸을 `lib/`에 공통 배치.
+### 로컬 미커밋 변경사항
 
-**API Route 경로**: PRD §6.1 유지 — 프론트 경로와 혼동 금지(`app/api/...`).
+| 파일 | 상태 | 비고 |
+|---|---|---|
+| `.cursor/scratchpad.md` | modified | 2026-05-11 재작성, 미커밋 |
+| `README.md` | **deleted** | 로컬에서 삭제됨, 미커밋 — 복구 또는 재작성 필요 |
+| `KakaoTalk_Photo_2026-05-11-18-15-52 001.png` | untracked | 관리자 UI 목업 이미지 |
+| `KakaoTalk_Photo_2026-05-11-18-15-53 002.png` | untracked | 사용자 홈 UI 목업 이미지 |
+| `policyfund_v2_prd_v2_0_free_plan_db_switch_ready.md` | untracked | PRD v2.0 — 미커밋 |
 
-### P0.2 `CompanyProfile` 스키마 정본 (wizard → API 공통)
+### `.env.example` 현재 상태 (확인 완료)
 
-PRD §6.2 요청 예시 필드를 **타입 정본**으로 한다. 구 「7문항」과 달리 API에는 **`region` 포함 총 8 필드**가 명시되어 있으므로 MVP에서도 전원 필수(미입력 시 Zod 검증 차단).
+```env
+BIZINFO_API_KEY=
+PUBLIC_DATA_SERVICE_KEY=
+SMES24_API_KEY=
+SMES24_API_BASE=https://www.smes.go.kr/fnct/apiReqst/extPblancInfo
+SMES24_DEFAULT_STRDT=
+SMES24_DEFAULT_ENDDT=
+ANTHROPIC_API_KEY=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+CRON_SECRET=
+GOV_MCP_JSON_PRETTY=
+PAYMENT_SECRET_KEY=
+```
 
-| 필드 | 타입 | 설명 |
-|------|------|------|
+→ PRD §10과 대체로 일치. **SMES24 관련 변수 3개가 PRD보다 상세하게 이미 추가되어 있음.**
+
+### 결론: 현재 개발 착수 전 상태
+
+- 계획 문서(PRD v2.0, 목업 2장, scratchpad)는 완비
+- Next.js 앱 코드는 전무 — Phase 1 스캐폴딩 착수 필요
+- README.md 삭제 상태 — Phase 1 완료 시점에 함께 재작성 권장
+
+---
+
+## 확정된 설계 원칙 (PRD v2.0 기준)
+
+### 데이터 운영 모드
+
+| 모드 | 설명 | 사용 시점 |
+|---|---|---|
+| `api_minimal_cache` | 공공 API 조회 + 최소 캐시만 Supabase 저장 | **현재 v1 (무료 플랜)** |
+| `db_centric` | 공공 API 전체 정기 수집 후 DB 중심 검색 | 유료 플랜 전환 후 |
+
+### 라우트 구조 (정본)
+
+| 화면 | 경로 | App Router 파일 |
+|---|---|---|
+| 홈 (자연어 검색 + 추천 배너) | `/` | `app/page.tsx` |
+| 조건 확인 · 보완 | `/diagnosis` | `app/diagnosis/page.tsx` |
+| 빠른 AI 진단 결과 | `/report/quick` | `app/report/quick/page.tsx` |
+| 실제 공고 검색 결과 | `/search` | `app/search/page.tsx` |
+| 공고 상세 | `/search/[id]` | `app/search/[id]/page.tsx` |
+| 계획서 생성 | `/documents/plan` | `app/documents/plan/page.tsx` |
+| 심사 점수 예측 | `/evaluate` | `app/evaluate/page.tsx` |
+| 내 신청 관리 | `/manage` | `app/manage/page.tsx` |
+| 서비스 소개 | `/about` | `app/about/page.tsx` |
+| 이용안내 | `/guide` | `app/guide/page.tsx` |
+| 요금제 | `/pricing` | `app/pricing/page.tsx` |
+| 이용약관 | `/terms` | `app/terms/page.tsx` |
+| 개인정보처리방침 | `/privacy` | `app/privacy/page.tsx` |
+| 법적 고지 | `/disclaimer` | `app/disclaimer/page.tsx` |
+| 환불정책 | `/refund-policy` | `app/refund-policy/page.tsx` |
+| 고객센터 | `/contact` | `app/contact/page.tsx` |
+| FAQ | `/faq` | `app/faq/page.tsx` |
+| 로그인 | `/login` | `app/login/page.tsx` |
+| 회원가입 | `/signup` | `app/signup/page.tsx` |
+| 마이페이지 | `/mypage` | `app/mypage/page.tsx` |
+| 관리자 대시보드 | `/admin` | `app/admin/page.tsx` |
+
+### 표준 CompanyProfile 필드 (API·DB 공통)
+
+| 표준 필드명 | 타입 | 설명 |
+|---|---|---|
+| `region` | string | 지역 (예: "경기도") |
+| `city` | string \| null | 시·군·구 |
 | `industry` | string | 업종 |
-| `workers` | number | 직원 수 |
-| `bizAge` | number | 업력(년) |
-| `annualRev` | number | 연매출(만원) |
-| `creditScore` | number | 신용점수 |
-| `taxIssue` | string | 세금 이슈 여부·코드(표준값은 Executor가 상수 테이블로 관리) |
-| `region` | string | 지역 |
-| `reqAmount` | number | 희망 신청 금액 |
+| `business_age_years` | number \| null | 업력 (년) |
+| `employee_count` | number \| null | 직원 수 |
+| `annual_revenue_krw` | number \| null | 연매출 (원 단위 정수) |
+| `credit_score` | number \| null | 신용점수 |
+| `tax_arrears` | boolean \| null | 세금 체납 여부 |
+| `desired_amount_krw` | number \| null | 신청 희망 금액 (원 단위 정수) |
+| `support_purpose` | string \| null | 지원 목적 |
+| `business_type` | string \| null | 개인/법인 구분 |
+| `startup_stage` | string \| null | 창업 단계 |
 
-**Supabase `business_profiles`**: PRD §9.2의 컬럼과 1:1 매핑. `certifications` 등 **추가 프로필**은 선택 저장으로 두고 wizard MVP에서는 비노출 가능.
+### 핵심 API Route 목록
 
-**향후 「10문항」 확장(비목표 / Phase 4 이후 옵션)**: 법인유형·기술기업 인증·R&D 비중 등이 필요해지면 별도 이슈로 필드를 추가하고 API 버전 또는 optional 필드로 확장 — **현 단계 Executor는 스코프 밖**.
+| Route | Method | 설명 |
+|---|---|---|
+| `/api/query/parse` | POST | 자연어 → 조건 추출 (LLM) |
+| `/api/search` | POST | DB/공공 API 기반 공고 검색 |
+| `/api/programs/[id]` | GET | 공고 상세 조회 |
+| `/api/home/recommendations` | GET/POST | 홈 AI 추천 배너 데이터 |
+| `/api/programs/trending` | GET | 마감임박·신규·인기 공고 |
+| `/api/eligibility` | POST | 룰 기반 자격판정 |
+| `/api/documents/checklist` | POST | 서류 체크리스트 생성 |
+| `/api/documents/timeline` | POST | 신청 타임라인 생성 |
+| `/api/documents/plan` | POST | 사업계획서 초안 생성 |
+| `/api/evaluate/startup` | POST | 심사 점수 예측 |
+| `/api/evaluate/quality` | POST | 계획서 품질 측정 |
+| `/api/export/csv` | POST | CSV 파일 생성 |
+| `/api/export/xlsx` | POST | XLSX 파일 생성 |
+| `/api/admin/sync` | POST | 공고 동기화 (Cron + 수동) |
+| `/api/admin/dashboard` | GET | 관리자 KPI 데이터 |
+| `/api/admin/programs` | GET | 관리자 공고 목록 |
+| `/api/admin/programs/[id]` | GET/PATCH | 공고 상세/상태 수정 |
+| `/api/admin/recommendations/home-slots` | GET/PATCH | 홈 배너 슬롯 관리 |
+| `/api/contact` | POST | 고객 문의 접수 |
+| `/api/feedback` | POST | 피드백 수집 |
 
 ---
 
 ## High-level Task Breakdown
 
-각 단계는 **한 번에 하나만** Executor가 수행하고, 성공 기준 충족 후 사용자(Planner 전환) 검증을 받는다.
+각 Phase는 **한 번에 하나만** Executor가 수행하고, 성공 기준 충족 후 사용자 검증 후 다음 단계로 진행한다.
 
-### P0 — 계획 고정 (Planner·사용자)
+---
 
-- [x] **P0.1** 라우트 표 준칙안 작성 — **완료**: 위 「P0 결정 사항」표가 정본 (§4.1 wizard=`page.tsx` 표현 대체).
-- [x] **P0.2** 필드 스키마 확정 — **완료**: §6.2 기준 8 필드, 10문항 확장은 후순위 명시.
+### Phase 1 — 프로젝트 기반 구축 ✅ **완료** (2026-05-15)
 
-### Phase 1 — 프로젝트 기반 (Executor)
+**목표**: Next.js 앱 스캐폴딩 + Vercel 배포 + Supabase 연결 + README 재작성
 
-- [ ] Next.js(App Router)·TS·Tailwind·shadcn 초기화, Vercel 연결, Supabase 프로젝트·Auth 연결  
-  - **성공 기준**: 배포 URL에서 빌드 성공, 로그인 플로우 스모크(이메일 매직링크 등 선택 확정)
-- [ ] 환경변수 템플릿 `.env.example`(서버 전용 vs `NEXT_PUBLIC_*` 분리)  
-  - **성공 기준**: PRD §10과 키 이름 일치
+#### 태스크
 
-### Phase 2 — gov_support_mcp 이식 (Executor)
+- [x] **1-1** `create-next-app` 실행 (Next.js 16.2.6 · App Router · TypeScript · Tailwind v4)
+- [x] **1-2** shadcn/ui v4 초기화 및 기본 컴포넌트 설치 (Button, Card, Input, Badge, Dialog 등 13개)
+- [x] **1-3** `.env.example` 검토 완료, `.env.local` 생성 (Supabase anon key 등록)
+- [x] **1-4** `lib/supabase/client.ts`, `server.ts`, `admin.ts` 생성 + Supabase 프로젝트 생성 (hwqsxarzgodpsvwahzae, ap-northeast-2)
+- [x] **1-5** 공통 레이아웃 `Header.tsx` · `Footer.tsx` + 21개 페이지 플레이스홀더 생성
+- [ ] **1-6** Vercel 프로젝트 연결 + 환경변수 등록 + 첫 배포 성공 확인 ← **사용자 확인 필요**
+- [x] **1-7** `README.md` 재작성 (PRD v2.0 기준, v0.2.0 변경 이력 포함)
+- [ ] **1-8** 변경사항 커밋 (`v0.2.0` 마일스톤 태깅) ← **사용자 확인 후 진행**
 
-- MCP 의존성 제거, `lib/gov-support/` 매핑(PR §3.2), import 경로 수정  
-  - **성공 기준**: `npm run build` 성공, 단위 스모크(통합 검색 함수 호출)
-- `store.ts` → Supabase 구현체, 인터페이스 동일 유지  
-  - **성공 기준**: alert/benefit CRUD 최소 통합 테스트 또는 수동 검증 시나리오 문서화
+**성공 기준**
+- ✅ `npm run build` 성공 (21개 페이지 빌드 확인)
+- ⬜ Vercel 배포 URL에서 홈 화면 노출 확인
+- ✅ `README.md` 존재 (삭제 상태 해소)
+- ✅ Supabase 프로젝트 생성 + anon key 연결 확인
 
-### Phase 3 — 공고 DB·동기화 (Executor)
+---
 
-- `support_programs` 마이그레이션, `/api/admin/sync`, Cron 시크릿  
-  - **성공 기준**: 동기화 1회 실행 후 샘플 N건 조회
+### Phase 2 — 핵심 DB 스키마 구축
 
-### Phase 4 — 검색·자격·wizard 분기 (Executor)
+**목표**: Supabase에 서비스 운영에 필요한 핵심 테이블 마이그레이션
 
-- `/api/search`, `/api/eligibility`, 방식 선택 UI, `/search` 결과  
-  - **성공 기준**: 실제 공고 목록 + 자격 상태 표시, PRD §5.1 플로우 E2E 1회
+#### 태스크
 
-### Phase 5 — 문서 파이프라인 (Executor)
+- [ ] **2-1** `support_programs` 테이블 생성 + 검색용 인덱스 (status, visibility_status, application_end_date)
+- [ ] **2-2** `business_profiles` 테이블 생성
+- [ ] **2-3** `diagnoses`, `eligibility_checks`, `generated_documents` 테이블 생성
+- [ ] **2-4** `search_sessions`, `search_session_results` 테이블 생성
+- [ ] **2-5** `home_recommendation_slots`, `program_impressions` 테이블 생성
+- [ ] **2-6** `customer_inquiries`, `feedback`, `policy_documents` 테이블 생성
+- [ ] **2-7** `system_settings` 테이블 생성 + `data_mode = 'api_minimal_cache'` 기본값 삽입
+- [ ] **2-8** `program_sync_logs`, `api_sync_logs` 테이블 생성
+- [ ] **2-9** `file_exports` 테이블 생성
+- [ ] **2-10** `admin_activity_logs`, `system_alerts` 테이블 생성
+- [ ] **2-11** 전체 테이블 RLS 정책 적용 (PRD §16.10 기준)
 
-- `/api/documents/*`, `generated_documents` 저장  
-  - **성공 기준**: 체크리스트·타임라인·계획서 초안 각 1건 생성·저장
+**성공 기준**
+- Supabase 대시보드에서 전체 테이블 확인
+- RLS 적용 확인 (본인 데이터만 접근, 공개 테이블 읽기 허용)
+- `system_settings.data_mode = 'api_minimal_cache'` 기본값 확인
 
-### Phase 6 — 심사 지원 (Executor)
+---
 
-- `/api/evaluate/*`, 3단계 파이프라인 UI  
-  - **성공 기준**: 품질 점수 → 수정 권고 → 심사 예측 순서 재현
+### Phase 3 — 자연어 검색 UX 핵심 흐름
 
-### Phase 7 — 관리·BM (Executor·후순위)
+**목표**: 홈 화면 자연어 검색 → 조건 추출 → 조건 확인 카드 흐름 구현
 
-- manage 라우트·대시보드, 요금제·과금은 PRD Phase 8 범위에서 별도 컷
+#### 태스크
+
+- [ ] **3-1** 홈 화면 (`/`) UI 구현 — Hero + 자연어 검색창 + 조건 추출 칩 (목업 002.png 기준)
+- [ ] **3-2** `lib/llm/claude.ts`, `lib/query/parseNaturalLanguage.ts` 구현
+- [ ] **3-3** `/api/query/parse` 구현 — LLM 자연어 조건 추출 (표준 필드명 기준)
+- [ ] **3-4** 조건 확인 카드 UI (`/diagnosis`) — 추출값 확인·수정 + 부족 정보 보완
+- [ ] **3-5** 방식 선택 UI — "빠른 AI 진단 (3초)" vs "실제 공고 맞춤 검색 (10~20초)"
+- [ ] **3-6** 빠른 AI 진단 결과 화면 (`/report/quick`) — 점수·등급·법적 고지 문구
+
+**성공 기준**
+- 자연어 입력 → 조건 추출 → 카드 표시 흐름 E2E 작동
+- 추출 조건 수정 가능
+- 빠른 진단 결과 화면에 법적 고지 문구 필수 표시
+- 금액 표시는 `formatKRW()` 포맷터 적용
+
+---
+
+### Phase 4 — 공고 DB 동기화 + 추천 배너
+
+**목표**: 공공 API 연동 + Supabase 저장 + 홈 추천 배너 실제 데이터 표시
+
+#### 태스크
+
+- [ ] **4-1** `lib/gov-support/clients/bizinfo.ts` — 기업마당 API 클라이언트
+- [ ] **4-2** `lib/gov-support/clients/kstartup.ts` — K-Startup API 클라이언트
+- [ ] **4-3** `lib/gov-support/core/dedup.ts` — Jaccard 중복 제거 (≥0.75 임계값)
+- [ ] **4-4** `lib/gov-support/core/cache.ts` — 인메모리 TTL 캐시 (공고: 1h, 자격판정: 30m)
+- [ ] **4-5** `lib/gov-support/smesEncoding.ts` — 이중 인코딩 방지 유틸
+- [ ] **4-6** `/api/admin/sync` — 공고 수집 + 정규화 + dedup + Supabase 저장 + `program_sync_logs` 기록
+- [ ] **4-7** `/api/home/recommendations` — 추천 점수 산정 + 배너 데이터 반환
+- [ ] **4-8** `/api/programs/trending` — 마감임박·신규·인기 공고
+- [ ] **4-9** 홈 화면 AI 추천 지원사업 배너 카드 컴포넌트 (실제 DB 데이터, 목업 002.png 기준)
+
+**성공 기준**
+- 관리자 수동 동기화 1회 후 `support_programs`에 샘플 공고 저장 확인
+- 홈 배너에 실제 공고 카드 3~6개 표시 (LLM 생성 공고 없음)
+- 배너 조회 조건: `status in ('active','closing_soon') AND visibility_status = 'visible'`
+
+---
+
+### Phase 5 — 실제 공고 검색 + 자격판정
+
+**목표**: DB 기반 공고 검색 + 룰 기반 자격판정 파이프라인
+
+#### 태스크
+
+- [ ] **5-1** `lib/gov-support/tools/unifiedSearch.ts` — 통합 검색 (DB 우선, API fallback)
+- [ ] **5-2** `/api/search` — 조건 기반 공고 검색·필터·정렬 + `search_sessions` 저장
+- [ ] **5-3** 공고 검색 결과 화면 (`/search`) — 카드 목록 + 자격 상태 배지
+- [ ] **5-4** `lib/gov-support/tools/eligibility.ts` — 룰 기반 자격판정 엔진 (PRD §21.5 기준)
+- [ ] **5-5** `/api/eligibility` — 룰 판정 + LLM 설명 보완 + `eligibility_checks` 저장
+- [ ] **5-6** 공고 상세 화면 (`/search/[id]`) — 공고 정보 + 자격판정 결과 + 법적 고지
+
+**성공 기준**
+- 조건 입력 → 공고 목록 + `likely_eligible` / `review_needed` / `likely_ineligible` / `unknown` 배지 표시
+- LLM이 자격판정 상태값을 직접 결정하지 않음 (룰 엔진 결정 후 LLM 설명만)
+- 모든 결과 화면에 법적 고지 문구 표시
+
+---
+
+### Phase 6 — 서류·타임라인·사업계획서 생성
+
+**목표**: 공고 선택 후 신청 준비 문서 일괄 생성 + `generated_documents` 저장
+
+#### 태스크
+
+- [ ] **6-1** `lib/gov-support/tools/documentChecklist.ts` — 표준 서류 DB(15종) 매칭
+- [ ] **6-2** `lib/gov-support/tools/timeline.ts` — 마감일 역산 9단계 타임라인
+- [ ] **6-3** `lib/gov-support/tools/draftTools.ts` — 사업계획서 초안 (`gov` / `psst` 템플릿)
+- [ ] **6-4** `/api/documents/checklist`, `/api/documents/timeline`, `/api/documents/plan` 구현
+- [ ] **6-5** 계획서 생성 화면 (`/documents/plan`) — 템플릿 선택 + 생성 + 미리보기
+- [ ] **6-6** `generated_documents` 저장
+
+**성공 기준**
+- 공고 선택 → 서류 체크리스트·타임라인·계획서 초안 각 1건 생성·저장 확인
+- gov 템플릿(6섹션 공문서) / psst 템플릿(PSST 4축 12소섹션) 각각 작동
+
+---
+
+### Phase 7 — 심사 점수 예측 + CSV/XLSX 내보내기
+
+**목표**: 계획서 품질 측정 → 심사 점수 예측 → 파일 내보내기
+
+#### 태스크
+
+- [ ] **7-1** `lib/gov-support/tools/assessQuality.ts` — PSST 품질 측정 (30/30/20/20)
+- [ ] **7-2** `lib/gov-support/tools/evaluateStartup.ts` — 루브릭 심사 점수 (100점 + 가점 5점)
+- [ ] **7-3** `/api/evaluate/quality`, `/api/evaluate/startup` 구현
+- [ ] **7-4** 심사 점수 예측 화면 (`/evaluate`) — 루브릭 점수 + 보완 코멘트 + 예상 질문
+- [ ] **7-5** `/api/export/csv`, `/api/export/xlsx` 구현 (Google Sheets API 미사용)
+- [ ] **7-6** `file_exports` 저장 + 24시간 만료 처리
+
+**성공 기준**
+- 계획서 → 품질 점수 → 심사 점수 예측 순서 E2E 재현
+- CSV/XLSX 다운로드 작동 확인
+- Google Sheets API 미사용 확인
+
+---
+
+### Phase 8 — 운영 필수 페이지 + 관리자 MVP
+
+**목표**: 법적 필수 페이지 전체 + 관리자 콘솔 기본 기능 (목업 001.png 기준)
+
+#### 태스크
+
+- [ ] **8-1** `/about`, `/guide`, `/terms`, `/privacy`, `/disclaimer`, `/refund-policy`, `/contact`, `/faq` 페이지 구현
+- [ ] **8-2** 관리자 공통 레이아웃 (좌측 사이드바 + 상단 헤더, 목업 001.png 기준)
+- [ ] **8-3** 관리자 대시보드 KPI 카드 (`/admin/dashboard`) — 총 공고수·동기화·배너 노출·문의·결제·오류
+- [ ] **8-4** 공고 QA 목록·상세·동기화 관리 (`/admin/programs/*`)
+- [ ] **8-5** 홈 추천 배너 슬롯 관리 (`/admin/recommendations/home-slots`)
+- [ ] **8-6** 문의·피드백 관리 (`/admin/inquiries`, `/admin/feedback`)
+- [ ] **8-7** 콘텐츠 관리 (`/admin/content/*`) — FAQ·이용안내·정책문서
+- [ ] **8-8** 운영 모드 설정 (`/admin/settings`) — `api_minimal_cache` ↔ `db_centric` 전환 UI
+
+**성공 기준**
+- 법적 필수 페이지 전체 접근 가능
+- 관리자 로그인 후 대시보드 KPI 확인 가능
+- 수동 동기화 버튼 작동 + `program_sync_logs` 기록 확인
+
+---
+
+### Phase 9 — 로그인·회원가입·마이페이지
+
+**목표**: Supabase Auth 기반 인증 흐름 + 사용자 프로필 관리
+
+#### 태스크
+
+- [ ] **9-1** 로그인 (`/login`), 회원가입 (`/signup`), 비밀번호 재설정 페이지
+- [ ] **9-2** Supabase Auth 이메일/소셜 로그인 연동
+- [ ] **9-3** 마이페이지 (`/mypage`) — 프로필·사용량·생성 문서 확인
+- [ ] **9-4** 내 신청 관리 (`/manage`) — 관심 공고·알림 프로파일 CRUD
+
+**성공 기준**
+- 회원가입 → 로그인 → 마이페이지 E2E 흐름 작동
+- `business_profiles` 저장·수정 확인
+
+---
+
+### Phase 10 — 결제·구독 (선택 / 후순위)
+
+**목표**: 요금제 도입 및 결제 연동 (상용 서비스 전환 시)
+
+#### 태스크
+
+- [ ] **10-1** 요금제 화면 (`/pricing`)
+- [ ] **10-2** 토스페이먼츠 또는 포트원 결제 연동
+- [ ] **10-3** `subscriptions`, `payments`, `usage_events` 운영
+- [ ] **10-4** 사용량 제한 미들웨어
+
+**성공 기준**
+- 결제 → 구독 상태 업데이트 → 기능 개방 흐름 작동
 
 ---
 
 ## Project Status Board
 
-- [x] P0 라우트·프로필 스키마 확정 (Planner 완료)
-- [x] Git 원격·로컬 클론: `https://github.com/boam79/policy_fund` → `/Users/parkjaemin/Dev/policy_fund`
-- [ ] Phase 1 스캐폴딩 (Executor 다음 작업)
-- [ ] Phase 2 MCP 이식 (미착수)
-- [ ] Phase 3~8 (미착수)
+### 완료
+
+- [x] PRD v2.0 확정 (PF-WEB-001 v2.0, 2026-05-11)
+- [x] UI/UX 목업 확정 (관리자 목업 001.png + 사용자 홈 목업 002.png)
+- [x] 라우트 구조 확정 (PRD §8.1 기준)
+- [x] DB 스키마 설계 확정 (PRD §9 기준, 20+ 테이블)
+- [x] 데이터 운영 모드 확정 (`api_minimal_cache` 기본, `db_centric` 전환 준비)
+- [x] `.env.example` 작성 완료 (SMES24 상세 변수 포함)
+- [x] `.gitignore` 설정 완료
+- [x] Git 저장소 초기화 + 원격 연결 (`https://github.com/boam79/policy_fund`)
+- [x] Scratchpad Planner 재수립 (2026-05-15)
+- [x] **Phase 1** — 프로젝트 기반 구축 완료 (2026-05-15)
+  - Next.js 16.2.6 (App Router · TypeScript · Tailwind v4) 스캐폴딩
+  - shadcn/ui v4 초기화 (13개 컴포넌트)
+  - Supabase 프로젝트 생성 (`hwqsxarzgodpsvwahzae`, ap-northeast-2)
+  - `lib/supabase/client.ts`, `server.ts`, `admin.ts` 구현
+  - Header · Footer 공통 레이아웃
+  - 홈 화면 UI (Hero · 추천 배너 · 4단계 흐름 · CTA)
+  - 21개 페이지 플레이스홀더
+  - README.md 재작성
+
+### 진행 중
+
+- [ ] **Phase 1-6** — Vercel 프로젝트 연결 + 환경변수 등록 ← **사용자 확인 필요**
+- [ ] **Phase 1-8** — v0.2.0 커밋 + 태깅 ← **사용자 확인 후 진행**
+
+### 대기 중 (우선순위 순)
+
+- [ ] Phase 2 — DB 스키마 구축 ← **다음 착수**
+- [ ] Phase 3 — 자연어 검색 UX
+- [ ] Phase 4 — 공고 동기화 + 추천 배너
+- [ ] Phase 5 — 공고 검색 + 자격판정
+- [ ] Phase 6 — 서류·타임라인·계획서 생성
+- [ ] Phase 7 — 심사 점수 + CSV/XLSX 내보내기
+- [ ] Phase 8 — 운영 필수 페이지 + 관리자 MVP
+- [ ] Phase 9 — 인증·마이페이지
+- [ ] Phase 10 — 결제·구독 (후순위)
 
 ---
 
 ## Current Status / Progress Tracking
 
-- **모드**: Planner — P0 완료. 초기 계획·환경 변수 템플릿이 본 레포에 커밋 예정.
-- **저장소**: 원격 `https://github.com/boam79/policy_fund` · 로컬 `/Users/parkjaemin/Dev/policy_fund`
-- **비밀**: API 키는 **커밋 금지**. 루트 `.env.example`만 버전 관리하고, 실제 값은 각자 `.env.local`에 둠.
-- **다음 Executor 단일 마일스톤**: Phase 1 — `create-next-app`(App Router·TS·Tailwind)·플레이스홀더 `/`, `/diagnosis`·로컬 `npm run dev` 성공.
+- **현재 모드**: Executor — Phase 1 완료, 사용자 검증 대기
+- **저장소**: `https://github.com/boam79/policy_fund` · 로컬 `/Users/parkjaemin/Dev/policy_fund`
+- **저장소 버전**: `0.2.0` (Phase 1 완료 — 커밋 전 사용자 확인 필요)
+- **Supabase 프로젝트**: `hwqsxarzgodpsvwahzae` (policyfund-ai-v2, ap-northeast-2, Free Plan)
+- **데이터 운영 모드**: `api_minimal_cache`
+- **빌드 상태**: ✅ `npm run build` 성공 (21개 페이지)
+- **Service Role Key**: ⚠️ Supabase 대시보드에서 직접 발급 후 `.env.local`에 입력 필요
+- **다음 마일스톤**: Phase 2 — DB 스키마 구축
 
 ---
 
 ## Executor's Feedback or Assistance Requests
 
-- **2026-05-09**: 초기 커밋 `ef7f9bf`를 `origin/main`에 푸시 완료(SSH). 저장소는 기존에 비어 있었음.
-
----
-
-## API 자격증명 배치 (Planner 메모 — 실제 값은 저장 금지)
-
-사용자가 DM 외 채널로 제공한 키는 **이 파일이나 Git에 절대 넣지 않는다.** 로컬은 `.env.local`, 프로덕션은 Vercel Env에만 설정한다.
-
-| 용도 | 권장 환경변수 (PRD §10 정렬) | 구현 시 참고 |
-|------|------------------------------|--------------|
-| 기업마당 OpenAPI | `BIZINFO_API_KEY` | 서버 Route Handler에서만 사용 |
-| 공공데이터포털(인증키) | `PUBLIC_DATA_SERVICE_KEY` | URL 인코딩된 키를 붙여넣을 경우 `.env`에는 **디코딩된 원문** 또는 포털 안내에 맞는 형식으로 저장(이중 인코딩 주의) |
-| 중소벤처24 외부공고 API | `SMES24_API_KEY` 또는 `SMES24_TOKEN` | 엔드포인트는 `extPblancInfo` 등 기관 명세에 맞춤; 쿼리 `strDt`·`endDt`는 `YYYYMMDD`. IP 허용·토큰 유효기간은 기관 정책 확인 |
-
-**보안 사고 대응 (2026-05-09)**: 동일 키가 채팅·로그에 노출된 경우 **즉시 폐기·재발급** 후 Vercel·로컬 env 동시 교체.
+- **2026-05-09**: 초기 커밋 `ef7f9bf`를 `origin/main`에 푸시 완료(SSH).
+- **2026-05-11**: Scratchpad 최초 재작성 (PRD v2.0 기반).
+- **2026-05-15**: Planner 재분석 — 저장소 상태 확인, README.md 삭제 이슈 발견, 계획 전면 갱신.
+- **2026-05-15**: Executor — Phase 1 전체 완료. `npm run build` 성공 확인. Vercel 연결은 사용자가 직접 진행 필요.
+  - ⚠️ **사용자 확인 필요**: Supabase 대시보드 > Settings > API 에서 `service_role` 키를 `.env.local`의 `SUPABASE_SERVICE_ROLE_KEY`에 입력하세요.
+  - ⚠️ **Vercel 배포**: `vercel` CLI 또는 대시보드에서 GitHub 연결 후 환경변수 등록이 필요합니다.
+  - 확인 완료 후 v0.2.0 커밋·태깅을 진행합니다.
 
 ---
 
 ## Lessons
 
-- **P0 (2026-05-09)**: 프론트 라우트 정본은 PRD §8.1 + 홈(`/`)과 wizard(`/diagnosis`) 분리. API 경로 §6.1과 혼동 금지. `CompanyProfile`은 §6.2 **8필드**가 계약 정본.
-- **비밀 관리**: API 키는 채팅에 붙여 넣지 말 것. 스크래치패드·README·커밋 금지. 노출 시 재발급이 원칙.
-- 공공 API 추천 MCP는 **나라장터** 등 정책자금과 무관 후보도 섞이므로, **제목·태그로 관련성 필터**하는 후처리가 필요할 수 있음.
-- `gov_support_mcp` 통합 검색은 **bizinfo+kstartup만으로도** 스모크 성공 — SMES24는 인프라 준비 후 단계적 활성화가 리스크 최소.
-- Next.js 공식 문서상 Route Handler에서 `process.env` 사용 시 **클라이언트 번들에 포함되지 않음**(서버 모듈 한정) — PRD 보안 원칙과 정합.
-- 감가상각 MCP는 정책자금 **코어 플로우와 분리**하는 것이 스코프 관리에 유리.
-
----
-
-## Planner 종료 판정 기준 (전체 프로젝트)
-
-- PRD §5~§9 기능이 스테이징에서 재현되고, §14 고지가 모든 결과 화면에 노출되며, 결제(Phase 8)는 선택 과제로 분리 해도 됨.
+- **비밀 관리**: API 키는 채팅·커밋·이 파일에 절대 기록 금지. 로컬은 `.env.local`, 프로덕션은 Vercel Env에만 설정.
+- **LLM 역할 제한**: LLM은 공고 검색·생성 금지. 조건 추출·설명 보완·계획서 초안 생성에만 사용.
+- **데이터 원칙**: 홈 추천 배너는 반드시 실제 공공 데이터 기반. LLM 생성 공고 샘플 사용 금지.
+- **무료 플랜 한도**: Supabase Free 500MB 한도 내 설계. 공고 원문 전체 저장 금지. CSV/XLSX는 임시 생성 후 삭제.
+- **중소벤처24**: 서버 IP 등록 전 타임아웃 — Phase 4에서 bizinfo+kstartup 우선 활성화, SMES24는 Phase 후반 플래그로 관리.
+- **SMES24 환경변수**: `.env.example`에 `SMES24_API_BASE`, `SMES24_DEFAULT_STRDT`, `SMES24_DEFAULT_ENDDT` 이미 추가됨 — 코드 구현 시 그대로 사용.
+- **README.md 삭제 주의**: 로컬에서 삭제됨, Phase 1 완료 시 PRD v2.0 기준으로 재작성 필요. ✅ 해소됨.
+- **create-next-app 충돌**: 기존 파일이 있으면 `--yes`로도 실패. 임시 폴더에서 생성 후 rsync로 병합하는 방식 사용.
+- **shadcn/ui v4 + base-ui**: `asChild` prop을 지원하지 않음. `buttonVariants()` + `cn()`을 Link에 직접 적용해야 함.
+- **toast deprecated**: shadcn v4에서 toast 대신 sonner 사용.
+- **Supabase MCP**: `confirm_cost_id` 파라미터명 사용 (구버전 `confirmation_id` 아님).
+- **Executor 원칙**: 한 번에 한 태스크만 실행. 성공 기준 확인 후 사용자 검증 요청. 완료 전 다음 태스크 착수 금지.
