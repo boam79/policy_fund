@@ -39,6 +39,35 @@ export interface GeminiTextOptions {
   temperature?: number
 }
 
+function parseLooseJson<T>(raw: string): T | null {
+  const candidates: string[] = []
+  const trimmed = raw.trim()
+  candidates.push(trimmed)
+
+  if (trimmed.startsWith('```')) {
+    const withoutFence = trimmed
+      .replace(/^```(?:json)?/i, '')
+      .replace(/```$/i, '')
+      .trim()
+    candidates.push(withoutFence)
+  }
+
+  const firstBrace = trimmed.indexOf('{')
+  const lastBrace = trimmed.lastIndexOf('}')
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    candidates.push(trimmed.slice(firstBrace, lastBrace + 1))
+  }
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as T
+    } catch {
+      // continue
+    }
+  }
+  return null
+}
+
 /**
  * 단순 텍스트 응답 생성 (비스트리밍)
  * Context7 패턴: ai.models.generateContent → response.text
@@ -89,24 +118,28 @@ export async function geminiJSON<T = unknown>(
     temperature = 0.1,
   } = options
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config: {
-      systemInstruction,
-      maxOutputTokens,
-      temperature,
-      responseMimeType: 'application/json',
-      responseSchema: schema,
-    },
-  })
+  let lastRaw = ''
 
-  const raw = response.text ?? ''
-  try {
-    return JSON.parse(raw) as T
-  } catch {
-    throw new Error(`Gemini JSON 파싱 실패: ${raw.slice(0, 200)}`)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        systemInstruction,
+        maxOutputTokens,
+        temperature: attempt === 0 ? temperature : 0,
+        responseMimeType: 'application/json',
+        responseSchema: schema,
+      },
+    })
+
+    lastRaw = response.text ?? ''
+    const parsed = parseLooseJson<T>(lastRaw)
+    if (parsed !== null) return parsed
   }
+
+  console.error('[geminiJSON] JSON parse failed after retry', lastRaw.slice(0, 400))
+  throw new Error('AI 응답 형식이 일시적으로 불안정합니다. 다시 시도해주세요.')
 }
 
 /**

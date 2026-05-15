@@ -111,7 +111,8 @@ const SYSTEM_INSTRUCTION = `당신은 정책자금 전문 AI 컨설턴트입니�
 4. confidence는 0~1 사이 값입니다. 명확히 언급 → 0.9+, 추론 → 0.5~0.8, 불확실 → 0.3 미만.
 5. missing_important에는 공고 검색에 중요하지만 언급되지 않은 항목만 포함하세요.
    (지역·업종·업력 중 누락 항목 우선)
-6. summary는 추출된 내용을 1~2문장으로 한국어로 요약하세요.`
+6. summary는 추출된 내용을 1~2문장으로 한국어로 요약하세요.
+7. source_text는 반드시 짧게(최대 20자) 작성하세요.`
 
 /**
  * 자연어 쿼리에서 기업 조건 추출
@@ -121,7 +122,7 @@ export async function parseNaturalLanguage(query: string): Promise<ParseNLResult
 
   const result = await geminiJSON<ParseNLResult>(prompt, RESPONSE_SCHEMA, {
     systemInstruction: SYSTEM_INSTRUCTION,
-    maxOutputTokens: 1024,
+    maxOutputTokens: 1536,
     temperature: 0.1,
   })
 
