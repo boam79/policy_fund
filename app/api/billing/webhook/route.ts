@@ -12,6 +12,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const webhookSecret = process.env.TOSS_WEBHOOK_SECRET
+    if (!webhookSecret) {
+      return NextResponse.json(
+        { received: false, message: '웹훅 비밀키 미설정' },
+        { status: 503 }
+      )
+    }
+
+    const receivedSecret = request.headers.get('x-webhook-secret')
+    if (receivedSecret !== webhookSecret) {
+      return NextResponse.json(
+        { received: false, message: '웹훅 인증 실패' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     const { eventType, data } = body
 
@@ -22,7 +38,25 @@ export async function POST(request: NextRequest) {
 
     // 결제 취소·환불 처리
     if (eventType === 'PAYMENT_STATUS_CHANGED') {
-      const { orderId, status } = data
+      const { orderId, status, paymentKey } = data ?? {}
+      if (!orderId || !status || !paymentKey) {
+        return NextResponse.json({ received: false, message: '웹훅 데이터 누락' }, { status: 400 })
+      }
+
+      // 토스 API에 재조회해 orderId/status를 교차검증
+      const verifyRes = await fetch(`https://api.tosspayments.com/v1/payments/${encodeURIComponent(paymentKey)}`, {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${process.env.TOSS_SECRET_KEY}:`).toString('base64')}`,
+        },
+      })
+      if (!verifyRes.ok) {
+        return NextResponse.json({ received: false, message: '웹훅 검증 실패' }, { status: 400 })
+      }
+      const verified = await verifyRes.json()
+      if (verified?.orderId !== orderId || verified?.status !== status) {
+        return NextResponse.json({ received: false, message: '웹훅 데이터 불일치' }, { status: 400 })
+      }
+
       if (status === 'CANCELED') {
         await supabase.from('payments').update({ status: 'canceled' }).eq('order_id', orderId)
         // 구독도 취소

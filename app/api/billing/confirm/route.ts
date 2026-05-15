@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import type { PlanId } from '@/lib/billing/plans'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,10 +14,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { paymentKey, orderId, amount, plan, userId } = await request.json()
+    const serverClient = await createServerClient()
+    const {
+      data: { user },
+    } = await serverClient.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
+    }
 
-    if (!paymentKey || !orderId || !amount || !plan || !userId) {
+    const { paymentKey, orderId, amount, plan } = await request.json()
+
+    if (!paymentKey || !orderId || !amount || !plan) {
       return NextResponse.json({ error: '필수 파라미터 누락' }, { status: 400 })
+    }
+    if (!['starter', 'pro', 'premium'].includes(String(plan))) {
+      return NextResponse.json({ error: '유효하지 않은 플랜입니다.' }, { status: 400 })
     }
 
     // 1. 토스페이먼츠 서버 확인
@@ -48,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     // payments 저장
     const { data: paymentRecord } = await supabase.from('payments').insert({
-      user_id: userId,
+      user_id: user.id,
       amount_krw: amount,
       status: 'done',
       payment_provider: 'toss',
@@ -60,8 +72,8 @@ export async function POST(request: NextRequest) {
 
     // subscriptions upsert
     await supabase.from('subscriptions').upsert({
-      user_id: userId,
-      plan_code: plan as string,
+      user_id: user.id,
+      plan_code: plan as PlanId,
       status: 'active',
       current_period_start: now.toISOString(),
       current_period_end: periodEnd.toISOString(),
@@ -71,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     // payments에 subscription_id 연결
     if (paymentRecord) {
-      const { data: sub } = await supabase.from('subscriptions').select('id').eq('user_id', userId).single()
+      const { data: sub } = await supabase.from('subscriptions').select('id').eq('user_id', user.id).single()
       if (sub) await supabase.from('payments').update({ subscription_id: sub.id }).eq('id', paymentRecord.id)
     }
 

@@ -12,6 +12,7 @@ import {
   toBusinessConditions,
 } from '@/lib/query/parseNaturalLanguage'
 import type { ApiResponse } from '@/types'
+import { takeRateLimit } from '@/lib/security/rateLimit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -23,6 +24,14 @@ interface ParseRequestBody {
 export async function POST(req: NextRequest): Promise<NextResponse> {
   let queryText = ''
   try {
+    const rate = takeRateLimit(req, 'api:query-parse', { windowMs: 60_000, max: 20 })
+    if (!rate.ok) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } }
+      )
+    }
+
     const body = (await req.json()) as ParseRequestBody
     const { query } = body
     queryText = typeof query === 'string' ? query.trim() : ''

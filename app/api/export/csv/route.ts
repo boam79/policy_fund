@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
+import { isAdminUser } from '@/lib/auth/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,10 @@ function toCsv(rows: Record<string, unknown>[]): string {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await isAdminUser())) {
+      return Response.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
+    }
+
     const body = await request.json()
     const { type = 'programs', filters = {} } = body
 

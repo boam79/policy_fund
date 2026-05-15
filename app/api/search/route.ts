@@ -9,11 +9,20 @@ import { checkEligibility } from '@/lib/gov-support/tools/eligibility'
 import type { CompanyProfile } from '@/lib/gov-support/tools/eligibility'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
+import { takeRateLimit } from '@/lib/security/rateLimit'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    const rate = takeRateLimit(request, 'api:search', { windowMs: 60_000, max: 40 })
+    if (!rate.ok) {
+      return Response.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } }
+      )
+    }
+
     const body = await request.json()
     const {
       region,
@@ -43,16 +52,38 @@ export async function POST(request: NextRequest) {
       limit,
     }
 
-    // 공고 검색 (0건이면 keyword/support_purpose 완화 재시도)
+    // 공고 검색 (0건이면 조건을 점진 완화해 여정 단절 방지)
     let result = await unifiedSearch(searchParams)
-    let fallbackApplied: 'drop_keyword' | null = null
+    const fallbackApplied: string[] = []
+
     if (result.total === 0 && (keyword || support_purpose)) {
       result = await unifiedSearch({
         ...searchParams,
         keyword: undefined,
         support_purpose: undefined,
       })
-      if (result.total > 0) fallbackApplied = 'drop_keyword'
+      if (result.total > 0) fallbackApplied.push('drop_keyword')
+    }
+
+    if (result.total === 0 && city) {
+      result = await unifiedSearch({
+        ...searchParams,
+        city: undefined,
+        keyword: undefined,
+        support_purpose: undefined,
+      })
+      if (result.total > 0) fallbackApplied.push('drop_city')
+    }
+
+    if (result.total === 0 && industry) {
+      result = await unifiedSearch({
+        ...searchParams,
+        city: undefined,
+        industry: undefined,
+        keyword: undefined,
+        support_purpose: undefined,
+      })
+      if (result.total > 0) fallbackApplied.push('drop_industry')
     }
 
     const profile: CompanyProfile = {
@@ -117,7 +148,7 @@ export async function POST(request: NextRequest) {
       page,
       limit,
       source: result.source,
-      fallback_applied: fallbackApplied,
+      fallback_applied: fallbackApplied.length > 0 ? fallbackApplied : null,
     })
   } catch (e: unknown) {
     console.error('[api/search]', e)

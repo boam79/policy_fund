@@ -40,6 +40,31 @@ export interface ParseNLResult {
   raw_query: string
 }
 
+const INDUSTRY_NORMALIZE_MAP: Record<string, string> = {
+  manufacturing: '제조업',
+  manufacturer: '제조업',
+  service: '서비스업',
+  services: '서비스업',
+  'it': 'IT/소프트웨어',
+  software: 'IT/소프트웨어',
+  tech: 'IT/소프트웨어',
+  technology: 'IT/소프트웨어',
+  retail: '유통/도소매',
+  distribution: '유통/도소매',
+  food: '음식/외식',
+  restaurant: '음식/외식',
+  construction: '건설업',
+  agriculture: '농업',
+  fishery: '수산업',
+}
+
+function normalizeIndustryValue(value: string): string {
+  const raw = value.trim()
+  if (!raw) return raw
+  const lower = raw.toLowerCase()
+  return INDUSTRY_NORMALIZE_MAP[lower] ?? raw
+}
+
 const REGION_ALIASES: Record<string, string[]> = {
   서울: ['서울', '서울특별시'],
   경기: ['경기', '경기도'],
@@ -173,7 +198,15 @@ export async function parseNaturalLanguage(query: string): Promise<ParseNLResult
     temperature: 0.1,
   })
 
-  return { ...result, raw_query: query }
+  const normalizedConditions = { ...result.conditions }
+  if (normalizedConditions.industry?.value) {
+    normalizedConditions.industry = {
+      ...normalizedConditions.industry,
+      value: normalizeIndustryValue(String(normalizedConditions.industry.value)),
+    }
+  }
+
+  return { ...result, conditions: normalizedConditions, raw_query: query }
 }
 
 /**
@@ -200,7 +233,7 @@ export function parseNaturalLanguageFallback(query: string): ParseNLResult {
 
   const industry = INDUSTRY_KEYWORDS.find((k) => query.includes(k))
   if (industry) {
-    conditions.industry = { value: industry, confidence: 0.7, source_text: industry }
+    conditions.industry = { value: normalizeIndustryValue(industry), confidence: 0.7, source_text: industry }
   }
 
   const ageUnderMatch = query.match(/(\d+(?:\.\d+)?)\s*년\s*미만/u)

@@ -13,11 +13,20 @@ import {
   type CompanyProfile,
 } from '@/lib/gov-support/tools/eligibility'
 import { GoogleGenAI } from '@google/genai'
+import { takeRateLimit } from '@/lib/security/rateLimit'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    const rate = takeRateLimit(request, 'api:eligibility', { windowMs: 60_000, max: 30 })
+    if (!rate.ok) {
+      return Response.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } }
+      )
+    }
+
     const body = await request.json()
     const { program_id, profile } = body as {
       program_id: string
