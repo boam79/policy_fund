@@ -12,13 +12,26 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
+  const [error, setError] = useState('')
 
   const loadData = async () => {
-    const res = await fetch('/api/admin/dashboard')
-    const data = await res.json()
-    setKpi(data.kpi)
-    setSyncs(data.recentSyncs ?? [])
-    setLoading(false)
+    try {
+      setLoading(true)
+      setError('')
+      const res = await fetch('/api/admin/dashboard')
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(String(data.error ?? '대시보드 데이터를 불러오지 못했습니다.'))
+      }
+      setKpi(data.kpi)
+      setSyncs(data.recentSyncs ?? [])
+    } catch (err) {
+      setKpi(null)
+      setSyncs([])
+      setError(err instanceof Error ? err.message : '대시보드 데이터를 불러오지 못했습니다.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { loadData() }, [])
@@ -29,7 +42,6 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api/admin/sync', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET ?? 'dev-secret-2026'}` },
       })
       const data = await res.json()
       setSyncMsg(data.message ?? (res.ok ? '동기화 완료' : '동기화 실패'))
@@ -64,6 +76,11 @@ export default function AdminDashboard() {
       {syncMsg && (
         <div className={`mb-4 p-3 rounded-lg text-sm ${syncMsg.includes('완료') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
           {syncMsg}
+        </div>
+      )}
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
         </div>
       )}
 

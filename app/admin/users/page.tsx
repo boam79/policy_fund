@@ -21,15 +21,29 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch('/api/admin/users')
-      .then(r => r.json())
-      .then(json => {
+    const load = async () => {
+      try {
+        setLoading(true)
+        setError('')
+        const res = await fetch('/api/admin/users')
+        const json = await res.json()
+        if (!res.ok) {
+          throw new Error(String(json.error ?? '회원 데이터를 불러오지 못했습니다.'))
+        }
         setUsers(json.users ?? [])
         setTotal(json.total ?? 0)
+      } catch (err) {
+        setUsers([])
+        setTotal(0)
+        setError(err instanceof Error ? err.message : '회원 데이터를 불러오지 못했습니다.')
+      } finally {
         setLoading(false)
-      })
+      }
+    }
+    void load()
   }, [])
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
@@ -42,6 +56,11 @@ export default function AdminUsersPage() {
           <span className="text-sm font-normal text-gray-400 ml-1">총 {total}명</span>
         </h1>
       </div>
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-x-auto">
         <table className="w-full text-sm">

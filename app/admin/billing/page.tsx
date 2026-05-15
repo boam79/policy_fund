@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import { Loader2, CreditCard, TrendingUp } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 
@@ -18,29 +17,30 @@ export default function AdminBillingPage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ total: 0, done: 0, amount: 0 })
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient<Database>(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
-      const { data } = await supabase
-        .from('payments')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100)
+      try {
+        setLoading(true)
+        setError('')
+        const res = await fetch('/api/admin/billing')
+        const json = await res.json()
+        if (!res.ok) {
+          throw new Error(String(json.error ?? '결제 데이터를 불러오지 못했습니다.'))
+        }
 
-      const list = data ?? []
-      setPayments(list)
-      setStats({
-        total: list.length,
-        done: list.filter(p => p.status === 'done').length,
-        amount: list.filter(p => p.status === 'done').reduce((s, p) => s + (p.amount_krw ?? 0), 0),
-      })
-      setLoading(false)
+        setPayments((json.payments ?? []) as Payment[])
+        setStats(json.stats ?? { total: 0, done: 0, amount: 0 })
+      } catch (err) {
+        setPayments([])
+        setStats({ total: 0, done: 0, amount: 0 })
+        setError(err instanceof Error ? err.message : '결제 데이터를 불러오지 못했습니다.')
+      } finally {
+        setLoading(false)
+      }
     }
-    load()
+    void load()
   }, [])
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
@@ -48,6 +48,11 @@ export default function AdminBillingPage() {
   return (
     <div>
       <h1 className="text-xl font-bold text-white flex items-center gap-2 mb-6"><CreditCard className="h-5 w-5 text-blue-400" />결제 관리</h1>
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[

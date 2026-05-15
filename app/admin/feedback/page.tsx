@@ -26,16 +26,28 @@ export default function AdminFeedbackPage() {
   const [stats, setStats] = useState({ total: 0, positive: 0, negative: 0 })
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const [error, setError] = useState('')
 
   const load = async (p = 1) => {
-    setLoading(true)
-    const res = await fetch(`/api/feedback?page=${p}`)
-    const json = await res.json()
-    setItems(json.data ?? [])
-    setTotal(json.count ?? 0)
-    const pos = (json.data ?? []).filter((f: FeedbackItem) => f.rating === 1).length
-    setStats({ total: json.count ?? 0, positive: pos, negative: (json.data ?? []).length - pos })
-    setLoading(false)
+    try {
+      setLoading(true)
+      setError('')
+      const res = await fetch(`/api/feedback?page=${p}`)
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(String(json.error ?? '피드백 데이터를 불러오지 못했습니다.'))
+      }
+      setItems(json.data ?? [])
+      setTotal(json.count ?? 0)
+      setStats(json.stats ?? { total: 0, positive: 0, negative: 0 })
+    } catch (err) {
+      setItems([])
+      setTotal(0)
+      setStats({ total: 0, positive: 0, negative: 0 })
+      setError(err instanceof Error ? err.message : '피드백 데이터를 불러오지 못했습니다.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])
@@ -45,11 +57,16 @@ export default function AdminFeedbackPage() {
   return (
     <div>
       <h1 className="text-xl font-bold text-white flex items-center gap-2 mb-6"><MessageSquare className="h-5 w-5 text-purple-400" />피드백 관리</h1>
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
           <p className="text-xs text-gray-400 mb-1">전체 피드백</p>
-          <p className="text-2xl font-bold text-white">{total}건</p>
+          <p className="text-2xl font-bold text-white">{stats.total}건</p>
         </div>
         <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
           <p className="text-xs text-gray-400 mb-1 flex items-center gap-1"><ThumbsUp className="h-3 w-3 text-green-400" />긍정</p>
@@ -87,10 +104,18 @@ export default function AdminFeedbackPage() {
 
       {total > 30 && (
         <div className="flex justify-center gap-2 mt-4">
-          <button onClick={() => { setPage(p => Math.max(1, p - 1)); load(page - 1) }} disabled={page === 1}
+          <button onClick={() => {
+            const nextPage = Math.max(1, page - 1)
+            setPage(nextPage)
+            void load(nextPage)
+          }} disabled={page === 1}
             className="px-3 py-1.5 text-sm text-gray-400 border border-gray-600 rounded-lg hover:bg-gray-700 disabled:opacity-30">이전</button>
           <span className="px-3 py-1.5 text-sm text-gray-300">{page} / {Math.ceil(total / 30)}</span>
-          <button onClick={() => { setPage(p => p + 1); load(page + 1) }} disabled={page >= Math.ceil(total / 30)}
+          <button onClick={() => {
+            const nextPage = Math.min(Math.ceil(total / 30), page + 1)
+            setPage(nextPage)
+            void load(nextPage)
+          }} disabled={page >= Math.ceil(total / 30)}
             className="px-3 py-1.5 text-sm text-gray-400 border border-gray-600 rounded-lg hover:bg-gray-700 disabled:opacity-30">다음</button>
         </div>
       )}

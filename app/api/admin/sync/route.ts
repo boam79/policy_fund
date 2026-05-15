@@ -10,6 +10,7 @@
 import type { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
+import { createClient as createServerSupabase } from '@/lib/supabase/server'
 
 function createSyncClient() {
   // service_role 키가 있으면 admin으로, 없으면 anon으로 동작
@@ -35,12 +36,24 @@ export const maxDuration = 60
 /** ms 대기 */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** 인증 확인 공통 함수 */
-function checkAuth(request: NextRequest): boolean {
+const ADMIN_ONLY_EMAIL = 'pjm7908@hanmail.net'
+
+/** 인증 확인 공통 함수 (cron secret 또는 관리자 세션) */
+async function checkAuth(request: NextRequest): Promise<boolean> {
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) return true
-  return authHeader === `Bearer ${cronSecret}`
+  if (cronSecret && authHeader === `Bearer ${cronSecret}`) return true
+
+  try {
+    const supabase = await createServerSupabase()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const email = user?.email?.toLowerCase().trim()
+    return email === ADMIN_ONLY_EMAIL
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -49,7 +62,7 @@ function checkAuth(request: NextRequest): boolean {
  * 활성화 방법: vercel.json의 "crons" 섹션 주석 해제
  */
 export async function GET(request: NextRequest) {
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return Response.json({ error: '인증 실패' }, { status: 401 })
   }
   return runSync()
@@ -69,7 +82,7 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 1500): 
 }
 
 export async function POST(request: NextRequest) {
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return Response.json({ error: '인증 실패' }, { status: 401 })
   }
   return runSync()

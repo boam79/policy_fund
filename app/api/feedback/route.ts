@@ -66,7 +66,27 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    return NextResponse.json({ data: data ?? [], count: count ?? 0 })
+    const [{ count: positiveCount }, { count: negativeCount }] = await Promise.all([
+      admin
+        .from('feedback')
+        .select('*', { count: 'exact', head: true })
+        .eq('rating', 1),
+      admin
+        .from('feedback')
+        .select('*', { count: 'exact', head: true })
+        .eq('rating', -1),
+    ])
+
+    return NextResponse.json({
+      data: data ?? [],
+      count: count ?? 0,
+      stats: {
+        total: count ?? 0,
+        positive: positiveCount ?? 0,
+        negative: negativeCount ?? 0,
+        page_count: (data ?? []).length,
+      },
+    })
   } catch (err) {
     console.error('[feedback][GET]', err)
     return NextResponse.json({ error: '서버 오류' }, { status: 500 })
