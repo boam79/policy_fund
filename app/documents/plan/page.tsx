@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { FileText, Calendar, CheckSquare, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { stripHtmlToText } from '@/lib/utils/stripHtml'
 
 type Tab = 'plan' | 'checklist' | 'timeline'
 
@@ -38,15 +39,13 @@ interface ProgramSeed {
 function buildAnnouncementFromProgram(p: ProgramSeed | null): string {
   if (!p) return ''
   const parts: string[] = []
-  if (p.organization?.trim()) parts.push(`주관기관: ${p.organization.trim()}`)
-  if (p.region?.trim()) parts.push(`지원지역: ${p.region.trim()}`)
-  if (p.support_type?.trim()) parts.push(`지원 내용: ${p.support_type.trim()}`)
-  if (p.eligibility_text?.trim()) parts.push(`신청 자격:\n${p.eligibility_text.trim()}`)
-  if (p.summary_text?.trim()) parts.push(`요약:\n${p.summary_text.trim()}`)
+  if (p.organization?.trim()) parts.push(`주관기관: ${stripHtmlToText(p.organization)}`)
+  if (p.region?.trim()) parts.push(`지원지역: ${stripHtmlToText(p.region)}`)
+  if (p.support_type?.trim()) parts.push(`지원 내용: ${stripHtmlToText(p.support_type)}`)
+  if (p.eligibility_text?.trim()) parts.push(`신청 자격:\n${stripHtmlToText(p.eligibility_text)}`)
+  if (p.summary_text?.trim()) parts.push(`요약:\n${stripHtmlToText(p.summary_text)}`)
   if (parts.length === 0 && p.raw_content?.trim()) {
-    const raw = p.raw_content.trim()
-    const cap = 12000
-    parts.push(raw.length > cap ? `${raw.slice(0, cap)}\n\n…(이하 생략)` : raw)
+    parts.push(stripHtmlToText(p.raw_content, { maxLength: 12000 }))
   }
   return parts.join('\n\n')
 }
@@ -188,7 +187,7 @@ function DocumentPlanContent() {
 
       setTitle((prev) => {
         if (urlTitle) return urlTitle
-        if (pid) return programSeed?.title ?? ''
+        if (pid) return stripHtmlToText(programSeed?.title ?? '')
         if (prev) return prev
         if (queryText) return `맞춤 지원사업 신청 (${queryText.slice(0, 80)})`
         return ''

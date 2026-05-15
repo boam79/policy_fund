@@ -4,6 +4,7 @@ import type { Database } from '@/types/database.types'
 import { Building2, MapPin, Calendar, ExternalLink, ArrowLeft, Clock } from 'lucide-react'
 import Link from 'next/link'
 import AlertButton from '@/components/AlertButton'
+import { stripHtmlToText } from '@/lib/utils/stripHtml'
 
 const LEGAL_DISCLAIMER = '본 자격판정 결과는 AI 기반 참고 정보이며 법적 효력이 없습니다. 실제 신청 가능 여부는 해당 지원기관의 공식 공고문과 담당자에게 반드시 확인하세요. 폴리시펀드는 판정 결과의 정확성을 보장하지 않습니다.'
 
@@ -76,17 +77,17 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
                 )}
                 <DaysLeftBadge endDate={program.application_end_date} />
               </div>
-              <h1 className="text-xl font-bold text-gray-900 leading-snug">{program.title}</h1>
+              <h1 className="text-xl font-bold text-gray-900 leading-snug">{stripHtmlToText(program.title)}</h1>
             </div>
           </div>
 
           {/* 기본 정보 */}
           <div className="mt-4 grid grid-cols-2 gap-3">
             {program.organization && (
-              <InfoRow icon={<Building2 className="h-4 w-4" />} label="주관기관" value={program.organization} />
+              <InfoRow icon={<Building2 className="h-4 w-4" />} label="주관기관" value={stripHtmlToText(program.organization)} />
             )}
             {program.region && (
-              <InfoRow icon={<MapPin className="h-4 w-4" />} label="지원지역" value={program.region} />
+              <InfoRow icon={<MapPin className="h-4 w-4" />} label="지원지역" value={stripHtmlToText(program.region)} />
             )}
             {program.application_start_date && (
               <InfoRow icon={<Calendar className="h-4 w-4" />} label="접수 시작" value={program.application_start_date} />
@@ -123,7 +124,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
         {program.support_type && (
           <Section title="지원 내용">
             <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
-              {stripHtml(program.support_type)}
+              {stripHtmlToText(program.support_type)}
             </p>
           </Section>
         )}
@@ -132,7 +133,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
         {program.eligibility_text && (
           <Section title="신청 자격">
             <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
-              {stripHtml(program.eligibility_text)}
+              {stripHtmlToText(program.eligibility_text)}
             </p>
           </Section>
         )}
@@ -141,7 +142,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
         {program.exclusion_text && (
           <Section title="지원 제외 대상">
             <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed text-red-700">
-              {stripHtml(program.exclusion_text)}
+              {stripHtmlToText(program.exclusion_text)}
             </p>
           </Section>
         )}
@@ -151,7 +152,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
           <Section title="제출 서류">
             <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
               {typeof program.required_docs === 'string'
-                ? stripHtml(program.required_docs)
+                ? stripHtmlToText(program.required_docs)
                 : JSON.stringify(program.required_docs)}
             </p>
           </Section>
@@ -223,6 +224,3 @@ function formatAmount(min: number | null, max: number | null): string {
   return ''
 }
 
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
-}

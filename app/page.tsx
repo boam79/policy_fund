@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { FileText, CheckCircle, TrendingUp, Search, RefreshCw, Clock, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import SearchBar from '@/components/home/SearchBar'
 import ProgramBannerCard from '@/components/home/ProgramBannerCard'
 import type { RecommendedProgram } from '@/app/api/home/recommendations/route'
@@ -144,8 +145,8 @@ async function ClosingSoonList() {
           <Link key={p.id} href={`/search/${p.id}`}
             className="flex items-center justify-between p-3 bg-white rounded-xl border hover:border-red-300 hover:shadow-sm transition-all group">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate group-hover:text-red-600">{p.title}</p>
-              <p className="text-xs text-gray-400">{p.organization}</p>
+              <p className="text-sm font-medium text-gray-900 truncate group-hover:text-red-600">{stripHtmlToText(p.title)}</p>
+              <p className="text-xs text-gray-400">{p.organization ? stripHtmlToText(p.organization) : ''}</p>
             </div>
             <span className={`text-xs font-bold ml-3 px-2 py-1 rounded-full flex-shrink-0 ${days === 0 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
               D-{days}
@@ -185,8 +186,8 @@ async function NewlyAddedList() {
         <Link key={p.id} href={`/search/${p.id}`}
           className="flex items-center justify-between p-3 bg-white rounded-xl border hover:border-blue-300 hover:shadow-sm transition-all group">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">{p.title}</p>
-            <p className="text-xs text-gray-400">{p.organization}</p>
+            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">{stripHtmlToText(p.title)}</p>
+            <p className="text-xs text-gray-400">{p.organization ? stripHtmlToText(p.organization) : ''}</p>
           </div>
           <span className="text-xs text-gray-400 ml-3 flex-shrink-0">{SRC[p.source ?? ''] ?? p.source}</span>
         </Link>

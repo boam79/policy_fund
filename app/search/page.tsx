@@ -6,6 +6,7 @@ import { Search, Filter, Building2, MapPin, Calendar, ExternalLink, ChevronLeft,
 import FeedbackWidget from '@/components/FeedbackWidget'
 import { eligibilityLabel, eligibilityColor, type EligibilityStatus } from '@/lib/gov-support/tools/eligibility'
 import type { SupportProgram } from '@/lib/gov-support/tools/unifiedSearch'
+import { stripHtmlToText } from '@/lib/utils/stripHtml'
 
 interface EligibilityResult {
   status: EligibilityStatus
@@ -383,19 +384,19 @@ function ProgramCard({ program: p }: { program: ProgramWithEligibility }) {
             )}
           </div>
           <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
-            {p.title}
+            {stripHtmlToText(p.title)}
           </h3>
           <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
             {p.organization && (
               <span className="flex items-center gap-1">
                 <Building2 className="h-3 w-3" />
-                {p.organization}
+                {stripHtmlToText(p.organization)}
               </span>
             )}
             {p.region && (
               <span className="flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
-                {p.region}
+                {stripHtmlToText(p.region)}
               </span>
             )}
             {p.application_end_date && (
@@ -406,7 +407,9 @@ function ProgramCard({ program: p }: { program: ProgramWithEligibility }) {
             )}
           </div>
           {p.support_type && (
-            <p className="mt-1.5 text-xs text-gray-500 line-clamp-1">{p.support_type}</p>
+            <p className="mt-1.5 text-xs text-gray-500 line-clamp-2">
+              {stripHtmlToText(p.support_type, { maxLength: 220 })}
+            </p>
           )}
         </div>
         <ExternalLink className="h-4 w-4 text-gray-300 group-hover:text-blue-400 flex-shrink-0 mt-1 transition-colors" />

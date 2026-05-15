@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Calendar, Building2, MapPin, ExternalLink } from 'lucide-react'
 import type { RecommendedProgram } from '@/app/api/home/recommendations/route'
+import { stripHtmlToText } from '@/lib/utils/stripHtml'
 
 interface Props {
   program: RecommendedProgram
@@ -41,20 +42,20 @@ export default function ProgramBannerCard({ program }: Props) {
 
         {/* 공고명 */}
         <h3 className="font-semibold text-sm leading-snug text-foreground line-clamp-2 flex-1">
-          {program.title}
+          {stripHtmlToText(program.title)}
         </h3>
 
         {/* 메타 정보 */}
         <div className="space-y-1.5 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <Building2 className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{program.organization}</span>
+            <span className="truncate">{program.organization ? stripHtmlToText(program.organization) : ''}</span>
           </div>
 
           {program.region && (
             <div className="flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span>{program.region}</span>
+              <span>{program.region ? stripHtmlToText(program.region) : ''}</span>
             </div>
           )}
 
