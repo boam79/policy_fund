@@ -82,7 +82,12 @@ export async function fetchBizinfo(options: {
   let res: Response
   try {
     res = await fetch(url, {
-      headers: { Accept: 'application/json', 'User-Agent': 'PolicyFundBot/1.0' },
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        'User-Agent': 'Mozilla/5.0 (compatible; PolicyFundBot/1.0)',
+        Referer: 'https://www.bizinfo.go.kr/',
+        Origin: 'https://www.bizinfo.go.kr',
+      },
       cache: 'no-store',
       signal: controller.signal,
     })
@@ -91,7 +96,8 @@ export async function fetchBizinfo(options: {
   }
 
   if (!res.ok) {
-    throw new Error(`[bizinfo] API 오류: ${res.status} ${res.statusText}`)
+    const body = await res.text().catch(() => '')
+    throw new Error(`[bizinfo] API 오류: ${res.status} ${res.statusText}${body ? ` | ${body.slice(0, 100)}` : ''}`)
   }
 
   const json = await res.json()
