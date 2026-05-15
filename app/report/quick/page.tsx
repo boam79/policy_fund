@@ -9,7 +9,7 @@ import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { formatKRW } from '@/types'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
-import { TrendingUp, AlertTriangle, CheckCircle2, Search, ArrowLeft } from 'lucide-react'
+import { TrendingUp, AlertTriangle, CheckCircle2, Search, ArrowLeft, Printer } from 'lucide-react'
 
 // ─── 빠른 진단 채점 로직 ──────────────────────────────────────────
 function computeQuickScore(parsed: ParseNLResult): {
@@ -142,14 +142,23 @@ function QuickReportContent() {
 
   return (
     <div className="container mx-auto max-w-2xl px-4 py-10">
-      {/* 뒤로 가기 */}
-      <a
-        href={`/diagnosis?q=${encodeURIComponent(parsed.raw_query)}&data=${searchParams.get('data') ?? ''}`}
-        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'mb-6 -ml-2')}
-      >
-        <ArrowLeft className="mr-1 h-4 w-4" />
-        조건 확인으로 돌아가기
-      </a>
+      {/* 상단 액션 바 */}
+      <div className="mb-6 flex items-center justify-between print:hidden">
+        <a
+          href={`/diagnosis?q=${encodeURIComponent(parsed.raw_query)}&data=${searchParams.get('data') ?? ''}`}
+          className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), '-ml-2')}
+        >
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          조건 확인으로 돌아가기
+        </a>
+        <button
+          onClick={() => window.print()}
+          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1.5')}
+        >
+          <Printer className="h-4 w-4" />
+          PDF로 저장
+        </button>
+      </div>
 
       {/* 참고용 배너 */}
       <div className="mb-6 flex items-start gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3">
@@ -237,8 +246,8 @@ function QuickReportContent() {
         본 서비스는 정책자금 선정 또는 지원금 수령을 보장하지 않습니다.
       </p>
 
-      {/* 실제 공고 검색 CTA */}
-      <div className="rounded-xl border-2 border-blue-100 bg-blue-50 p-6 text-center">
+      {/* 실제 공고 검색 CTA (인쇄 시 숨김) */}
+      <div className="rounded-xl border-2 border-blue-100 bg-blue-50 p-6 text-center print:hidden">
         <p className="mb-2 font-semibold text-foreground">더 정확한 결과를 원하시나요?</p>
         <p className="mb-4 text-sm text-muted-foreground">
           실제 공공 데이터 기반 공고를 검색하고 공고별 자격판정 결과를 확인하세요.
@@ -250,6 +259,12 @@ function QuickReportContent() {
           <Search className="h-4 w-4" />
           실제 공고 맞춤 검색 →
         </Link>
+      </div>
+
+      {/* 인쇄 전용 푸터 */}
+      <div className="mt-8 hidden border-t pt-4 text-center text-xs text-gray-400 print:block">
+        <p>본 진단 결과는 PolicyFund AI가 생성한 참고용 분석이며 법적 효력이 없습니다.</p>
+        <p className="mt-1">출력일: {new Date().toLocaleDateString('ko-KR')} · policyfund.ai</p>
       </div>
     </div>
   )

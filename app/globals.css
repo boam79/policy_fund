@@ -128,3 +128,46 @@
     @apply font-sans;
   }
 }
+
+/* ── 인쇄(PDF 저장) 전용 스타일 ─────────────────────────────── */
+@media print {
+  /* 기본 레이아웃 */
+  body {
+    font-size: 11pt;
+    color: #111;
+    background: #fff;
+  }
+
+  /* 페이지 여백 */
+  @page {
+    margin: 18mm 16mm;
+    size: A4;
+  }
+
+  /* 네비게이션, 버튼, 푸터 등 인쇄 불필요 요소 숨김 */
+  nav,
+  header,
+  footer,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* 카드 중간 잘림 방지 */
+  .card,
+  [class*="rounded"] {
+    break-inside: avoid;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+  }
+
+  /* 링크 URL 출력 방지 */
+  a::after {
+    content: none !important;
+  }
+
+  /* 배경색 유지 (헤더 배지 등) */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

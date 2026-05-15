@@ -85,6 +85,74 @@ const REGION_ALIASES: Record<string, string[]> = {
   제주: ['제주', '제주도', '제주특별자치도'],
 }
 
+// 지역 alias → canonical 역방향 조회 맵
+const REGION_CANONICAL: Record<string, string> = {}
+for (const [canonical, aliases] of Object.entries(REGION_ALIASES)) {
+  for (const alias of aliases) {
+    REGION_CANONICAL[alias] = canonical
+  }
+}
+const VALID_REGIONS_SET = new Set(Object.keys(REGION_ALIASES))
+
+// 숫자 필드별 유효 범위 (PRD §21.2 기준)
+const NUMERIC_FIELD_RANGES: Record<string, { min: number; max: number }> = {
+  business_age_years: { min: 0, max: 100 },
+  employee_count: { min: 1, max: 50000 },
+  annual_revenue_krw: { min: 0, max: 10_000_000_000_000 },  // 10조
+  desired_amount_krw: { min: 0, max: 10_000_000_000_000 },
+  credit_score: { min: 0, max: 1000 },
+}
+
+/**
+ * Hybrid Confidence: LLM 결과에 도메인 검증 레이어 적용
+ * - region: 17개 시도 목록에 없으면 null → missing_important 이동
+ * - 숫자 필드: 비현실적 범위이면 null → missing_important 이동
+ * - KRW 금액: 정수로 강제 변환 (PRD §16.3)
+ */
+function domainValidateConditions(
+  conditions: ParsedConditions,
+  missingImportant: string[]
+): { conditions: ParsedConditions; missing_important: string[] } {
+  const validated: ParsedConditions = { ...conditions }
+  const extraMissing: string[] = []
+
+  // region 검증
+  if (validated.region) {
+    const raw = String(validated.region.value).trim()
+    const canonical = REGION_CANONICAL[raw] ?? (VALID_REGIONS_SET.has(raw) ? raw : null)
+    if (!canonical) {
+      delete validated.region
+      if (!missingImportant.includes('region')) extraMissing.push('region')
+    } else {
+      validated.region = {
+        ...validated.region,
+        value: canonical,
+        confidence: Math.min(1, validated.region.confidence + 0.1),
+      }
+    }
+  }
+
+  // 숫자 필드 범위 검증 + KRW 정수 변환
+  for (const [key, range] of Object.entries(NUMERIC_FIELD_RANGES)) {
+    const k = key as keyof ParsedConditions
+    const cond = validated[k] as ExtractedCondition<number> | undefined
+    if (!cond) continue
+    const val = Number(cond.value)
+    if (!Number.isFinite(val) || val < range.min || val > range.max) {
+      delete validated[k]
+      if (!missingImportant.includes(key)) extraMissing.push(key)
+    } else if (key === 'annual_revenue_krw' || key === 'desired_amount_krw') {
+      // KRW 원 단위 정수 강제 변환
+      ;(validated[k] as ExtractedCondition<number>) = { ...cond, value: Math.round(val) }
+    }
+  }
+
+  return {
+    conditions: validated,
+    missing_important: [...missingImportant, ...extraMissing],
+  }
+}
+
 const INDUSTRY_KEYWORDS = [
   '제조업',
   '서비스업',
@@ -206,7 +274,13 @@ export async function parseNaturalLanguage(query: string): Promise<ParseNLResult
     }
   }
 
-  return { ...result, conditions: normalizedConditions, raw_query: query }
+  // Hybrid Confidence: 도메인 검증 레이어 적용
+  const { conditions: validatedConditions, missing_important } = domainValidateConditions(
+    normalizedConditions,
+    result.missing_important
+  )
+
+  return { ...result, conditions: validatedConditions, missing_important, raw_query: query }
 }
 
 /**
@@ -300,10 +374,14 @@ export function parseNaturalLanguageFallback(query: string): ParseNLResult {
       ? `${summaryParts.join(', ')}로 추정됩니다. 누락된 조건은 직접 확인 후 수정해주세요.`
       : '질문에서 명확한 조건을 충분히 찾지 못했습니다. 조건을 보완해 다시 확인해주세요.'
 
+  // Hybrid Confidence: fallback에도 동일 도메인 검증 적용
+  const { conditions: validatedConditions, missing_important: validatedMissing } =
+    domainValidateConditions(conditions, missing_important)
+
   return {
-    conditions,
+    conditions: validatedConditions,
     summary,
-    missing_important,
+    missing_important: validatedMissing,
     raw_query: query,
   }
 }
