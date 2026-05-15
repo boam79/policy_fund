@@ -3,7 +3,7 @@
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <!-- PolicyFund 공고 자동 수집 (매일 오전 9시) -->
+  <!-- 지원둥지 공고 자동 수집 (매일 오전 9시). 번들 ID는 기존 설치 호환을 위해 com.policyfund.sync 유지 -->
   <key>Label</key>
   <string>com.policyfund.sync</string>
 

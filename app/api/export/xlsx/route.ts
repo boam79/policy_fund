@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import * as XLSX from 'xlsx'
 import { isAdminUser } from '@/lib/auth/admin'
+import { EXPORT_FILE_PREFIX } from '@/lib/site-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     XLSX.utils.book_append_sheet(wb, ws, '지원사업목록')
 
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
-    const filename = `policyfund_${type}_${new Date().toISOString().slice(0, 10)}.xlsx`
+    const filename = `${EXPORT_FILE_PREFIX}_${type}_${new Date().toISOString().slice(0, 10)}.xlsx`
 
     return new Response(buf, {
       headers: {

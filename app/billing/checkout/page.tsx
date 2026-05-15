@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { PLANS, type PlanId } from '@/lib/billing/plans'
 import { Loader2, CreditCard, Shield, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { SITE_NAME } from '@/lib/site-config'
 
 function CheckoutForm() {
   const router = useRouter()
@@ -41,8 +42,8 @@ function CheckoutForm() {
     try {
       // 주문 ID 생성 (이벤트 핸들러 내 호출 — 렌더 중 호출 아님)
       // eslint-disable-next-line react-hooks/purity
-      const orderId = `PF-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
-      const orderName = `PolicyFund AI ${plan.name} 월 구독`
+      const orderId = `JW-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+      const orderName = `${SITE_NAME} ${plan.name} 월 구독`
 
       // Toss Payments SDK v2 동적 로드
       const { loadTossPayments } = await import('@tosspayments/tosspayments-sdk')
@@ -82,7 +83,7 @@ function CheckoutForm() {
           <div className="bg-gray-50 rounded-xl p-4 mb-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-600">플랜</span>
-              <span className="font-bold text-gray-900">PolicyFund AI {plan.name}</span>
+              <span className="font-bold text-gray-900">{SITE_NAME} {plan.name}</span>
             </div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-600">결제 주기</span>

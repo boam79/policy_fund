@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { isAdminUser } from '@/lib/auth/admin'
+import { EXPORT_FILE_PREFIX } from '@/lib/site-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const csv = toCsv(rows)
-    const filename = `policyfund_${type}_${new Date().toISOString().slice(0, 10)}.csv`
+    const filename = `${EXPORT_FILE_PREFIX}_${type}_${new Date().toISOString().slice(0, 10)}.csv`
 
     return new Response(csv, {
       headers: {

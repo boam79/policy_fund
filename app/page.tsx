@@ -278,7 +278,7 @@ export default function HomePage() {
       {/* 4단계 이용 흐름 */}
       <section className="bg-gray-50 px-4 py-12">
         <div className="container mx-auto max-w-4xl">
-          <h2 className="mb-8 text-center text-xl font-bold">PolicyFund AI 이용 프로세스</h2>
+          <h2 className="mb-8 text-center text-xl font-bold">지원둥지 이용 프로세스</h2>
           <div className="grid gap-6 md:grid-cols-4">
             {[
               { icon: Search, step: '1', title: '질문 입력', desc: '자연어로 상황과 목적을 입력하세요.' },
@@ -301,7 +301,7 @@ export default function HomePage() {
       {/* CTA */}
       <section className="bg-blue-700 px-4 py-12 text-white">
         <div className="container mx-auto max-w-2xl text-center">
-          <h2 className="mb-3 text-2xl font-bold">지금 바로 PolicyFund AI v2를 시작해보세요</h2>
+          <h2 className="mb-3 text-2xl font-bold">지금 바로 지원둥지를 시작해보세요</h2>
           <p className="mb-6 text-blue-100">
             AI가 당신의 상황에 맞는 정부지원사업을 찾아드립니다.
           </p>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Loader2, Search, Eye, EyeOff, Download } from 'lucide-react'
 import { readApiError } from '@/lib/api/readApiError'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
+import { EXPORT_FILE_PREFIX } from '@/lib/site-config'
 
 interface Program {
   id: string
@@ -112,7 +113,7 @@ export default function AdminProgramsPage() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `policyfund_programs_${new Date().toISOString().slice(0, 10)}.csv`
+      a.download = `${EXPORT_FILE_PREFIX}_programs_${new Date().toISOString().slice(0, 10)}.csv`
       a.click()
       URL.revokeObjectURL(url)
     } finally {

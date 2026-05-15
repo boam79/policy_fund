@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { SITE_NAME } from '@/lib/site-config'
 
 const footerSections = [
   {
@@ -37,9 +38,9 @@ export default function Footer() {
       <div className="container mx-auto max-w-7xl px-4 py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
-            <p className="text-lg font-bold text-foreground">PolicyFund AI</p>
+            <p className="text-lg font-bold text-foreground">{SITE_NAME}</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              정책자금 검색·진단·문서 생성을 돕는 AI 서비스
+              정부지원사업 공고 검색·매칭과 참고용 자격 확인·문서 초안을 돕는 서비스
             </p>
           </div>
           {footerSections.map((section) => (
@@ -61,7 +62,7 @@ export default function Footer() {
           ))}
         </div>
         <div className="mt-8 border-t pt-6 text-center text-xs text-muted-foreground">
-          <p>© 2026 PolicyFund AI</p>
+          <p>© 2026 {SITE_NAME}</p>
           <p className="mt-1">
             본 서비스의 자격판정 및 추천 결과는 참고용이며, 실제 선정 여부는 주관기관 심사 기준에 따릅니다.
           </p>

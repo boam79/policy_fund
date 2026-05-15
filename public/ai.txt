@@ -1,6 +1,6 @@
-# PolicyFund AI — machine-readable site summary
+# 지원둥지 — machine-readable site summary
 
-Purpose: Government support program (SME/startup) discovery in Korea using real public notice data.
+Purpose: Government support program (SME/startup) discovery in Korea using real public notice data. Brand name: 지원둥지 (Jiwondungji).
 
 See also: /llms.txt (Korean primary)
 

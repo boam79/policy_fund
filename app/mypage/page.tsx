@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { User, Building2, FileText, Search, LogOut, Loader2, Save, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { SITE_NAME } from '@/lib/site-config'
 
 interface Profile {
   company_name: string; region: string; city: string; industry: string;
@@ -88,7 +89,7 @@ export default function MyPage() {
             </div>
             <div>
               <p className="font-semibold text-gray-900">{userEmail}</p>
-              <p className="text-xs text-gray-400">PolicyFund AI 회원</p>
+              <p className="text-xs text-gray-400">{SITE_NAME} 회원</p>
             </div>
           </div>
           <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 transition-colors">

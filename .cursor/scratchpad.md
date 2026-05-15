@@ -1,7 +1,7 @@
-# PolicyFund AI v2 — Planner Scratchpad
+# 지원둥지 — Planner Scratchpad
 
 **역할**: Planner 주도 계획 / Executor는 사용자 승인 후 단계별 실행  
-**기준 문서**: `policyfund_v2_prd_v2_0_free_plan_db_switch_ready.md` (PF-WEB-001 v2.0, 2026-05-11)  
+**기준 문서**: `policyfund_v2_prd_v2_0_free_plan_db_switch_ready.md` (PF-WEB-001 v2.0, 2026-05-11) — 문서 내 과거 명칭 PolicyFund AI는 제품 코드명 참고용이며, **사용자 노출 브랜드는 지원둥지**로 통일함 (2026-05-16).  
 **UI 목업 기준**: `KakaoTalk_Photo_2026-05-11-18-15-52 001.png` (관리자 대시보드), `KakaoTalk_Photo_2026-05-11-18-15-53 002.png` (사용자 홈)  
 **Planner 최종 갱신**: 2026-05-15
 
@@ -514,6 +514,7 @@ PAYMENT_SECRET_KEY=
     - `ELIGIBILITY_PROGRAM_ID_REQUIRED`
     - `DOC_TIMELINE_INPUT_REQUIRED`
   - 다음 작업 제안: Phase 11-3 (공통 로깅 유틸 확장 + 민감정보 마스킹)
+- **2026-05-16**: 브랜드명 **지원둥지**로 사용자 노출·SEO·GEO(`llms.txt`·`ai.txt`)·메타·약관 등 통일. `SITE_BOT_USER_AGENT`, `EXPORT_FILE_PREFIX`, npm 패키지명 `jiwondungji`. launchd 번들 ID는 기존 설치 호환을 위해 `com.policyfund.sync` 유지. `npm run build` PASS.
 
 ---
 

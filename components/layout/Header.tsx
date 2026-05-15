@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { User, LogOut, Star, CreditCard } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
+import { SITE_NAME } from '@/lib/site-config'
 
 const navLinks = [
   { href: '/about', label: '서비스 소개' },
@@ -42,7 +43,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
-          <span className="text-xl font-bold text-primary">PolicyFund AI v2</span>
+          <span className="text-xl font-bold text-primary">{SITE_NAME}</span>
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# PolicyFund 자동 sync 설치 스크립트 (macOS launchd)
+# 지원둥지 자동 sync 설치 스크립트 (macOS launchd)
 # 실행: bash scripts/setup-launchd.sh
 # ============================================================
 
@@ -15,7 +15,7 @@ LOG_DIR="$PROJECT_DIR/logs"
 
 echo ""
 echo "========================================"
-echo "  PolicyFund 자동 sync 설치"
+echo "  지원둥지 자동 sync 설치"
 echo "========================================"
 echo ""
 

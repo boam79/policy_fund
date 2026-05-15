@@ -3,17 +3,17 @@ import FaqAccordion from '@/app/faq/FaqAccordion'
 import FaqPageJsonLd from '@/components/seo/FaqPageJsonLd'
 import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
 import { SITE_FAQ_SECTIONS, getAllFaqPairsForSchema } from '@/lib/content/site-faq'
-import { SITE_DESCRIPTION, SITE_NAME_FULL, getSiteUrl } from '@/lib/site-config'
+import { SITE_DESCRIPTION, SITE_NAME_FULL, SITE_NAME, getSiteUrl } from '@/lib/site-config'
 
 export const metadata: Metadata = {
   title: '자주 묻는 질문',
   description: `${SITE_NAME_FULL} FAQ. ${SITE_DESCRIPTION}`,
   alternates: { canonical: `${getSiteUrl()}/faq` },
   openGraph: {
-    title: `자주 묻는 질문 | PolicyFund AI`,
+    title: `자주 묻는 질문 | ${SITE_NAME}`,
     description: SITE_DESCRIPTION,
     url: `${getSiteUrl()}/faq`,
-    siteName: 'PolicyFund AI',
+    siteName: SITE_NAME,
     locale: 'ko_KR',
     type: 'website',
   },

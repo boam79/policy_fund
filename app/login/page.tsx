@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, LogIn } from 'lucide-react'
+import { SITE_NAME } from '@/lib/site-config'
 
 function LoginForm() {
   const router = useRouter()
@@ -29,7 +30,7 @@ function LoginForm() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-black text-blue-600">PolicyFund AI</Link>
+          <Link href="/" className="text-2xl font-black text-blue-600">{SITE_NAME}</Link>
           <p className="text-gray-500 text-sm mt-1">로그인하고 맞춤 지원사업을 찾아보세요</p>
         </div>
 

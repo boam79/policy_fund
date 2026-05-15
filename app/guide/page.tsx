@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import JsonLd from '@/components/seo/JsonLd'
 import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
-import { getSiteUrl, SITE_DESCRIPTION } from '@/lib/site-config'
+import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from '@/lib/site-config'
 
 const steps = [
   { num: '01', title: '공고 검색', desc: '자연어 또는 조건 필터로 맞춤 지원사업을 검색합니다.', href: '/search', cta: '검색하기' },
@@ -23,11 +23,11 @@ export default function GuidePage() {
   const webPage = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: 'PolicyFund AI 이용안내',
+    name: `${SITE_NAME} 이용안내`,
     description: SITE_DESCRIPTION,
     url: `${base}/guide`,
     inLanguage: 'ko-KR',
-    isPartOf: { '@type': 'WebSite', name: 'PolicyFund AI', url: base },
+    isPartOf: { '@type': 'WebSite', name: SITE_NAME, url: base },
   }
 
   const guideFaqSchema = {
@@ -47,7 +47,7 @@ export default function GuidePage() {
       <section className="border-b bg-white py-12">
         <div className="container mx-auto max-w-4xl px-4 text-center">
           <h1 className="mb-3 text-3xl font-bold text-gray-900">이용안내</h1>
-          <p className="text-gray-500">PolicyFund AI를 5단계로 활용하는 방법</p>
+          <p className="text-gray-500">{SITE_NAME}를 5단계로 활용하는 방법</p>
           <div className="mx-auto mt-6 max-w-3xl text-left">
             <GeoSourceSummary variant="compact" />
           </div>

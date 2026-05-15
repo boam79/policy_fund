@@ -41,7 +41,7 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 1500): 
 
 async function main() {
   const startedAt = new Date().toISOString()
-  console.log(`\n🚀 PolicyFund 공고 수집 시작: ${new Date().toLocaleString('ko-KR')}`)
+  console.log(`\n🚀 지원둥지 공고 수집 시작: ${new Date().toLocaleString('ko-KR')}`)
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY

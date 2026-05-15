@@ -17,7 +17,7 @@ export default function GeoSourceSummary({
     <aside className={box} aria-label="서비스 출처 및 한계">
       <p className="font-medium text-slate-900">이 서비스가 하는 일</p>
       <p className="mt-1 leading-relaxed text-slate-700">
-        중소기업·창업{' '}
+        <strong>지원둥지</strong>는 중소기업·창업{' '}
         <strong>지원사업 공고</strong>를 검색·정리하고, 참고용 자격 판정·문서 초안을 돕습니다. 공고 본문은{' '}
         <strong>기업마당·K-Startup·중소벤처24</strong> 등 공공 출처에서 수집합니다.
       </p>

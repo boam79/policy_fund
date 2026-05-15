@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, UserPlus, CheckCircle } from 'lucide-react'
+import { SITE_NAME } from '@/lib/site-config'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -115,7 +116,7 @@ export default function SignupPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-black text-blue-600">PolicyFund AI</Link>
+          <Link href="/" className="text-2xl font-black text-blue-600">{SITE_NAME}</Link>
           <p className="text-gray-500 text-sm mt-1">무료로 가입하고 지원사업을 찾아보세요</p>
         </div>
 

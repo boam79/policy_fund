@@ -1,4 +1,4 @@
-# PolicyFund AI v2.0 - AI Agent Collaboration Log
+# 지원둥지 — AI Agent Collaboration Log
 
 ## 🤖 Roles
 - **Gemini CLI (Bug Hunter & Validator)**: 

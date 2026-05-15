@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Loader2, Download, BarChart2, FileText } from 'lucide-react'
+import { EXPORT_FILE_PREFIX } from '@/lib/site-config'
 
 type Tab = 'quality' | 'startup'
 
@@ -110,7 +111,7 @@ export default function EvaluatePage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `policyfund_programs_${new Date().toISOString().slice(0, 10)}.${format}`
+    a.download = `${EXPORT_FILE_PREFIX}_programs_${new Date().toISOString().slice(0, 10)}.${format}`
     a.click()
     URL.revokeObjectURL(url)
   }

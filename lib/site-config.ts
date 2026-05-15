@@ -9,9 +9,15 @@ export function getSiteUrl(): string {
   return 'https://policyfund-zeta.vercel.app'
 }
 
-export const SITE_NAME = 'PolicyFund AI'
-export const SITE_NAME_FULL = 'PolicyFund AI v2 — 정책자금 AI 컨설턴트'
+export const SITE_NAME = '지원둥지'
+export const SITE_NAME_FULL = '지원둥지 — 정부지원사업 검색·매칭·문서 초안'
 
-/** SEO·GEO용 짧은 설명 */
+/** SEO·GEO·AEO용 짧은 설명 */
 export const SITE_DESCRIPTION =
-  '실제 공공 데이터(기업마당·K-Startup·중소벤처24)로 중소기업·창업 지원사업을 검색하고, 참고용 자격 판정·서류 준비·사업계획서 초안을 제공합니다. 최종 심사·적격 여부는 주관기관이 결정합니다.'
+  '지원둥지는 기업마당·K-Startup·중소벤처24 등 공공 데이터로 정부지원사업 공고를 검색·정리하고, 참고용 자격 확인과 서류·사업계획서 초안 작성을 돕는 서비스입니다. 적격·선정 여부는 주관기관과 공고 원문이 최종 기준입니다.'
+
+/** 공공 API 호출 시 식별용 User-Agent (ASCII) */
+export const SITE_BOT_USER_AGENT = 'JiwondungjiBot/1.0'
+
+/** 내보내기 파일명 접두어 (ASCII) */
+export const EXPORT_FILE_PREFIX = 'jiwondungji'

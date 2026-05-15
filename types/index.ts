@@ -1,5 +1,5 @@
 /**
- * PolicyFund AI v2 — 공통 TypeScript 타입 정의
+ * 지원둥지 — 공통 TypeScript 타입 정의
  * DB 타입은 types/database.types.ts 자동 생성본을 참조한다.
  */
 

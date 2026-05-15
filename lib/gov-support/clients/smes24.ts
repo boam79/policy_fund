@@ -1,3 +1,5 @@
+import { SITE_BOT_USER_AGENT } from '@/lib/site-config'
+
 /**
  * 중소벤처24(smes.go.kr) 지원사업 공고 API 클라이언트
  * 환경변수 SMES24_API_KEY (token) 필요
@@ -94,7 +96,7 @@ export async function fetchSmes24(options?: {
     fetch(requestUrl, {
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'PolicyFundBot/1.0',
+        'User-Agent': SITE_BOT_USER_AGENT,
       },
       signal: AbortSignal.timeout(20_000),
       cache: 'no-store',

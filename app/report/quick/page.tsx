@@ -10,6 +10,15 @@ import { cn } from '@/lib/utils'
 import { formatKRW } from '@/types'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 import { TrendingUp, AlertTriangle, CheckCircle2, Search, ArrowLeft, Printer } from 'lucide-react'
+import { SITE_NAME, getSiteUrl } from '@/lib/site-config'
+
+function canonicalHostname(): string {
+  try {
+    return new URL(getSiteUrl()).hostname
+  } catch {
+    return ''
+  }
+}
 
 // ─── 빠른 진단 채점 로직 ──────────────────────────────────────────
 function computeQuickScore(parsed: ParseNLResult): {
@@ -263,8 +272,11 @@ function QuickReportContent() {
 
       {/* 인쇄 전용 푸터 */}
       <div className="mt-8 hidden border-t pt-4 text-center text-xs text-gray-400 print:block">
-        <p>본 진단 결과는 PolicyFund AI가 생성한 참고용 분석이며 법적 효력이 없습니다.</p>
-        <p className="mt-1">출력일: {new Date().toLocaleDateString('ko-KR')} · policyfund.ai</p>
+        <p>본 진단 결과는 {SITE_NAME}에서 제공하는 참고용 분석이며 법적 효력이 없습니다.</p>
+        <p className="mt-1">
+          출력일: {new Date().toLocaleDateString('ko-KR')}
+          {canonicalHostname() ? ` · ${canonicalHostname()}` : ''}
+        </p>
       </div>
     </div>
   )

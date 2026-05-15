@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, Mail, CheckCircle } from 'lucide-react'
+import { SITE_NAME } from '@/lib/site-config'
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState('')
@@ -39,7 +40,7 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-black text-blue-600">PolicyFund AI</Link>
+          <Link href="/" className="text-2xl font-black text-blue-600">{SITE_NAME}</Link>
         </div>
         <div className="bg-white rounded-2xl border p-8 shadow-sm">
           <h1 className="text-xl font-bold text-gray-900 mb-2">비밀번호 재설정</h1>

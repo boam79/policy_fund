@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, FileText, RefreshCw, MessageSquare, Settings, Star, CreditCard, ThumbsUp, Users } from 'lucide-react'
+import { SITE_NAME } from '@/lib/site-config'
 
 const navGroups = [
   {
@@ -42,7 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className="w-56 bg-gray-950 text-white flex flex-col fixed left-0 top-0 h-full z-40 border-r border-gray-800">
         <div className="p-4 border-b border-gray-800">
           <Link href="/" className="text-sm font-bold text-white">
-            PolicyFund AI
+            {SITE_NAME}
           </Link>
           <p className="text-xs text-gray-500 mt-0.5">관리자 콘솔</p>
         </div>

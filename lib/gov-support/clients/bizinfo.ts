@@ -1,3 +1,5 @@
+import { SITE_BOT_USER_AGENT } from '@/lib/site-config'
+
 /**
  * 기업마당(bizinfo.go.kr) 공고 API 클라이언트
  * 환경변수 BIZINFO_API_KEY 필요
@@ -87,7 +89,7 @@ export async function fetchBizinfo(options: {
     res = await fetch(url, {
       headers: {
         Accept: 'application/json, text/plain, */*',
-        'User-Agent': 'Mozilla/5.0 (compatible; PolicyFundBot/1.0)',
+        'User-Agent': `Mozilla/5.0 (compatible; ${SITE_BOT_USER_AGENT})`,
         Referer: 'https://www.bizinfo.go.kr/',
         Origin: 'https://www.bizinfo.go.kr',
       },

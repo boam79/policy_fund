@@ -16,7 +16,7 @@ export default function AboutPage() {
       {/* Hero */}
       <section className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white py-20">
         <div className="container mx-auto max-w-4xl px-4 text-center">
-          <div className="inline-block bg-white/20 text-white text-sm font-medium px-3 py-1 rounded-full mb-4">PolicyFund AI v2</div>
+          <div className="inline-block bg-white/20 text-white text-sm font-medium px-3 py-1 rounded-full mb-4">지원둥지</div>
           <h1 className="text-4xl font-bold mb-4">정부지원사업 AI 매칭 서비스</h1>
           <p className="text-xl text-blue-100 max-w-2xl mx-auto">
             실제 공공 API 기반 공고 데이터로 내 기업에 맞는 지원사업을 찾고,

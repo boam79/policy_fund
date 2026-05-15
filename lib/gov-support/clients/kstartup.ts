@@ -1,3 +1,5 @@
+import { SITE_BOT_USER_AGENT } from '@/lib/site-config'
+
 /**
  * K-Startup(k-startup.go.kr) 창업지원사업 공고 API 클라이언트
  * 환경변수 PUBLIC_DATA_SERVICE_KEY 필요 (data.go.kr 발급)
@@ -92,7 +94,7 @@ export async function fetchKStartup(options: {
   let res: Response
   try {
     res = await fetch(url, {
-      headers: { Accept: 'application/json', 'User-Agent': 'PolicyFundBot/1.0' },
+      headers: { Accept: 'application/json', 'User-Agent': SITE_BOT_USER_AGENT },
       cache: 'no-store',
       signal: controller.signal,
     })

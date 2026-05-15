@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { CheckCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { PLANS, type PlanId } from '@/lib/billing/plans'
+import { SITE_NAME } from '@/lib/site-config'
 
 function SuccessContent() {
   const searchParams = useSearchParams()
@@ -68,7 +69,7 @@ function SuccessContent() {
       <div className="bg-white rounded-2xl border p-10 text-center max-w-md shadow-sm">
         <CheckCircle className="h-14 w-14 text-green-500 mx-auto mb-4" />
         <h1 className="text-2xl font-black text-gray-900 mb-2">결제 완료!</h1>
-        <p className="text-gray-500 mb-1">PolicyFund AI <strong>{plan?.name}</strong> 플랜이 활성화되었습니다.</p>
+        <p className="text-gray-500 mb-1">{SITE_NAME} <strong>{plan?.name}</strong> 플랜이 활성화되었습니다.</p>
         <p className="text-sm text-gray-400 mb-6">주문번호: {orderId}</p>
         <div className="flex flex-col gap-2">
           <Link href="/mypage" className="py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
