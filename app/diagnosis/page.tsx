@@ -354,6 +354,20 @@ function DiagnosisContent() {
             } else if (industry) {
               params.set('keyword', String(industry))
             }
+
+            // 유저 여정에서 입력한 조건을 다음 단계(자격판정)에서 자동 채움할 수 있도록 저장
+            if (typeof window !== 'undefined') {
+              const profileDraft = {
+                region: normalizedRegion ?? undefined,
+                city: city ? String(city) : undefined,
+                industry: industry ? String(industry) : undefined,
+                business_age_years: businessAge != null ? Number(businessAge) : undefined,
+                employee_count: employeeCount != null ? Number(employeeCount) : undefined,
+                tax_arrears: typeof taxArrears === 'boolean' ? taxArrears : undefined,
+                support_purpose: supportPurpose ? String(supportPurpose) : undefined,
+              }
+              localStorage.setItem('pf:last_profile_draft', JSON.stringify(profileDraft))
+            }
             router.push(`/search?${params.toString()}`)
           }}
           className={cn(

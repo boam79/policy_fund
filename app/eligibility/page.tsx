@@ -1,9 +1,10 @@
 'use client'
 
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
+import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 
 type EligibilityResponse = {
   ok: boolean
@@ -17,17 +18,42 @@ type EligibilityResponse = {
   explanation?: string
 }
 
+type ProfileDraft = {
+  region?: string
+  city?: string
+  industry?: string
+  business_age_years?: number
+  employee_count?: number
+  tax_arrears?: boolean
+  support_purpose?: string
+}
+
+function pickString(searchParams: URLSearchParams, key: string): string {
+  const value = searchParams.get(key)?.trim() ?? ''
+  return value
+}
+
+function pickNumber(searchParams: URLSearchParams, key: string): string {
+  const raw = searchParams.get(key)?.trim() ?? ''
+  if (!raw) return ''
+  const num = Number(raw)
+  return Number.isFinite(num) ? String(num) : ''
+}
+
 function EligibilityContent() {
   const searchParams = useSearchParams()
   const programId = searchParams.get('program_id') ?? ''
 
-  const [region, setRegion] = useState('')
-  const [city, setCity] = useState('')
-  const [industry, setIndustry] = useState('')
-  const [businessAgeYears, setBusinessAgeYears] = useState('')
-  const [employeeCount, setEmployeeCount] = useState('')
-  const [taxArrears, setTaxArrears] = useState<'yes' | 'no' | ''>('')
-  const [supportPurpose, setSupportPurpose] = useState('')
+  const [region, setRegion] = useState(() => pickString(searchParams, 'region'))
+  const [city, setCity] = useState(() => pickString(searchParams, 'city'))
+  const [industry, setIndustry] = useState(() => pickString(searchParams, 'industry'))
+  const [businessAgeYears, setBusinessAgeYears] = useState(() => pickNumber(searchParams, 'business_age_years'))
+  const [employeeCount, setEmployeeCount] = useState(() => pickNumber(searchParams, 'employee_count'))
+  const [taxArrears, setTaxArrears] = useState<'yes' | 'no' | ''>(() => {
+    const v = searchParams.get('tax_arrears')
+    return v === 'yes' || v === 'no' ? v : ''
+  })
+  const [supportPurpose, setSupportPurpose] = useState(() => pickString(searchParams, 'support_purpose'))
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -40,6 +66,57 @@ function EligibilityContent() {
     if (result.score >= 40) return 'text-yellow-600'
     return 'text-red-600'
   }, [result])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const currentHasAnyValue = Boolean(
+      region || city || industry || businessAgeYears || employeeCount || taxArrears || supportPurpose
+    )
+    if (currentHasAnyValue) return
+
+    const applyDraft = (draft: ProfileDraft) => {
+      if (draft.region) setRegion(draft.region)
+      if (draft.city) setCity(draft.city)
+      if (draft.industry) setIndustry(draft.industry)
+      if (typeof draft.business_age_years === 'number') setBusinessAgeYears(String(draft.business_age_years))
+      if (typeof draft.employee_count === 'number') setEmployeeCount(String(draft.employee_count))
+      if (typeof draft.tax_arrears === 'boolean') setTaxArrears(draft.tax_arrears ? 'yes' : 'no')
+      if (draft.support_purpose) setSupportPurpose(draft.support_purpose)
+    }
+
+    // 1) 진단/검색 단계에서 저장한 최신 draft 우선 사용
+    const draftRaw = localStorage.getItem('pf:last_profile_draft')
+    if (draftRaw) {
+      try {
+        const draft = JSON.parse(draftRaw) as ProfileDraft
+        applyDraft(draft)
+        return
+      } catch {
+        // ignore parse error
+      }
+    }
+
+    // 2) 홈 검색의 parsed 결과를 fallback으로 사용
+    const parsedRaw = localStorage.getItem('pf:last_parsed')
+    if (!parsedRaw) return
+    try {
+      const parsed = JSON.parse(parsedRaw) as ParseNLResult
+      const c = parsed.conditions
+      const draft: ProfileDraft = {
+        region: c.region?.value,
+        city: c.city?.value,
+        industry: c.industry?.value,
+        business_age_years: typeof c.business_age_years?.value === 'number' ? c.business_age_years.value : undefined,
+        employee_count: typeof c.employee_count?.value === 'number' ? c.employee_count.value : undefined,
+        tax_arrears: typeof c.tax_arrears?.value === 'boolean' ? c.tax_arrears.value : undefined,
+        support_purpose: c.support_purpose?.value,
+      }
+      applyDraft(draft)
+    } catch {
+      // ignore parse error
+    }
+  }, [region, city, industry, businessAgeYears, employeeCount, taxArrears, supportPurpose])
 
   if (!programId) {
     return (

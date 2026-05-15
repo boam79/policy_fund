@@ -87,6 +87,20 @@ function SearchContent() {
     setLoading(true)
     setSearched(true)
     try {
+      // 검색 단계에서 사용한 조건을 저장해 상세/자격판정 화면에서 자동 채움
+      if (typeof window !== 'undefined') {
+        const profileDraft = {
+          region: region || undefined,
+          city: city || undefined,
+          industry: industry || undefined,
+          business_age_years: businessAge ? Number(businessAge) : undefined,
+          employee_count: employeeCount ? Number(employeeCount) : undefined,
+          tax_arrears: taxArrears === 'yes' ? true : taxArrears === 'no' ? false : undefined,
+          support_purpose: supportPurpose || undefined,
+        }
+        localStorage.setItem('pf:last_profile_draft', JSON.stringify(profileDraft))
+      }
+
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
