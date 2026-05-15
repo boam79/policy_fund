@@ -13,6 +13,7 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [resendNotice, setResendNotice] = useState('')
+  const [existingAccount, setExistingAccount] = useState(false)
   const [done, setDone] = useState(false)
   const getRedirectUrl = () => {
     if (process.env.NEXT_PUBLIC_APP_URL) return `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
@@ -35,7 +36,8 @@ export default function SignupPage() {
     })
     if (err) { setError(err.message); setLoading(false); return }
     if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-      setNotice('이미 가입된 이메일일 수 있습니다. 아래 "인증 메일 다시 보내기"를 눌러 재전송하세요.')
+      setExistingAccount(true)
+      setNotice('이미 가입된 계정입니다. 로그인하거나 비밀번호 재설정으로 진행해주세요.')
     }
     setDone(true)
     setLoading(false)
@@ -66,26 +68,42 @@ export default function SignupPage() {
           <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">이메일을 확인하세요</h2>
           <p className="text-sm text-gray-500 mb-4">
-            <strong>{email}</strong>로 인증 메일을 발송했습니다.<br />
-            메일의 링크를 클릭하면 가입이 완료됩니다.
+            {existingAccount ? (
+              <>
+                <strong>{email}</strong>은 이미 가입된 계정으로 확인되었습니다.<br />
+                아래 안내에 따라 로그인 또는 비밀번호 재설정을 진행해주세요.
+              </>
+            ) : (
+              <>
+                <strong>{email}</strong>로 인증 메일을 발송했습니다.<br />
+                메일의 링크를 클릭하면 가입이 완료됩니다.
+              </>
+            )}
           </p>
           {notice && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-3">
               {notice}
             </p>
           )}
-          <button
-            type="button"
-            onClick={handleResend}
-            disabled={resendLoading}
-            className="w-full mb-3 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {resendLoading ? '재전송 중...' : '인증 메일 다시 보내기'}
-          </button>
+          {!existingAccount && (
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resendLoading}
+              className="w-full mb-3 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {resendLoading ? '재전송 중...' : '인증 메일 다시 보내기'}
+            </button>
+          )}
           {resendNotice && (
             <p className="text-xs text-gray-600 bg-gray-50 border rounded-md px-3 py-2 mb-3">
               {resendNotice}
             </p>
+          )}
+          {existingAccount && (
+            <Link href="/reset-password" className="block text-sm text-gray-600 hover:underline mb-3">
+              비밀번호 재설정 메일 보내기
+            </Link>
           )}
           <Link href="/login" className="text-sm text-blue-600 hover:underline">로그인 페이지로</Link>
         </div>

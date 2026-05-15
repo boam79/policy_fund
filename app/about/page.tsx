@@ -24,26 +24,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* 기존 문제 */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto max-w-4xl px-4">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">기존 서비스의 한계를 해결합니다</h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            {[
-              ['❌ 기존', '가상 공고 데이터로 실제 신청 불가', 'bg-red-50 border-red-200'],
-              ['❌ 기존', 'API 키 프론트 노출 — 보안 취약', 'bg-red-50 border-red-200'],
-              ['✅ PolicyFund', '기업마당·K-Startup 실제 공고 연동', 'bg-green-50 border-green-200'],
-              ['✅ PolicyFund', '모든 API 키 서버에서만 처리', 'bg-green-50 border-green-200'],
-            ].map(([tag, text, bg], i) => (
-              <div key={i} className={`rounded-lg border p-4 ${bg}`}>
-                <span className="text-xs font-bold">{tag}</span>
-                <p className="text-sm text-gray-700 mt-1">{text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* 핵심 기능 */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto max-w-4xl px-4">
