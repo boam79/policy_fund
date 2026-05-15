@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist_Mono, Noto_Sans_KR } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
@@ -7,9 +7,13 @@ import { Toaster } from '@/components/ui/sonner'
 import SiteWideJsonLd from '@/components/seo/SiteWideJsonLd'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_NAME_FULL, getSiteUrl } from '@/lib/site-config'
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+/** macOS·Windows 동일 게이트용: 한글·라틴을 웹폰트로 고정하고 OS별 폰트 매칭을 줄임 */
+const notoSansKR = Noto_Sans_KR({
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sans-web',
+  display: 'swap',
+  adjustFontFallback: true,
 })
 
 const geistMono = Geist_Mono({
@@ -62,9 +66,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const fontVars = `${notoSansKR.variable} ${geistMono.variable}`
   return (
-    <html lang="ko">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="ko" className={fontVars}>
+      <body className={notoSansKR.className}>
         <SiteWideJsonLd />
         <Header />
         <main className="min-h-[calc(100vh-4rem)]">{children}</main>
