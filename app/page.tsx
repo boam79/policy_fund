@@ -2,8 +2,9 @@ import { buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
-import { Search, FileText, CheckCircle, TrendingUp } from 'lucide-react'
+import { FileText, CheckCircle, TrendingUp, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import SearchBar from '@/components/home/SearchBar'
 
 export default function HomePage() {
   return (
@@ -21,26 +22,9 @@ export default function HomePage() {
             AI 컨설턴트가 우리 회사에 맞는 정부지원사업을 찾아드립니다.
           </p>
 
-          {/* 자연어 검색창 */}
+          {/* 자연어 검색창 — Gemini AI 연동 */}
           <div className="mx-auto max-w-2xl">
-            <div className="flex gap-2 rounded-xl border bg-white p-2 shadow-lg">
-              <input
-                type="text"
-                placeholder="예: 경기도 제조업 3년차인데 받을 수 있는 정책자금 찾아줘"
-                className="flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
-              />
-              <button className={cn(buttonVariants({ size: 'sm' }), 'shrink-0')}>
-                <Search className="mr-1 h-4 w-4" />
-                검색
-              </button>
-            </div>
-            {/* 조건 추출 칩 (placeholder) */}
-            <div className="mt-3 flex flex-wrap justify-center gap-2">
-              <Badge variant="outline" className="text-xs">📍 지역: 경기도</Badge>
-              <Badge variant="outline" className="text-xs">🏭 업종: 제조업</Badge>
-              <Badge variant="outline" className="text-xs">📅 업력: 3년</Badge>
-              <Badge variant="outline" className="text-xs">👥 직원수: 5명</Badge>
-            </div>
+            <SearchBar size="large" />
           </div>
         </div>
       </section>
