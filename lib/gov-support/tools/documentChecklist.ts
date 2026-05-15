@@ -371,7 +371,23 @@ export async function handleGenerateDocumentChecklist(
     }
   }
 
-  // 5. 필수 → 해당시 → 가점 순 정렬
+  // 5. 핵심 서류는 최소한 필수로 유지 (개인/법인 구분 반영)
+  const coreRequiredNames = fallbackDocNamesByBusinessType(businessType).slice(0, 3);
+  for (const name of coreRequiredNames) {
+    const existing = checklist.find((c) => c.name === name);
+    if (existing) {
+      existing.requirementType = "필수";
+      continue;
+    }
+    const doc = STANDARD_DOCS.find((d) => d.name === name);
+    if (!doc) continue;
+    if (doc.applicableTo && doc.applicableTo !== "both" && doc.applicableTo !== businessType) {
+      continue;
+    }
+    pushStandardDoc(checklist, foundNames, doc, deadline, "필수", "핵심 제출서류 보강");
+  }
+
+  // 6. 필수 → 해당시 → 가점 순 정렬
   const order = { 필수: 0, "해당 시": 1, 가점용: 2, "기관 요청 시": 3 };
   checklist.sort((a, b) => (order[a.requirementType] ?? 4) - (order[b.requirementType] ?? 4));
 
