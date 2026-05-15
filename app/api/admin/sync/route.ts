@@ -5,7 +5,17 @@
  */
 
 import type { NextRequest } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database.types'
+
+function createSyncClient() {
+  // service_role 키가 있으면 admin으로, 없으면 anon으로 동작
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  return createClient<Database>(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+}
 import { fetchBizinfo } from '@/lib/gov-support/clients/bizinfo'
 import { fetchKStartup } from '@/lib/gov-support/clients/kstartup'
 import { fetchSmes24 } from '@/lib/gov-support/clients/smes24'
@@ -28,7 +38,7 @@ export async function POST(request: NextRequest) {
   }
 
   const startedAt = new Date().toISOString()
-  const supabase = createAdminClient()
+  const supabase = createSyncClient()
 
   let bizinfoCount = 0
   let kstartupCount = 0
