@@ -1,4 +1,7 @@
 import Link from 'next/link'
+import JsonLd from '@/components/seo/JsonLd'
+import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
+import { getSiteUrl, SITE_DESCRIPTION } from '@/lib/site-config'
 
 const steps = [
   { num: '01', title: '공고 검색', desc: '자연어 또는 조건 필터로 맞춤 지원사업을 검색합니다.', href: '/search', cta: '검색하기' },
@@ -16,12 +19,38 @@ const faqs = [
 ]
 
 export default function GuidePage() {
+  const base = getSiteUrl()
+  const webPage = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'PolicyFund AI 이용안내',
+    description: SITE_DESCRIPTION,
+    url: `${base}/guide`,
+    inLanguage: 'ko-KR',
+    isPartOf: { '@type': 'WebSite', name: 'PolicyFund AI', url: base },
+  }
+
+  const guideFaqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <section className="bg-white border-b py-12">
+      <JsonLd data={webPage} />
+      <JsonLd data={guideFaqSchema} />
+      <section className="border-b bg-white py-12">
         <div className="container mx-auto max-w-4xl px-4 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">이용안내</h1>
+          <h1 className="mb-3 text-3xl font-bold text-gray-900">이용안내</h1>
           <p className="text-gray-500">PolicyFund AI를 5단계로 활용하는 방법</p>
+          <div className="mx-auto mt-6 max-w-3xl text-left">
+            <GeoSourceSummary variant="compact" />
+          </div>
         </div>
       </section>
 

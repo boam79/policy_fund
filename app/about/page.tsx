@@ -1,4 +1,5 @@
 import { Shield, Zap, Database, Search, FileText, BarChart2 } from 'lucide-react'
+import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
 
 const features = [
   { icon: Search, title: '실제 공고 검색', desc: '기업마당·K-Startup·중소벤처24 실제 공고 데이터 기반 검색. LLM 생성 가상 데이터 없음.' },
@@ -21,6 +22,9 @@ export default function AboutPage() {
             실제 공공 API 기반 공고 데이터로 내 기업에 맞는 지원사업을 찾고,
             신청 서류부터 사업계획서까지 한 번에 준비하세요.
           </p>
+          <div className="mx-auto mt-8 max-w-2xl text-left text-slate-900 [&_aside]:border-white/40 [&_aside]:bg-white/95">
+            <GeoSourceSummary />
+          </div>
         </div>
       </section>
 

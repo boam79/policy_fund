@@ -8,8 +8,20 @@ import { cn } from '@/lib/utils'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import SearchBar from '@/components/home/SearchBar'
 import ProgramBannerCard from '@/components/home/ProgramBannerCard'
+import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
 import type { RecommendedProgram } from '@/app/api/home/recommendations/route'
 import type { Database } from '@/types/database.types'
+import type { Metadata } from 'next'
+import { SITE_DESCRIPTION, SITE_NAME_FULL, getSiteUrl } from '@/lib/site-config'
+
+export const metadata: Metadata = {
+  alternates: { canonical: getSiteUrl() },
+  openGraph: {
+    url: getSiteUrl(),
+    title: SITE_NAME_FULL,
+    description: SITE_DESCRIPTION,
+  },
+}
 
 export const revalidate = 1800 // 30분 ISR
 
@@ -215,6 +227,9 @@ export default function HomePage() {
           {/* 자연어 검색창 — Gemini AI 연동 */}
           <div className="mx-auto max-w-2xl">
             <SearchBar size="large" />
+          </div>
+          <div className="mx-auto mt-6 max-w-2xl text-left">
+            <GeoSourceSummary variant="compact" />
           </div>
         </div>
       </section>

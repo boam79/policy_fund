@@ -9,6 +9,7 @@ import { eligibilityLabel, eligibilityColor, type EligibilityStatus } from '@/li
 import type { SupportProgram } from '@/lib/gov-support/tools/unifiedSearch'
 import { readApiError } from '@/lib/api/readApiError'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
+import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
 
 interface EligibilityResult {
   status: EligibilityStatus
@@ -337,6 +338,15 @@ function SearchContent() {
       </div>
 
       <div className="container mx-auto max-w-5xl px-4 py-6">
+        <details className="mb-6 rounded-lg border border-slate-200 bg-white open:shadow-sm">
+          <summary className="cursor-pointer select-none px-4 py-2.5 text-sm font-medium text-slate-800">
+            서비스 출처 및 인용 안내 (GEO·면책)
+          </summary>
+          <div className="border-t px-4 pb-3 pt-2">
+            <GeoSourceSummary variant="compact" />
+          </div>
+        </details>
+
         {/* 결과 요약 */}
         {searched && !loading && (
           <div className="mb-4 space-y-2">

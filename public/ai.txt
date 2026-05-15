@@ -1,0 +1,8 @@
+# PolicyFund AI — machine-readable site summary
+
+Purpose: Government support program (SME/startup) discovery in Korea using real public notice data.
+
+See also: /llms.txt (Korean primary)
+
+Contact: /contact
+Disclaimer: /disclaimer
