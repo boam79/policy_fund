@@ -25,11 +25,41 @@ const REGIONS = ['전국', '서울', '경기', '인천', '부산', '대구', '�
 
 const LEGAL_DISCLAIMER = '본 자격판정 결과는 AI 기반 참고 정보이며 법적 효력이 없습니다. 실제 신청 가능 여부는 해당 지원기관의 공식 공고문을 반드시 확인하세요.'
 
+const REGION_NORMALIZE_MAP: Record<string, string> = {
+  서울특별시: '서울',
+  경기도: '경기',
+  인천광역시: '인천',
+  부산광역시: '부산',
+  대구광역시: '대구',
+  광주광역시: '광주',
+  대전광역시: '대전',
+  울산광역시: '울산',
+  세종특별자치시: '세종',
+  강원도: '강원',
+  강원특별자치도: '강원',
+  충청북도: '충북',
+  충청남도: '충남',
+  전라북도: '전북',
+  전북특별자치도: '전북',
+  전라남도: '전남',
+  경상북도: '경북',
+  경상남도: '경남',
+  제주도: '제주',
+  제주특별자치도: '제주',
+}
+
+function normalizeRegionForFilter(value: string | null): string {
+  if (!value) return ''
+  const raw = value.trim()
+  if (!raw) return ''
+  return REGION_NORMALIZE_MAP[raw] ?? raw
+}
+
 function SearchContent() {
   const searchParams = useSearchParams()
   const autoSearched = useRef(false)
 
-  const [region, setRegion] = useState(() => searchParams.get('region') ?? '')
+  const [region, setRegion] = useState(() => normalizeRegionForFilter(searchParams.get('region')))
   const [city] = useState(() => searchParams.get('city') ?? '')
   const [industry, setIndustry] = useState(() => searchParams.get('industry') ?? '')
   const [keyword, setKeyword] = useState(() => searchParams.get('keyword') ?? searchParams.get('q') ?? '')
