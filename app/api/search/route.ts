@@ -30,8 +30,7 @@ export async function POST(request: NextRequest) {
       limit = 20,
     } = body as CompanyProfile & { keyword?: string; page?: number; limit?: number }
 
-    // 공고 검색
-    const result = await unifiedSearch({
+    const searchParams = {
       region: region ?? undefined,
       city: city ?? undefined,
       industry: industry ?? undefined,
@@ -42,7 +41,19 @@ export async function POST(request: NextRequest) {
       keyword,
       page,
       limit,
-    })
+    }
+
+    // 공고 검색 (0건이면 keyword/support_purpose 완화 재시도)
+    let result = await unifiedSearch(searchParams)
+    let fallbackApplied: 'drop_keyword' | null = null
+    if (result.total === 0 && (keyword || support_purpose)) {
+      result = await unifiedSearch({
+        ...searchParams,
+        keyword: undefined,
+        support_purpose: undefined,
+      })
+      if (result.total > 0) fallbackApplied = 'drop_keyword'
+    }
 
     const profile: CompanyProfile = {
       region,
@@ -106,6 +117,7 @@ export async function POST(request: NextRequest) {
       page,
       limit,
       source: result.source,
+      fallback_applied: fallbackApplied,
     })
   } catch (e: unknown) {
     console.error('[api/search]', e)
