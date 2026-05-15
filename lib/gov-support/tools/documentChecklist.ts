@@ -41,6 +41,15 @@ const STANDARD_DOCS: StandardDocument[] = [
     applicableTo: "both",
   },
   {
+    name: "소득금액증명원",
+    aliases: ["소득금액증명", "종합소득세 신고내역"],
+    issuer: "국세청 홈택스",
+    issuanceDays: 0,
+    issuanceUrl: "https://www.hometax.go.kr",
+    note: "개인사업자 소득증빙용으로 자주 요구됨",
+    applicableTo: "개인",
+  },
+  {
     name: "법인등기부등본",
     aliases: ["법인등기사항전부증명서", "등기부등본"],
     issuer: "대법원 인터넷등기소",
@@ -166,6 +175,8 @@ interface ChecklistItem {
   isStandardDocument: boolean;
 }
 
+type ProgramProfile = "finance" | "rnd" | "export" | "startup" | "general";
+
 function pushStandardDoc(
   checklist: ChecklistItem[],
   foundNames: Set<string>,
@@ -187,6 +198,43 @@ function pushStandardDoc(
     requirementType,
     isStandardDocument: true,
   });
+}
+
+function inferProgramProfiles(title: string, text: string): ProgramProfile[] {
+  const source = `${title}\n${text}`.toLowerCase();
+  const profiles: ProgramProfile[] = [];
+  if (/(융자|운전자금|시설자금|정책자금|금융지원|보증)/.test(source)) profiles.push("finance");
+  if (/(r&d|연구개발|기술개발|연구소|특허)/.test(source)) profiles.push("rnd");
+  if (/(수출|해외|글로벌|바이어|통관|무역)/.test(source)) profiles.push("export");
+  if (/(창업|스타트업|예비창업|초기창업)/.test(source)) profiles.push("startup");
+  if (profiles.length === 0) profiles.push("general");
+  return profiles;
+}
+
+function fallbackDocNamesByBusinessType(businessType: "법인" | "개인"): string[] {
+  if (businessType === "법인") {
+    return ["사업자등록증", "법인등기부등본", "국세납세증명서", "지방세납세증명서", "사업계획서"];
+  }
+  return ["사업자등록증", "소득금액증명원", "국세납세증명서", "지방세납세증명서", "사업계획서"];
+}
+
+function profileRecommendedDocNames(profile: ProgramProfile, businessType: "법인" | "개인"): string[] {
+  switch (profile) {
+    case "finance":
+      return businessType === "법인"
+        ? ["재무제표", "법인등기부등본", "사업계획서"]
+        : ["소득금액증명원", "재무제표", "사업계획서"];
+    case "rnd":
+      return ["기업부설연구소인정서", "특허증", "사업계획서"];
+    case "export":
+      return ["중소기업확인서", "재무제표", "사업계획서"];
+    case "startup":
+      return businessType === "법인"
+        ? ["사업계획서", "법인등기부등본", "사업자등록증"]
+        : ["사업계획서", "사업자등록증"];
+    default:
+      return ["사업계획서"];
+  }
 }
 
 function collectByDate(deadlineStr: string | undefined, daysNeeded: number): string {
@@ -285,14 +333,33 @@ export async function handleGenerateDocumentChecklist(
     }
   }
 
-  // 3. 공고문 정보가 빈약할 때 기본 제출서류를 최소 보장
+  // 3. 공고 유형별 추천 서류 자동 보강 (문구가 빈약해도 최소 추천)
+  const profiles = inferProgramProfiles(announcementTitle, announcementText);
+  for (const profile of profiles) {
+    const names = profileRecommendedDocNames(profile, businessType);
+    for (const name of names) {
+      const doc = STANDARD_DOCS.find((d) => d.name === name);
+      if (!doc) continue;
+      if (doc.applicableTo && doc.applicableTo !== "both" && doc.applicableTo !== businessType) {
+        continue;
+      }
+      pushStandardDoc(
+        checklist,
+        foundNames,
+        doc,
+        deadline,
+        profile === "general" ? "필수" : "해당 시",
+        `공고 유형(${profile}) 기반 추천`
+      );
+    }
+  }
+
+  // 4. 공고문 정보가 빈약할 때 기본 제출서류를 최소 보장
   //    (사용자가 "0건"을 받지 않도록 핵심 서류를 자동 보강)
   const combinedText = `${announcementTitle}\n${announcementText}`.toLowerCase();
   const financeLikeNotice = /(지원사업|융자|자금|보조금|정책자금|사업화|공고)/.test(combinedText);
   if (checklist.length === 0 || (financeLikeNotice && checklist.length < 2)) {
-    const baseDocNames = businessType === "법인"
-      ? ["사업자등록증", "법인등기부등본", "국세납세증명서", "지방세납세증명서", "사업계획서"]
-      : ["사업자등록증", "국세납세증명서", "지방세납세증명서", "사업계획서"];
+    const baseDocNames = fallbackDocNamesByBusinessType(businessType);
 
     for (const name of baseDocNames) {
       const doc = STANDARD_DOCS.find((d) => d.name === name);
@@ -304,7 +371,7 @@ export async function handleGenerateDocumentChecklist(
     }
   }
 
-  // 4. 필수 → 해당시 → 가점 순 정렬
+  // 5. 필수 → 해당시 → 가점 순 정렬
   const order = { 필수: 0, "해당 시": 1, 가점용: 2, "기관 요청 시": 3 };
   checklist.sort((a, b) => (order[a.requirementType] ?? 4) - (order[b.requirementType] ?? 4));
 
