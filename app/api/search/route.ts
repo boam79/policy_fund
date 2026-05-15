@@ -4,7 +4,7 @@
  */
 
 import type { NextRequest } from 'next/server'
-import { unifiedSearch } from '@/lib/gov-support/tools/unifiedSearch'
+import { collectSearchTextTerms, unifiedSearch } from '@/lib/gov-support/tools/unifiedSearch'
 import { checkEligibility } from '@/lib/gov-support/tools/eligibility'
 import type { CompanyProfile } from '@/lib/gov-support/tools/eligibility'
 import { createClient } from '@supabase/supabase-js'
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       limit = 20,
     } = body as CompanyProfile & { keyword?: string; page?: number; limit?: number }
 
-    const searchParams = {
+    let effectiveSearch = {
       region: region ?? undefined,
       city: city ?? undefined,
       industry: industry ?? undefined,
@@ -59,38 +59,47 @@ export async function POST(request: NextRequest) {
     }
 
     // 공고 검색 (0건이면 조건을 점진 완화해 여정 단절 방지)
-    let result = await unifiedSearch(searchParams)
+    let result = await unifiedSearch(effectiveSearch)
     const fallbackApplied: string[] = []
 
     if (result.total === 0 && (keyword || support_purpose)) {
-      result = await unifiedSearch({
-        ...searchParams,
+      effectiveSearch = {
+        ...effectiveSearch,
         keyword: undefined,
         support_purpose: undefined,
-      })
+      }
+      result = await unifiedSearch(effectiveSearch)
       if (result.total > 0) fallbackApplied.push('drop_keyword')
     }
 
     if (result.total === 0 && city) {
-      result = await unifiedSearch({
-        ...searchParams,
+      effectiveSearch = {
+        ...effectiveSearch,
         city: undefined,
         keyword: undefined,
         support_purpose: undefined,
-      })
+      }
+      result = await unifiedSearch(effectiveSearch)
       if (result.total > 0) fallbackApplied.push('drop_city')
     }
 
     if (result.total === 0 && industry) {
-      result = await unifiedSearch({
-        ...searchParams,
+      effectiveSearch = {
+        ...effectiveSearch,
         city: undefined,
         industry: undefined,
         keyword: undefined,
         support_purpose: undefined,
-      })
+      }
+      result = await unifiedSearch(effectiveSearch)
       if (result.total > 0) fallbackApplied.push('drop_industry')
     }
+
+    const appliedTextTerms = collectSearchTextTerms({
+      industry: effectiveSearch.industry,
+      support_purpose: effectiveSearch.support_purpose,
+      keyword: effectiveSearch.keyword,
+    })
 
     const profile: CompanyProfile = {
       region,
@@ -156,6 +165,14 @@ export async function POST(request: NextRequest) {
       limit,
       source: result.source,
       fallback_applied: fallbackApplied.length > 0 ? fallbackApplied : null,
+      applied_filters: {
+        region: effectiveSearch.region ?? null,
+        city: effectiveSearch.city ?? null,
+        industry: effectiveSearch.industry ?? null,
+        keyword: effectiveSearch.keyword ?? null,
+        support_purpose: effectiveSearch.support_purpose ?? null,
+        text_terms: appliedTextTerms,
+      },
       trace_id: traceId,
     })
   } catch (e: unknown) {

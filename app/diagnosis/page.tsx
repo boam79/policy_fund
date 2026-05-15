@@ -459,13 +459,7 @@ function DiagnosisContent() {
             if (creditScore != null) params.set('credit_score', String(creditScore))
             if (typeof taxArrears === 'boolean') params.set('tax_arrears', taxArrears ? 'yes' : 'no')
             if (supportPurpose) params.set('support_purpose', String(supportPurpose))
-
-            // keyword는 짧은 목적/업종 중심으로만 전달 (긴 자연어 문장 직접 전달 금지)
-            if (supportPurpose) {
-              params.set('keyword', String(supportPurpose))
-            } else if (industry) {
-              params.set('keyword', String(industry))
-            }
+            // 업종·지원목적은 각각 전용 쿼리 파라미터만 사용 (keyword 중복 시 AND로 과도 필터링됨)
 
             // 유저 여정에서 입력한 조건을 다음 단계(자격판정)에서 자동 채움할 수 있도록 저장
             if (typeof window !== 'undefined') {

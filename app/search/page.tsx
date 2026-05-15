@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, Filter, Building2, MapPin, Calendar, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import FeedbackWidget from '@/components/FeedbackWidget'
 import { eligibilityLabel, eligibilityColor, type EligibilityStatus } from '@/lib/gov-support/tools/eligibility'
@@ -26,6 +26,21 @@ const INDUSTRIES = ['제조업', '서비스업', 'IT/소프트웨어', '유통/�
 const REGIONS = ['전국', '서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
 
 const LEGAL_DISCLAIMER = '본 자격판정 결과는 AI 기반 참고 정보이며 법적 효력이 없습니다. 실제 신청 가능 여부는 해당 지원기관의 공식 공고문을 반드시 확인하세요.'
+
+const FALLBACK_LABELS: Record<string, string> = {
+  drop_keyword: '검색어·지원목적 조건을 완화했습니다.',
+  drop_city: '시·군 조건을 완화했습니다.',
+  drop_industry: '업종 조건을 완화했습니다.',
+}
+
+interface AppliedFilters {
+  region: string | null
+  city: string | null
+  industry: string | null
+  keyword: string | null
+  support_purpose: string | null
+  text_terms: string[]
+}
 
 const REGION_NORMALIZE_MAP: Record<string, string> = {
   서울특별시: '서울',
@@ -57,7 +72,30 @@ function normalizeRegionForFilter(value: string | null): string {
   return REGION_NORMALIZE_MAP[raw] ?? raw
 }
 
+function buildSearchQueryString(input: {
+  region: string
+  city: string
+  industry: string
+  keyword: string
+  supportPurpose: string
+  businessAge: string
+  employeeCount: string
+  taxArrears: string
+}): string {
+  const params = new URLSearchParams()
+  if (input.region) params.set('region', input.region)
+  if (input.city) params.set('city', input.city)
+  if (input.industry) params.set('industry', input.industry)
+  if (input.supportPurpose) params.set('support_purpose', input.supportPurpose)
+  if (input.keyword.trim()) params.set('keyword', input.keyword.trim())
+  if (input.businessAge) params.set('business_age_years', input.businessAge)
+  if (input.employeeCount) params.set('employee_count', input.employeeCount)
+  if (input.taxArrears) params.set('tax_arrears', input.taxArrears)
+  return params.toString()
+}
+
 function SearchContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const autoSearched = useRef(false)
 
@@ -84,13 +122,28 @@ function SearchContent() {
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [searchError, setSearchError] = useState('')
+  const [fallbackApplied, setFallbackApplied] = useState<string[]>([])
+  const [appliedFilters, setAppliedFilters] = useState<AppliedFilters | null>(null)
   const LIMIT = 20
 
   const handleSearch = useCallback(async (p = 1) => {
     setLoading(true)
     setSearched(true)
     setSearchError('')
+    setFallbackApplied([])
+    setAppliedFilters(null)
     try {
+      const qs = buildSearchQueryString({
+        region,
+        city,
+        industry,
+        keyword,
+        supportPurpose,
+        businessAge,
+        employeeCount,
+        taxArrears,
+      })
+      router.replace(qs ? `/search?${qs}` : '/search', { scroll: false })
       // 검색 단계에서 사용한 조건을 저장해 상세/자격판정 화면에서 자동 채움
       if (typeof window !== 'undefined') {
         const profileDraft = {
@@ -134,13 +187,15 @@ function SearchContent() {
       setPrograms(data.programs ?? [])
       setTotal(data.total ?? 0)
       setPage(p)
+      setFallbackApplied(Array.isArray(data.fallback_applied) ? data.fallback_applied : [])
+      setAppliedFilters(data.applied_filters ?? null)
     } catch {
       setPrograms([])
       setSearchError('네트워크 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
-  }, [region, city, industry, keyword, supportPurpose, businessAge, employeeCount, annualRevenue, creditScore, taxArrears])
+  }, [region, city, industry, keyword, supportPurpose, businessAge, employeeCount, annualRevenue, creditScore, taxArrears, router])
 
   // diagnosis 페이지에서 조건 전달 시 자동 검색
   useEffect(() => {
@@ -262,14 +317,41 @@ function SearchContent() {
       <div className="container mx-auto max-w-5xl px-4 py-6">
         {/* 결과 요약 */}
         {searched && !loading && (
-          <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
-            <p className="text-sm text-gray-600">
-              총 <span className="font-semibold text-gray-900">{total.toLocaleString()}건</span> 검색됨
-            </p>
-            <div className="flex items-center gap-4">
-              <p className="text-xs text-gray-400">{page}/{totalPages || 1} 페이지</p>
-              <FeedbackWidget targetType="search" label="검색 결과가 유용했나요?" />
+          <div className="mb-4 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-sm text-gray-600">
+                총 <span className="font-semibold text-gray-900">{total.toLocaleString()}건</span> 검색됨
+              </p>
+              <div className="flex items-center gap-4">
+                <p className="text-xs text-gray-400">{page}/{totalPages || 1} 페이지</p>
+                <FeedbackWidget targetType="search" label="검색 결과가 유용했나요?" />
+              </div>
             </div>
+            {(appliedFilters?.region || appliedFilters?.city || appliedFilters?.industry ||
+              appliedFilters?.keyword || appliedFilters?.support_purpose) && (
+              <div className="flex flex-wrap gap-1.5">
+                {appliedFilters?.region && (
+                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">지역: {appliedFilters.region}</span>
+                )}
+                {appliedFilters?.city && (
+                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">시·군: {appliedFilters.city}</span>
+                )}
+                {appliedFilters?.industry && (
+                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">업종: {appliedFilters.industry}</span>
+                )}
+                {appliedFilters?.support_purpose && (
+                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">지원목적: {appliedFilters.support_purpose}</span>
+                )}
+                {appliedFilters?.keyword && (
+                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">검색어: {appliedFilters.keyword}</span>
+                )}
+              </div>
+            )}
+            {fallbackApplied.length > 0 && (
+              <p className="text-xs text-amber-700">
+                {fallbackApplied.map((k) => FALLBACK_LABELS[k] ?? k).join(' ')}
+              </p>
+            )}
           </div>
         )}
 

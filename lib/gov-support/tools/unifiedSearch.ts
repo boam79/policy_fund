@@ -119,6 +119,42 @@ function buildRegionPredicateOr(normalizedRegionalKey: string): string {
   ].join(',')
 }
 
+/** PostgREST `.or()` 구문에 콤마가 들어가면 깨지므로 제거 */
+function sanitizeSearchTerm(term: string): string {
+  return term.replace(/,/g, ' ').trim()
+}
+
+/** 업종·키워드·지원목적 — 동일 컬럼 집합에서 검색 (드롭다운 vs 검색창 결과 일치) */
+export function buildTextSearchPredicateOr(term: string): string {
+  const t = sanitizeSearchTerm(term)
+  return [
+    `industry.ilike.%${t}%`,
+    `title.ilike.%${t}%`,
+    `organization.ilike.%${t}%`,
+    `support_type.ilike.%${t}%`,
+    `eligibility_text.ilike.%${t}%`,
+  ].join(',')
+}
+
+/** 중복·공백 제거 후 AND로 각각 적용할 검색어 목록 */
+export function collectSearchTextTerms(params: {
+  industry?: string
+  support_purpose?: string | null
+  keyword?: string | null
+}): string[] {
+  const seen = new Set<string>()
+  const terms: string[] = []
+  for (const raw of [params.industry, params.support_purpose, params.keyword]) {
+    const t = raw?.trim()
+    if (!t) continue
+    const key = t.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    terms.push(t)
+  }
+  return terms
+}
+
 export async function unifiedSearch(params: SearchParams): Promise<SearchResult> {
   const {
     region,
@@ -172,26 +208,9 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
     query = query.or(cityOrRegionFilters)
   }
 
-  // 업종 필터
-  if (industry) {
-    query = query.or(
-      `industry.ilike.%${industry}%,support_type.ilike.%${industry}%,eligibility_text.ilike.%${industry}%`
-    )
-  }
-
-  // 키워드 검색
-  const normalizedSupportPurpose = support_purpose?.trim() ?? ''
-  const normalizedKeyword = keyword?.trim() ?? ''
-  const effectiveKeyword =
-    normalizedSupportPurpose.length > 0
-      ? normalizedSupportPurpose
-      : normalizedKeyword.length > 0
-        ? normalizedKeyword
-        : null
-  if (effectiveKeyword) {
-    query = query.or(
-      `title.ilike.%${effectiveKeyword}%,organization.ilike.%${effectiveKeyword}%,support_type.ilike.%${effectiveKeyword}%,eligibility_text.ilike.%${effectiveKeyword}%`
-    )
+  const textTerms = collectSearchTextTerms({ industry, support_purpose, keyword })
+  for (const term of textTerms) {
+    query = query.or(buildTextSearchPredicateOr(term))
   }
 
   const { data, count, error } = await query
