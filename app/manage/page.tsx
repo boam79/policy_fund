@@ -50,6 +50,9 @@ export default function ManagePage() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
 
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now()
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto max-w-3xl px-4 py-8">
@@ -75,7 +78,7 @@ export default function ManagePage() {
             {saves.map(s => {
               const prog = s.program
               const daysLeft = prog?.application_end_date
-                ? Math.ceil((new Date(prog.application_end_date).getTime() - Date.now()) / 86400000)
+                ? Math.ceil((new Date(prog.application_end_date).getTime() - now) / 86400000)
                 : null
               return (
                 <div key={s.id} className="bg-white rounded-xl border p-4">

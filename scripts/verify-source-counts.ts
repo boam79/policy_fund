@@ -8,7 +8,7 @@
  * 실행: npm run verify:counts
  */
 
-/* eslint-disable no-console */
+ 
 export {}
 
 import { config } from 'dotenv'

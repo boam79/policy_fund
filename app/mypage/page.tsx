@@ -214,7 +214,7 @@ export default function MyPage() {
               <div className="p-12 text-center text-gray-400">
                 <Search className="h-8 w-8 mx-auto mb-2 opacity-30" />
                 <p>검색 기록이 없습니다.</p>
-                <a href="/search" className="text-xs text-blue-500 hover:underline mt-1 block">지원사업 검색하기 →</a>
+                <Link href="/search" className="text-xs text-blue-500 hover:underline mt-1 block">지원사업 검색하기 →</Link>
               </div>
             ) : searches.map(s => (
               <div key={s.id} className="border-b last:border-0 p-4">

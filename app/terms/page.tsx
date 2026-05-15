@@ -6,7 +6,7 @@ export default function TermsPage() {
         <p className="text-sm text-gray-400 mb-8">최종 수정일: 2026년 5월 15일</p>
         <div className="bg-white rounded-xl border p-8 prose prose-sm max-w-none">
           <h2 className="text-lg font-bold mb-3">제1조 (목적)</h2>
-          <p className="text-gray-700 mb-6">이 약관은 PolicyFund AI(이하 "서비스")의 이용 조건 및 절차, 서비스 제공자와 이용자 간의 권리·의무·책임 사항을 규정함을 목적으로 합니다.</p>
+          <p className="text-gray-700 mb-6">이 약관은 PolicyFund AI(이하 &ldquo;서비스&rdquo;)의 이용 조건 및 절차, 서비스 제공자와 이용자 간의 권리·의무·책임 사항을 규정함을 목적으로 합니다.</p>
 
           <h2 className="text-lg font-bold mb-3">제2조 (서비스 내용)</h2>
           <p className="text-gray-700 mb-4">서비스는 다음을 제공합니다.</p>

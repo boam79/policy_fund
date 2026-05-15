@@ -93,14 +93,18 @@ function BannerSkeleton() {
 }
 
 async function ClosingSoonList() {
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now()
+  const today = new Date(now).toISOString().slice(0, 10)
+  const sevenDays = new Date(now + 7 * 86400000).toISOString().slice(0, 10)
+
+  let data: { id: string; title: string; organization: string | null; application_end_date: string | null }[] | null = null
   try {
     const supabase = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
-    const today = new Date().toISOString().slice(0, 10)
-    const sevenDays = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-    const { data } = await supabase
+    const result = await supabase
       .from('support_programs')
       .select('id,title,organization,application_end_date')
       .eq('visibility_status', 'visible')
@@ -108,37 +112,42 @@ async function ClosingSoonList() {
       .lte('application_end_date', sevenDays)
       .order('application_end_date', { ascending: true })
       .limit(5)
-    if (!data?.length) return <p className="text-sm text-gray-400">마감임박 공고가 없습니다.</p>
-    return (
-      <div className="space-y-2">
-        {data.map(p => {
-          const days = Math.ceil((new Date(p.application_end_date!).getTime() - Date.now()) / 86400000)
-          return (
-            <Link key={p.id} href={`/search/${p.id}`}
-              className="flex items-center justify-between p-3 bg-white rounded-xl border hover:border-red-300 hover:shadow-sm transition-all group">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate group-hover:text-red-600">{p.title}</p>
-                <p className="text-xs text-gray-400">{p.organization}</p>
-              </div>
-              <span className={`text-xs font-bold ml-3 px-2 py-1 rounded-full flex-shrink-0 ${days === 0 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                D-{days}
-              </span>
-            </Link>
-          )
-        })}
-      </div>
-    )
+    data = result.data
   } catch { return null }
+
+  if (!data?.length) return <p className="text-sm text-gray-400">마감임박 공고가 없습니다.</p>
+  return (
+    <div className="space-y-2">
+      {data.map(p => {
+        const days = Math.ceil((new Date(p.application_end_date!).getTime() - now) / 86400000)
+        return (
+          <Link key={p.id} href={`/search/${p.id}`}
+            className="flex items-center justify-between p-3 bg-white rounded-xl border hover:border-red-300 hover:shadow-sm transition-all group">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate group-hover:text-red-600">{p.title}</p>
+              <p className="text-xs text-gray-400">{p.organization}</p>
+            </div>
+            <span className={`text-xs font-bold ml-3 px-2 py-1 rounded-full flex-shrink-0 ${days === 0 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+              D-{days}
+            </span>
+          </Link>
+        )
+      })}
+    </div>
+  )
 }
 
 async function NewlyAddedList() {
+  const today = new Date().toISOString().slice(0, 10)
+  const SRC: Record<string, string> = { bizinfo: '기업마당', kstartup: 'K-Startup', smes24: '중소벤처24' }
+
+  let data: { id: string; title: string; organization: string | null; application_end_date: string | null; source: string | null }[] | null = null
   try {
     const supabase = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
-    const today = new Date().toISOString().slice(0, 10)
-    const { data } = await supabase
+    const result = await supabase
       .from('support_programs')
       .select('id,title,organization,application_end_date,source')
       .eq('visibility_status', 'visible')
@@ -146,23 +155,24 @@ async function NewlyAddedList() {
       .gte('application_end_date', today)
       .order('created_at', { ascending: false })
       .limit(5)
-    if (!data?.length) return <p className="text-sm text-gray-400">신규 공고가 없습니다.</p>
-    const SRC: Record<string, string> = { bizinfo: '기업마당', kstartup: 'K-Startup', smes24: '중소벤처24' }
-    return (
-      <div className="space-y-2">
-        {data.map(p => (
-          <Link key={p.id} href={`/search/${p.id}`}
-            className="flex items-center justify-between p-3 bg-white rounded-xl border hover:border-blue-300 hover:shadow-sm transition-all group">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">{p.title}</p>
-              <p className="text-xs text-gray-400">{p.organization}</p>
-            </div>
-            <span className="text-xs text-gray-400 ml-3 flex-shrink-0">{SRC[p.source ?? ''] ?? p.source}</span>
-          </Link>
-        ))}
-      </div>
-    )
+    data = result.data
   } catch { return null }
+
+  if (!data?.length) return <p className="text-sm text-gray-400">신규 공고가 없습니다.</p>
+  return (
+    <div className="space-y-2">
+      {data.map(p => (
+        <Link key={p.id} href={`/search/${p.id}`}
+          className="flex items-center justify-between p-3 bg-white rounded-xl border hover:border-blue-300 hover:shadow-sm transition-all group">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">{p.title}</p>
+            <p className="text-xs text-gray-400">{p.organization}</p>
+          </div>
+          <span className="text-xs text-gray-400 ml-3 flex-shrink-0">{SRC[p.source ?? ''] ?? p.source}</span>
+        </Link>
+      ))}
+    </div>
+  )
 }
 
 export default function HomePage() {

@@ -30,7 +30,9 @@ const SOURCE_LABEL: Record<string, string> = {
 
 function DaysLeftBadge({ endDate }: { endDate: string | null }) {
   if (!endDate) return null
-  const days = Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now()
+  const days = Math.ceil((new Date(endDate).getTime() - now) / (1000 * 60 * 60 * 24))
   if (days < 0) return <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-500">마감</span>
   if (days === 0) return <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 font-bold">오늘 마감</span>
   if (days <= 7) return <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">D-{days}</span>
@@ -42,8 +44,10 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
   const program = await getProgram(id)
   if (!program) notFound()
 
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now()
   const daysLeft = program.application_end_date
-    ? Math.ceil((new Date(program.application_end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((new Date(program.application_end_date).getTime() - now) / (1000 * 60 * 60 * 24))
     : null
 
   return (

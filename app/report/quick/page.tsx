@@ -2,8 +2,8 @@
 
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -123,7 +123,7 @@ function QuickReportContent() {
     return (
       <div className="container mx-auto max-w-2xl px-4 py-16 text-center">
         <p className="mb-4 text-destructive">{error}</p>
-        <a href="/" className={buttonVariants()}>홈으로</a>
+        <Link href="/" className={buttonVariants()}>홈으로</Link>
       </div>
     )
   }
@@ -243,13 +243,13 @@ function QuickReportContent() {
         <p className="mb-4 text-sm text-muted-foreground">
           실제 공공 데이터 기반 공고를 검색하고 공고별 자격판정 결과를 확인하세요.
         </p>
-        <a
+        <Link
           href="/search"
           className={cn(buttonVariants(), 'gap-2')}
         >
           <Search className="h-4 w-4" />
           실제 공고 맞춤 검색 →
-        </a>
+        </Link>
       </div>
     </div>
   )

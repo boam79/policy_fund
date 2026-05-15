@@ -39,7 +39,8 @@ function CheckoutForm() {
     setError('')
 
     try {
-      // 주문 ID 생성
+      // 주문 ID 생성 (이벤트 핸들러 내 호출 — 렌더 중 호출 아님)
+      // eslint-disable-next-line react-hooks/purity
       const orderId = `PF-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
       const orderName = `PolicyFund AI ${plan.name} 월 구독`
 

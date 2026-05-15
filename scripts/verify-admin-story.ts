@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+ 
 export {}
 type Json = Record<string, unknown>
 

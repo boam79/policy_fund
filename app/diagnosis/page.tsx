@@ -1,6 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useState, useEffect, Suspense, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -194,6 +195,11 @@ function DiagnosisContent() {
     return <span className="ml-1.5 flex items-center gap-0.5 text-xs text-red-500"><AlertCircle className="h-3 w-3" /> 불확실</span>
   }
 
+  const effectiveEntries = useMemo(
+    () => parsed ? buildEffectiveEntries(parsed, editValues) : [],
+    [parsed, editValues]
+  )
+
   if (error) {
     const q = searchParams.get('q') ?? ''
     const searchHref = q ? `/search?keyword=${encodeURIComponent(q)}` : '/search'
@@ -201,10 +207,10 @@ function DiagnosisContent() {
       <div className="container mx-auto max-w-2xl px-4 py-16 text-center">
         <p className="mb-4 text-destructive">{error}</p>
         <div className="flex items-center justify-center gap-2">
-          <a href={searchHref} className={buttonVariants()}>
+          <Link href={searchHref} className={buttonVariants()}>
             실제 공고 검색으로 이동
-          </a>
-          <a href="/" className={buttonVariants({ variant: 'outline' })}>홈으로 돌아가기</a>
+          </Link>
+          <Link href="/" className={buttonVariants({ variant: 'outline' })}>홈으로 돌아가기</Link>
         </div>
       </div>
     )
@@ -221,17 +227,12 @@ function DiagnosisContent() {
     )
   }
 
-  const effectiveEntries = useMemo(
-    () => buildEffectiveEntries(parsed, editValues),
-    [parsed, editValues]
-  )
-
   return (
     <div className="container mx-auto max-w-2xl px-4 py-10">
       {/* 원본 질문 */}
       <div className="mb-6 rounded-lg border bg-blue-50/50 p-4">
         <p className="text-xs font-medium text-muted-foreground">입력한 질문</p>
-        <p className="mt-1 text-sm font-medium text-foreground">"{parsed.raw_query}"</p>
+        <p className="mt-1 text-sm font-medium text-foreground">&ldquo;{parsed.raw_query}&rdquo;</p>
       </div>
 
       {/* AI 요약 */}
