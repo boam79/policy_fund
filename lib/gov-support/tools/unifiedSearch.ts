@@ -157,7 +157,14 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
   }
 
   // 키워드 검색
-  const effectiveKeyword = keyword ?? support_purpose ?? null
+  const normalizedSupportPurpose = support_purpose?.trim() ?? ''
+  const normalizedKeyword = keyword?.trim() ?? ''
+  const effectiveKeyword =
+    normalizedSupportPurpose.length > 0
+      ? normalizedSupportPurpose
+      : normalizedKeyword.length > 0
+        ? normalizedKeyword
+        : null
   if (effectiveKeyword) {
     query = query.or(
       `title.ilike.%${effectiveKeyword}%,organization.ilike.%${effectiveKeyword}%,support_type.ilike.%${effectiveKeyword}%,eligibility_text.ilike.%${effectiveKeyword}%`
