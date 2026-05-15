@@ -438,6 +438,10 @@ PAYMENT_SECRET_KEY=
   - `PUBLIC_DATA_SERVICE_KEY` — K-Startup / 공공데이터포털 키 (data.go.kr 발급)
 - **동기화 실행 방법**: `POST /api/admin/sync` (Authorization: Bearer dev-secret-2026)
 - **다음 마일스톤**: Phase 5 — 실제 공고 검색 + 룰 기반 자격판정
+- **2026-05-15 추가**: 공공 API 연동 보강 진행
+  - K-Startup 엔드포인트를 `B552735/kisedKstartupService01/getAnnouncementInformation01`로 수정
+  - 중소벤처24 기본 조회기간을 당월 기준으로 조정 + 타임아웃 시 최근 14일 재시도
+  - 최신 로컬 동기화 결과: 기업마당 600건, K-Startup 10건, 중소벤처24 1035건, 업서트 127건, 오류 0건
 
 ---
 
@@ -450,6 +454,14 @@ PAYMENT_SECRET_KEY=
   - ⚠️ **사용자 확인 필요**: Supabase 대시보드 > Settings > API 에서 `service_role` 키를 `.env.local`의 `SUPABASE_SERVICE_ROLE_KEY`에 입력하세요.
   - ⚠️ **Vercel 배포**: `vercel` CLI 또는 대시보드에서 GitHub 연결 후 환경변수 등록이 필요합니다.
   - 확인 완료 후 v0.2.0 커밋·태깅을 진행합니다.
+- **2026-05-15**: Executor — "기업마당만 작동" 이슈 대응 완료.
+  - K-Startup: 잘못된 API 베이스 URL/응답 필드 매핑 수정 후 수집 정상화(10건 확인)
+  - 중소벤처24: 조회기간/재시도 로직 보강 후 수집 정상화(1035건 확인)
+  - 정규화 매핑 업데이트로 `external_id null` 업서트 오류 해소
+- **2026-05-15**: Executor — 회원가입 인증메일 미수신 이슈 1차 대응.
+  - Supabase Auth 로그 확인 결과 `mail.send` 이벤트는 정상 기록됨(`noreply@mail.app.supabase.io` → 사용자 메일)
+  - 이후 동일 이메일 재가입은 `user_repeated_signup`으로 처리되어 메일 자동 재발송이 되지 않음
+  - `/signup` 완료 화면에 **"인증 메일 다시 보내기"** 버튼(`supabase.auth.resend`) 추가
 
 ---
 
@@ -467,3 +479,7 @@ PAYMENT_SECRET_KEY=
 - **toast deprecated**: shadcn v4에서 toast 대신 sonner 사용.
 - **Supabase MCP**: `confirm_cost_id` 파라미터명 사용 (구버전 `confirmation_id` 아님).
 - **Executor 원칙**: 한 번에 한 태스크만 실행. 성공 기준 확인 후 사용자 검증 요청. 완료 전 다음 태스크 착수 금지.
+- **K-Startup 주의**: `B553077/startup/SelectStartupPbancList`는 500 응답이 발생할 수 있어, `B552735/kisedKstartupService01/getAnnouncementInformation01` 사용을 기본으로 한다.
+- **SMES24 주의**: 조회기간 조합에 따라 간헐 타임아웃이 발생하므로 당월 조회 + 최근 14일 재시도 전략을 적용한다.
+- **정규화 주의**: K-Startup(`pbanc_sn`, `biz_pbanc_nm`)·SMES24(`pblancSeq`, `pblancDtlUrl`) 신규 필드를 우선 매핑해야 `external_id` null 오류를 피할 수 있다.
+- **Auth 메일 주의**: 같은 이메일로 재가입 시 Supabase가 `user_repeated_signup` 처리하면서 확인 메일 재발송이 자동으로 되지 않을 수 있으므로, UI에 `auth.resend({ type: 'signup' })` 경로를 제공한다.

@@ -94,46 +94,59 @@ export function normalizeBizinfoItem(item: BizinfoItem): NormalizedProgram {
 }
 
 export function normalizeKStartupItem(item: KStartupItem): NormalizedProgram {
-  const endDate = toISODate(item.rcritEndDe)
+  const externalId = item.pbanc_sn ?? item.pbancSn ?? item.id
+  const title = item.biz_pbanc_nm ?? item.pbancNm ?? ''
+  const organization = item.sprv_inst ?? item.supOrgNm ?? ''
+  const region = item.supt_regin ?? item.suptRegin ?? null
+  const industry = item.supt_biz_clsfc ?? item.suptBizClsfc ?? null
+  const startDate = toISODate(item.pbanc_rcpt_bgng_dt ?? item.rcritBgnDe)
+  const endDate = toISODate(item.pbanc_rcpt_end_dt ?? item.rcritEndDe)
+
   return {
     source: 'kstartup',
-    external_id: item.pbancSn,
-    title: item.pbancNm?.trim() ?? '',
-    organization: item.supOrgNm?.trim() ?? '',
-    region: item.suptRegin ?? null,
-    industry: item.suptBizClsfc ?? null,
-    support_type: item.suptBizClsfc ?? null,
+    external_id: externalId ? String(externalId) : `kstartup-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    title: title.trim(),
+    organization: organization.trim(),
+    region,
+    industry,
+    support_type: industry,
     support_amount_min_krw: null,
     support_amount_max_krw: null,
-    application_start_date: toISODate(item.rcritBgnDe),
+    application_start_date: startDate,
     application_end_date: endDate,
-    eligibility_text: item.tgEtrpsInfo ?? null,
+    eligibility_text: item.aply_trgt_ctnt ?? item.aply_trgt ?? item.tgEtrpsInfo ?? null,
     exclusion_text: null,
     required_docs: null,
-    application_url: item.pbancUrl ?? null,
+    application_url: item.detl_pg_url ?? item.pbancUrl ?? null,
     raw_content: item as unknown as Record<string, unknown>,
     status: deriveStatus(endDate),
   }
 }
 
 export function normalizeSmes24Item(item: Smes24Item): NormalizedProgram {
-  const endDate = toISODate(item.reqstEndDt)
+  const externalId = item.pbancId ?? item.pblancSeq
+  const organization = item.sportInsttNm ?? item.jrsdInsttNm ?? ''
+  const region = item.areaNm ?? item.ereAtrgNm ?? null
+  const industry = item.bizType ?? item.bizTpcdNm ?? null
+  const startDate = toISODate(item.pblancBgnDt ?? item.reqstBgnDt)
+  const endDate = toISODate(item.pblancEndDt ?? item.reqstEndDt)
+
   return {
     source: 'smes24',
-    external_id: item.pbancId ?? `smes24-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    external_id: externalId ? String(externalId) : `smes24-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     title: item.pbancNm?.trim() ?? '',
-    organization: item.jrsdInsttNm?.trim() ?? '',
-    region: item.ereAtrgNm ?? null,
-    industry: item.bizTpcdNm ?? null,
-    support_type: item.bizTpcdNm ?? null,
+    organization: organization.trim(),
+    region,
+    industry,
+    support_type: industry,
     support_amount_min_krw: null,
     support_amount_max_krw: null,
-    application_start_date: toISODate(item.reqstBgnDt),
+    application_start_date: startDate,
     application_end_date: endDate,
-    eligibility_text: item.tgtEntrpNm ?? null,
+    eligibility_text: item.sportTrget ?? item.tgtEntrpNm ?? null,
     exclusion_text: item.excluTrgetNm ?? null,
-    required_docs: item.reqstDocuNm ?? null,
-    application_url: item.pbancUrl ?? null,
+    required_docs: item.reqstRcept ?? item.reqstDocuNm ?? null,
+    application_url: item.pblancDtlUrl ?? item.pbancUrl ?? null,
     raw_content: item as unknown as Record<string, unknown>,
     status: deriveStatus(endDate),
   }

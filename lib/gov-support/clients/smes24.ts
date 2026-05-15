@@ -5,6 +5,19 @@
  */
 
 export interface Smes24Item {
+  // 신규(실제 응답) 필드
+  pblancSeq?: number | string
+  pblancNm?: string
+  sportInsttNm?: string
+  pblancBgnDt?: string
+  pblancEndDt?: string
+  bizType?: string
+  areaNm?: string
+  sportTrget?: string
+  pblancDtlUrl?: string
+  reqstRcept?: string
+
+  // 구형/호환 필드
   pbancId?: string          // 공고 ID
   pbancNm?: string          // 공고명
   jrsdInsttNm?: string      // 주관기관명
@@ -27,6 +40,16 @@ export interface Smes24Response {
 const SMES24_BASE = process.env.SMES24_API_BASE ??
   'https://www.smes.go.kr/fnct/apiReqst/extPblancInfo'
 
+function normalizePortalToken(raw: string): string {
+  const token = raw.trim()
+  if (!/%[0-9A-Fa-f]{2}/.test(token)) return token
+  try {
+    return decodeURIComponent(token)
+  } catch {
+    return token
+  }
+}
+
 /** YYYYMMDD 형식의 날짜 문자열 생성 */
 function formatDateYMD(date: Date): string {
   const y = date.getFullYear()
@@ -36,8 +59,10 @@ function formatDateYMD(date: Date): string {
 }
 
 export async function fetchSmes24(options?: {
-  strDt?: string   // 조회 시작일 YYYYMMDD (기본: 오늘 기준 90일 전)
+  strDt?: string   // 조회 시작일 YYYYMMDD (기본: 당월 1일)
   endDt?: string   // 조회 종료일 YYYYMMDD (기본: 오늘)
+  pageNo?: number
+  numOfRows?: number
 }): Promise<Smes24Response> {
   const token = process.env.SMES24_API_KEY
   if (!token) {
@@ -47,27 +72,54 @@ export async function fetchSmes24(options?: {
 
   const now = new Date()
   const defaultEnd = formatDateYMD(now)
-  const defaultStart = formatDateYMD(
-    new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
-  )
+  const defaultStart = formatDateYMD(new Date(now.getFullYear(), now.getMonth(), 1))
 
   const strDt = options?.strDt ?? process.env.SMES24_DEFAULT_STRDT ?? defaultStart
   const endDt = options?.endDt ?? process.env.SMES24_DEFAULT_ENDDT ?? defaultEnd
+  const pageNo = options?.pageNo ?? 1
+  const numOfRows = options?.numOfRows ?? 100
 
-  // token은 URLSearchParams가 자동으로 재인코딩하므로 decoded 값으로 전달
-  const params = new URLSearchParams({ token, strDt, endDt })
+  // token은 URLSearchParams에 넣기 전에 디코딩해 이중 인코딩을 방지
+  const params = new URLSearchParams({
+    token: normalizePortalToken(token),
+    strDt,
+    endDt,
+    pageNo: String(pageNo),
+    numOfRows: String(numOfRows),
+  })
   const url = `${SMES24_BASE}?${params.toString()}`
+
+  const request = async (requestUrl: string) =>
+    fetch(requestUrl, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'PolicyFundBot/1.0',
+      },
+      signal: AbortSignal.timeout(20_000),
+      cache: 'no-store',
+    })
 
   let res: Response
   try {
-    res = await fetch(url, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(15_000), // 15초 타임아웃 (IP 등록 필요한 경우 대비)
-      next: { revalidate: 3600 },
-    })
+    res = await request(url)
   } catch (e) {
-    const msg = e instanceof Error ? e.message : '알 수 없는 오류'
-    throw new Error(`[smes24] 연결 실패 (서버 IP 등록 확인 필요): ${msg}`)
+    // 중소벤처24는 특정 기간 조합에서 간헐 타임아웃이 발생해, 최근 14일로 한 번 더 재시도한다.
+    const retryStart = formatDateYMD(new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000))
+    const retryParams = new URLSearchParams({
+      token: normalizePortalToken(token),
+      strDt: retryStart,
+      endDt: defaultEnd,
+      pageNo: String(pageNo),
+      numOfRows: String(numOfRows),
+    })
+    const retryUrl = `${SMES24_BASE}?${retryParams.toString()}`
+
+    try {
+      res = await request(retryUrl)
+    } catch (retryError) {
+      const msg = retryError instanceof Error ? retryError.message : (e instanceof Error ? e.message : '알 수 없는 오류')
+      throw new Error(`[smes24] 연결 실패 (서버 IP 등록 확인 필요): ${msg}`)
+    }
   }
 
   if (!res.ok) {

@@ -1,20 +1,35 @@
 /**
  * K-Startup(k-startup.go.kr) 창업지원사업 공고 API 클라이언트
  * 환경변수 PUBLIC_DATA_SERVICE_KEY 필요 (data.go.kr 발급)
- * https://www.k-startup.go.kr/bizhubs/api/v1/pbancs
+ * 데이터셋: 15125364
+ * 엔드포인트: https://apis.data.go.kr/B552735/kisedKstartupService01/getAnnouncementInformation01
  */
 
 export interface KStartupItem {
-  pbancSn: string        // 공고 일련번호
-  pbancNm: string        // 공고명
-  supOrgNm: string       // 주관기관명
-  rcritBgnDe: string     // 모집시작일 (YYYYMMDD)
-  rcritEndDe: string     // 모집종료일 (YYYYMMDD)
-  suptBizClsfc: string   // 지원사업분류
-  suptRegin: string      // 지원지역
-  pbancUrl: string       // 공고 URL
-  tgEtrpsInfo?: string   // 지원대상기업정보
-  aplyMthd?: string      // 신청방법
+  // 신규(K-Startup 15125364) 필드
+  pbanc_sn?: string
+  biz_pbanc_nm?: string
+  sprv_inst?: string
+  pbanc_rcpt_bgng_dt?: string
+  pbanc_rcpt_end_dt?: string
+  supt_biz_clsfc?: string
+  supt_regin?: string
+  detl_pg_url?: string
+  aply_trgt?: string
+  aply_trgt_ctnt?: string
+  id?: string
+
+  // 구형/호환 필드
+  pbancSn?: string
+  pbancNm?: string
+  supOrgNm?: string
+  rcritBgnDe?: string
+  rcritEndDe?: string
+  suptBizClsfc?: string
+  suptRegin?: string
+  pbancUrl?: string
+  tgEtrpsInfo?: string
+  aplyMthd?: string
 }
 
 export interface KStartupResponse {
@@ -24,9 +39,19 @@ export interface KStartupResponse {
   numOfRows: number
 }
 
-// K-Startup 공공데이터포털 API 엔드포인트
+function normalizePortalToken(raw: string): string {
+  const token = raw.trim()
+  if (!/%[0-9A-Fa-f]{2}/.test(token)) return token
+  try {
+    return decodeURIComponent(token)
+  } catch {
+    return token
+  }
+}
+
+// K-Startup 공공데이터포털 API 엔드포인트 (공식)
 const KSTARTUP_BASE =
-  'https://apis.data.go.kr/B553077/startup/SelectStartupPbancList'
+  'https://apis.data.go.kr/B552735/kisedKstartupService01/getAnnouncementInformation01'
 
 export async function fetchKStartup(options: {
   suptBizClsfc?: string
@@ -50,10 +75,10 @@ export async function fetchKStartup(options: {
   } = options
 
   const params = new URLSearchParams({
-    serviceKey,
-    type: 'json',
+    serviceKey: normalizePortalToken(serviceKey),
+    returnType: 'json',
     pageNo: String(pageNo),
-    numOfRows: String(numOfRows),
+    numOfRows: String(Math.min(numOfRows, 100)),
     rcrt_prgs_yn: rcrtPrgsYn,
   })
 
@@ -81,16 +106,9 @@ export async function fetchKStartup(options: {
 
   const json = await res.json()
 
-  // K-Startup 응답 구조 처리 (공공데이터포털 표준)
-  const body = json?.response?.body ?? json?.body ?? json
-  const rawItems = body?.items?.item
-  const rawList: KStartupItem[] = Array.isArray(rawItems)
-    ? rawItems
-    : rawItems
-    ? [rawItems]
-    : []
-
-  const totalCount = Number(body?.totalCount ?? rawList.length)
+  // K-Startup 응답 구조: { data: [...], totalCount: number, ... }
+  const rawList: KStartupItem[] = Array.isArray(json?.data) ? json.data : []
+  const totalCount = Number(json?.totalCount ?? rawList.length)
 
   return {
     list: rawList,

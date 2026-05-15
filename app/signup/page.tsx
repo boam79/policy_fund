@@ -1,33 +1,62 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, UserPlus, CheckCircle } from 'lucide-react'
 
 export default function SignupPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [resendNotice, setResendNotice] = useState('')
   const [done, setDone] = useState(false)
+  const getRedirectUrl = () => {
+    if (process.env.NEXT_PUBLIC_APP_URL) return `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+    if (typeof window !== 'undefined') return `${window.location.origin}/auth/callback`
+    return '/auth/callback'
+  }
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setNotice('')
     if (password !== confirm) { setError('비밀번호가 일치하지 않습니다.'); return }
     if (password.length < 8) { setError('비밀번호는 8자 이상이어야 합니다.'); return }
     setLoading(true)
     const supabase = createClient()
-    const { error: err } = await supabase.auth.signUp({
+    const { data, error: err } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? location.origin}/auth/callback` },
+      options: { emailRedirectTo: getRedirectUrl() },
     })
     if (err) { setError(err.message); setLoading(false); return }
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      setNotice('이미 가입된 이메일일 수 있습니다. 아래 "인증 메일 다시 보내기"를 눌러 재전송하세요.')
+    }
     setDone(true)
+    setLoading(false)
+  }
+
+  const handleResend = async () => {
+    setResendLoading(true)
+    setResendNotice('')
+    const supabase = createClient()
+    const { error: resendError } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: getRedirectUrl() },
+    })
+    if (resendError) {
+      setResendNotice(`재전송 실패: ${resendError.message}`)
+      setResendLoading(false)
+      return
+    }
+    setResendNotice('인증 메일을 다시 보냈습니다. 받은편지함/스팸함을 확인해주세요.')
+    setResendLoading(false)
   }
 
   if (done) {
@@ -40,6 +69,24 @@ export default function SignupPage() {
             <strong>{email}</strong>로 인증 메일을 발송했습니다.<br />
             메일의 링크를 클릭하면 가입이 완료됩니다.
           </p>
+          {notice && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-3">
+              {notice}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resendLoading}
+            className="w-full mb-3 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {resendLoading ? '재전송 중...' : '인증 메일 다시 보내기'}
+          </button>
+          {resendNotice && (
+            <p className="text-xs text-gray-600 bg-gray-50 border rounded-md px-3 py-2 mb-3">
+              {resendNotice}
+            </p>
+          )}
           <Link href="/login" className="text-sm text-blue-600 hover:underline">로그인 페이지로</Link>
         </div>
       </div>
