@@ -2,21 +2,28 @@
  * 기업마당(bizinfo.go.kr) 공고 API 클라이언트
  * 환경변수 BIZINFO_API_KEY 필요
  * https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do
+ * 실제 응답: { jsonArray: [...], totCnt }
  */
 
 export interface BizinfoItem {
-  pblancId: string       // 공고 ID
-  pblancNm: string       // 공고명
-  jurMnofNm: string      // 주관기관명
-  rceptBgnde: string     // 접수시작일 (YYYYMMDD)
-  rceptEndde: string     // 접수종료일 (YYYYMMDD)
-  bizTpNm: string        // 지원분야명
-  pblancUrl: string      // 공고 URL
-  tgMbrCndCont?: string  // 지원대상
-  sprtExclCndCont?: string // 제외대상
-  rqDocuCont?: string    // 필요서류
-  areaCd?: string        // 지역코드
-  sprtCnts?: string      // 지원내용
+  pblancId: string                     // 공고 ID
+  pblancNm: string                     // 공고명
+  jrsdInsttNm?: string                 // 주관기관명 (실제 필드명)
+  jurMnofNm?: string                   // 주관기관명 (이전 필드명 호환)
+  reqstBeginEndDe?: string             // 접수기간 (예: "20260101 ~ 20260331")
+  rceptBgnde?: string                  // 접수시작일 (YYYYMMDD)
+  rceptEndde?: string                  // 접수종료일 (YYYYMMDD)
+  pldirSportRealmLclasCodeNm?: string  // 지원분야명 (대분류)
+  bizTpNm?: string                     // 지원분야명 (호환)
+  pblancUrl: string                    // 공고 URL
+  trgetNm?: string                     // 지원대상
+  tgMbrCndCont?: string                // 지원대상 (호환)
+  bsnsSumryCn?: string                 // 지원내용 요약
+  sprtCnts?: string                    // 지원내용 (호환)
+  rqDocuCont?: string                  // 필요서류
+  reqstMthPapersCn?: string            // 필요서류 (실제 필드명)
+  refrncNm?: string                    // 참고기관명
+  totCnt?: number                      // 전체 건수
 }
 
 export interface BizinfoResponse {
@@ -81,16 +88,24 @@ export async function fetchBizinfo(options: {
 
   const json = await res.json()
 
-  // 기업마당 응답 구조: body.items.item 또는 result.list
-  const body = json?.body ?? json?.result ?? json
-  const rawList: BizinfoItem[] = Array.isArray(body?.items?.item)
-    ? body.items.item
-    : Array.isArray(body?.list)
-    ? body.list
-    : []
+  // 기업마당 실제 응답 구조: { jsonArray: [...] }
+  // 하위 호환으로 body.items.item / body.list / result.list 도 처리
+  let rawList: BizinfoItem[] = []
+  if (Array.isArray(json?.jsonArray)) {
+    rawList = json.jsonArray
+  } else {
+    const body = json?.body ?? json?.result ?? json
+    rawList = Array.isArray(body?.items?.item)
+      ? body.items.item
+      : Array.isArray(body?.list)
+      ? body.list
+      : []
+  }
 
-  const totalCount =
-    Number(body?.totalCount ?? body?.pblancTotCnt ?? rawList.length)
+  const firstItem = rawList[0]
+  const totalCount = Number(
+    json?.totCnt ?? firstItem?.totCnt ?? rawList.length
+  )
 
   return {
     list: rawList,

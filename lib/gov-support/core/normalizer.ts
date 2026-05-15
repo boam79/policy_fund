@@ -45,23 +45,48 @@ function deriveStatus(endDateISO: string | null): NormalizedProgram['status'] {
   return 'active'
 }
 
+/** "YYYYMMDD ~ YYYYMMDD" 형태의 기간 문자열에서 시작/종료일 파싱 */
+function parseDateRange(range: string | undefined | null): { start: string | null; end: string | null } {
+  if (!range) return { start: null, end: null }
+  const parts = range.split('~').map(s => s.trim())
+  return {
+    start: toISODate(parts[0]),
+    end: toISODate(parts[1] ?? parts[0]),
+  }
+}
+
 export function normalizeBizinfoItem(item: BizinfoItem): NormalizedProgram {
-  const endDate = toISODate(item.rceptEndde)
+  // 접수기간: reqstBeginEndDe ("20260101 ~ 20260331") 또는 분리 필드
+  const dateRange = parseDateRange(item.reqstBeginEndDe)
+  const startDate = dateRange.start ?? toISODate(item.rceptBgnde)
+  const endDate = dateRange.end ?? toISODate(item.rceptEndde)
+
+  // 기관명: jrsdInsttNm (실제) 또는 jurMnofNm (이전 호환)
+  const organization = (item.jrsdInsttNm ?? item.jurMnofNm ?? item.refrncNm ?? '').trim()
+  // 분야: pldirSportRealmLclasCodeNm (실제) 또는 bizTpNm (호환)
+  const industry = item.pldirSportRealmLclasCodeNm ?? item.bizTpNm ?? null
+  // 지원대상: trgetNm (실제) 또는 tgMbrCndCont (호환)
+  const eligibility = item.trgetNm ?? item.tgMbrCndCont ?? null
+  // 지원내용: bsnsSumryCn (실제) 또는 sprtCnts (호환)
+  const supportContent = item.bsnsSumryCn ?? item.sprtCnts ?? null
+  // 필요서류
+  const docs = item.reqstMthPapersCn ?? item.rqDocuCont ?? null
+
   return {
     source: 'bizinfo',
     external_id: item.pblancId,
     title: item.pblancNm?.trim() ?? '',
-    organization: item.jurMnofNm?.trim() ?? '',
-    region: item.areaCd ?? null,
-    industry: item.bizTpNm ?? null,
-    support_type: item.bizTpNm ?? null,
+    organization,
+    region: null,
+    industry,
+    support_type: supportContent ?? industry,
     support_amount_min_krw: null,
     support_amount_max_krw: null,
-    application_start_date: toISODate(item.rceptBgnde),
+    application_start_date: startDate,
     application_end_date: endDate,
-    eligibility_text: item.tgMbrCndCont ?? null,
-    exclusion_text: item.sprtExclCndCont ?? null,
-    required_docs: item.rqDocuCont ?? null,
+    eligibility_text: eligibility,
+    exclusion_text: null,
+    required_docs: docs,
     application_url: item.pblancUrl ?? null,
     raw_content: item as unknown as Record<string, unknown>,
     status: deriveStatus(endDate),
