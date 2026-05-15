@@ -10,17 +10,22 @@ import type { CompanyProfile } from '@/lib/gov-support/tools/eligibility'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { takeRateLimit } from '@/lib/security/rateLimit'
+import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  const traceId = createTraceId()
   try {
     const rate = takeRateLimit(request, 'api:search', { windowMs: 60_000, max: 40 })
     if (!rate.ok) {
-      return Response.json(
-        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
-        { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } }
-      )
+      return apiError({
+        status: 429,
+        errorCode: 'SEARCH_RATE_LIMITED',
+        message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+        step: 'search.rate_limit',
+        traceId,
+      })
     }
 
     const body = await request.json()
@@ -149,12 +154,16 @@ export async function POST(request: NextRequest) {
       limit,
       source: result.source,
       fallback_applied: fallbackApplied.length > 0 ? fallbackApplied : null,
+      trace_id: traceId,
     })
   } catch (e: unknown) {
-    console.error('[api/search]', e)
-    return Response.json(
-      { error: '검색 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
+    logApiError('/api/search', traceId, e)
+    return apiError({
+      status: 500,
+      errorCode: 'SEARCH_INTERNAL_ERROR',
+      message: '검색 중 오류가 발생했습니다.',
+      step: 'search.execute',
+      traceId,
+    })
   }
 }

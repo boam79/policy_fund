@@ -13,6 +13,7 @@ import {
 } from '@/lib/query/parseNaturalLanguage'
 import type { ApiResponse } from '@/types'
 import { takeRateLimit } from '@/lib/security/rateLimit'
+import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -21,15 +22,19 @@ interface ParseRequestBody {
   query: string
 }
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+export async function POST(req: NextRequest): Promise<Response> {
+  const traceId = createTraceId()
   let queryText = ''
   try {
     const rate = takeRateLimit(req, 'api:query-parse', { windowMs: 60_000, max: 20 })
     if (!rate.ok) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
-        { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } }
-      )
+      return apiError({
+        status: 429,
+        errorCode: 'PARSE_RATE_LIMITED',
+        message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+        step: 'query.parse.rate_limit',
+        traceId,
+      })
     }
 
     const body = (await req.json()) as ParseRequestBody
@@ -37,17 +42,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     queryText = typeof query === 'string' ? query.trim() : ''
 
     if (!query || typeof query !== 'string' || queryText.length === 0) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: '검색어를 입력해주세요.' },
-        { status: 400 }
-      )
+      return apiError({
+        status: 400,
+        errorCode: 'PARSE_INVALID_INPUT',
+        message: '검색어를 입력해주세요.',
+        step: 'query.parse.validate',
+        traceId,
+      })
     }
 
     if (query.length > 500) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: '검색어는 500자 이내로 입력해주세요.' },
-        { status: 400 }
-      )
+      return apiError({
+        status: 400,
+        errorCode: 'PARSE_QUERY_TOO_LONG',
+        message: '검색어는 500자 이내로 입력해주세요.',
+        step: 'query.parse.validate',
+        traceId,
+      })
     }
 
     const parsed = await parseNaturalLanguage(queryText)
@@ -61,7 +72,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
     })
   } catch (error) {
-    console.error('[/api/query/parse] error:', error)
+    logApiError('/api/query/parse', traceId, error)
 
     const rawMessage =
       error instanceof Error ? error.message : '조건 추출 중 오류가 발생했습니다.'
@@ -85,9 +96,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       })
     }
 
-    return NextResponse.json<ApiResponse>(
-      { success: false, error: message },
-      { status: 500 }
-    )
+    return apiError({
+      status: 500,
+      errorCode: 'PARSE_INTERNAL_ERROR',
+      message,
+      step: 'query.parse.execute',
+      traceId,
+    })
   }
 }

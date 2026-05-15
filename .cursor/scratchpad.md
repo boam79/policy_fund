@@ -37,6 +37,14 @@ PolicyFund AI v2는 기존 GitHub Pages 단일페이지 MVP(`policyfundapp`)의 
 3. **LLM 환각 방지**: 자격판정 상태값(`likely_eligible` 등)은 룰 엔진이 결정, LLM은 설명 문구만 생성
 4. **데이터 운영 이원화**: 현재 `api_minimal_cache` → 향후 유료 전환 시 `db_centric` 원클릭 전환 구조 필수
 5. **표준 필드명 통일**: 자연어 입력·API 요청·DB 간 필드명 혼재 방지 (`bizAge` → `business_age_years` 등)
+6. **반복 오류 재발**: 수동 점검만으로는 동일 결함이 다른 경로에서 재출현하므로, 로그 표준화+회귀 테스트가 필요
+
+### 반복 오류 방지 전략 (Planner 확정)
+
+- API 오류 응답 표준: `error_code`, `trace_id`, `step`, `message`를 공통 필드로 반환
+- 사용자 여정 단계 로그: 홈→진단→검색→상세→자격판정→문서생성 단계별 핵심 분기 기록
+- 회귀 테스트 의무화: 버그 1건 수정 시 해당 재현 케이스 테스트 1건 추가
+- 배포 게이트 강화: 빌드 성공 + 핵심 유저스토리 자동 검증 통과 시 배포
 
 ---
 
@@ -382,6 +390,26 @@ PAYMENT_SECRET_KEY=
 
 ---
 
+### Phase 11 — 엄격 유저스토리 + 오류 재발 방지 체계 (신규)
+
+**목표**: 반복 오류를 구조적으로 차단하고 동일 결함의 재발을 자동 감지
+
+#### 태스크
+
+- [ ] **11-1** 핵심 유저스토리 15개를 엄격 시나리오(정상/경계/실패)로 고정
+- [ ] **11-2** API 오류 표준 스키마 적용 (`error_code`, `trace_id`, `step`)
+- [ ] **11-3** 공통 로깅 유틸 추가 + 민감정보 마스킹 규칙 적용
+- [ ] **11-4** 과거 반복 버그 회귀 테스트 세트 구축
+- [ ] **11-5** E2E 자동화 (검색→진단→자격→문서 여정)
+- [ ] **11-6** 배포 전 품질 게이트 스크립트 구축 (`verify:story`)
+
+**성공 기준**
+- 동일 오류 재발 시 `trace_id`로 1분 내 역추적 가능
+- 핵심 유저스토리 자동 테스트 통과율 100%
+- 과거 반복 이슈가 회귀 테스트에서 즉시 탐지
+
+---
+
 ## Project Status Board
 
 ### 완료
@@ -407,8 +435,8 @@ PAYMENT_SECRET_KEY=
 
 ### 진행 중
 
-- [ ] **Phase 1-6** — Vercel 프로젝트 연결 + 환경변수 등록 ← **사용자 확인 필요**
-- [ ] **Phase 1-8** — v0.2.0 커밋 + 태깅 ← **사용자 확인 후 진행**
+- [ ] **Phase 11-1** — 엄격 유저스토리 15개 정의 (Planner)
+- [ ] **Phase 11-2** — 오류 로그 표준 스키마 확정 (Planner)
 
 ### 대기 중 (우선순위 순)
 
@@ -421,6 +449,7 @@ PAYMENT_SECRET_KEY=
 - [ ] Phase 8 — 운영 필수 페이지 + 관리자 MVP
 - [ ] Phase 9 — 인증·마이페이지
 - [ ] Phase 10 — 결제·구독 (후순위)
+- [ ] Phase 11 — 엄격 유저스토리 + 오류 재발 방지 체계
 
 ---
 
@@ -442,6 +471,14 @@ PAYMENT_SECRET_KEY=
   - K-Startup 엔드포인트를 `B552735/kisedKstartupService01/getAnnouncementInformation01`로 수정
   - 중소벤처24 기본 조회기간을 당월 기준으로 조정 + 타임아웃 시 최근 14일 재시도
   - 최신 로컬 동기화 결과: 기업마당 600건, K-Startup 10건, 중소벤처24 1035건, 업서트 127건, 오류 0건
+- **2026-05-15 Planner 전환**: 반복 오류 재발 방지를 최우선 목표로 설정
+  - 기능 확장보다 `오류 로그 표준화 + 엄격 유저스토리 회귀 테스트`를 선행
+  - 즉시 다음 작업: Phase 11-1/11-2
+- **2026-05-15 Executor 진행**: Phase 11-2 1차 구현 완료
+  - 공통 유틸 추가: `lib/errors/apiError.ts` (`error_code`, `trace_id`, `step`, 표준 오류 응답)
+  - 적용 API: `/api/query/parse`, `/api/search`, `/api/eligibility`, `/api/documents/checklist`, `/api/documents/timeline`, `/api/documents/plan`
+  - 표준 오류 응답 및 `x-trace-id` 헤더 검증 완료 (로컬 3004 서버)
+  - `verify:story` 자동 검증 스크립트 추가 (`scripts/verify-story.ts`) 및 PASS 확인
 
 ---
 
@@ -462,6 +499,17 @@ PAYMENT_SECRET_KEY=
   - Supabase Auth 로그 확인 결과 `mail.send` 이벤트는 정상 기록됨(`noreply@mail.app.supabase.io` → 사용자 메일)
   - 이후 동일 이메일 재가입은 `user_repeated_signup`으로 처리되어 메일 자동 재발송이 되지 않음
   - `/signup` 완료 화면에 **"인증 메일 다시 보내기"** 버튼(`supabase.auth.resend`) 추가
+- **2026-05-15 (Planner 지시)**: Executor 운영 규칙 추가
+  - API 오류 응답에서 `error_code` 없는 반환 금지
+  - 버그 수정 시 재현 테스트(회귀) 1건 이상 필수 추가
+  - 배포 전 핵심 유저스토리 자동 검증 결과를 첨부
+- **2026-05-15 (Executor 보고)**: Phase 11-2 1차 반영 후 검증 성공
+  - `npm run build` 성공
+  - 오류 스키마 샘플 검증:
+    - `PARSE_INVALID_INPUT`
+    - `ELIGIBILITY_PROGRAM_ID_REQUIRED`
+    - `DOC_TIMELINE_INPUT_REQUIRED`
+  - 다음 작업 제안: Phase 11-3 (공통 로깅 유틸 확장 + 민감정보 마스킹)
 
 ---
 
@@ -483,3 +531,76 @@ PAYMENT_SECRET_KEY=
 - **SMES24 주의**: 조회기간 조합에 따라 간헐 타임아웃이 발생하므로 당월 조회 + 최근 14일 재시도 전략을 적용한다.
 - **정규화 주의**: K-Startup(`pbanc_sn`, `biz_pbanc_nm`)·SMES24(`pblancSeq`, `pblancDtlUrl`) 신규 필드를 우선 매핑해야 `external_id` null 오류를 피할 수 있다.
 - **Auth 메일 주의**: 같은 이메일로 재가입 시 Supabase가 `user_repeated_signup` 처리하면서 확인 메일 재발송이 자동으로 되지 않을 수 있으므로, UI에 `auth.resend({ type: 'signup' })` 경로를 제공한다.
+- **오류 추적 원칙**: 반복 오류 분석을 위해 API 오류 응답은 `error_code + trace_id + step`을 표준으로 유지한다.
+
+---
+
+## Phase 11 상세 계획 (Planner)
+
+### 11-1. 엄격 유저스토리 15개 (정상/경계/실패)
+
+| ID | 시나리오 | 유형 | 성공 기준 | 실패 시 필수 error_code |
+|---|---|---|---|---|
+| US-01 | 홈 자연어 검색 → 진단 이동 | 정상 | `diagnosis` 로드 + 조건 표시 | `PARSE_INVALID_INPUT` |
+| US-02 | 진단 수정값 반영 후 실제 검색 | 정상 | `search.total > 0` 또는 fallback 안내 | `SEARCH_NO_RESULTS_HARD` |
+| US-03 | 검색 0건 시 단계적 fallback | 경계 | `fallback_applied`가 null 아님 | `SEARCH_FALLBACK_EXHAUSTED` |
+| US-04 | 검색 결과 카드 상세 이동 | 정상 | `/search/[id]` 진입 성공 | `NAV_DETAIL_LINK_BROKEN` |
+| US-05 | 상세 → 자격판정 시작 | 정상 | `/eligibility?program_id=*` 진입 | `ELIGIBILITY_NAV_INVALID` |
+| US-06 | 자격판정 실행(필수값) | 정상 | 200 + `status/score` 반환 | `ELIGIBILITY_CHECK_FAILED` |
+| US-07 | 자격판정 결과 → 문서 CTA | 정상 | checklist/timeline/plan 이동 | `JOURNEY_NEXT_STEP_BROKEN` |
+| US-08 | 문서 화면 자동 프리필 | 경계 | `program_id` 기반 title/deadline 채움 | `DOC_PREFILL_MISSING` |
+| US-09 | 체크리스트 생성 | 정상 | `totalDocuments >= 1` | `DOC_CHECKLIST_EMPTY` |
+| US-10 | 타임라인 생성 | 정상 | `milestones >= 1` | `DOC_TIMELINE_BUILD_FAILED` |
+| US-11 | 사업계획서 초안 생성 | 정상 | `sections >= 1` | `DOC_PLAN_DRAFT_FAILED` |
+| US-12 | 비로그인 관리자 API 접근 | 실패 | 401/403 반환 | `AUTH_ADMIN_REQUIRED` |
+| US-13 | 비관리자 export 접근 | 실패 | 403 반환 | `AUTH_EXPORT_FORBIDDEN` |
+| US-14 | 결제 confirm 위조 요청 | 실패 | 세션 불일치 차단 | `PAY_CONFIRM_UNAUTHORIZED_USER` |
+| US-15 | webhook 위조 요청 | 실패 | secret/검증 실패로 차단 | `PAY_WEBHOOK_VERIFICATION_FAILED` |
+
+### 11-2. 오류 코드 체계 v1
+
+| Prefix | 도메인 | 예시 코드 |
+|---|---|---|
+| `PARSE_*` | 자연어 추출 | `PARSE_INVALID_INPUT`, `PARSE_RATE_LIMITED` |
+| `SEARCH_*` | 검색/필터 | `SEARCH_NO_RESULTS_HARD`, `SEARCH_RATE_LIMITED` |
+| `ELIGIBILITY_*` | 자격판정 | `ELIGIBILITY_PROGRAM_NOT_FOUND`, `ELIGIBILITY_CHECK_FAILED` |
+| `DOC_*` | 문서 생성 | `DOC_PREFILL_MISSING`, `DOC_PLAN_DRAFT_FAILED` |
+| `AUTH_*` | 인증/권한 | `AUTH_LOGIN_REQUIRED`, `AUTH_ADMIN_REQUIRED` |
+| `PAY_*` | 결제/웹훅 | `PAY_CONFIRM_UNAUTHORIZED_USER`, `PAY_WEBHOOK_VERIFICATION_FAILED` |
+| `ADMIN_*` | 운영 API | `ADMIN_DASHBOARD_READ_FAILED`, `ADMIN_SYNC_AUTH_FAILED` |
+| `SYS_*` | 공통 시스템 | `SYS_INTERNAL_ERROR`, `SYS_DEPENDENCY_TIMEOUT` |
+
+### 11-3. API 오류 응답 표준 스키마
+
+```json
+{
+  "ok": false,
+  "error_code": "SEARCH_NO_RESULTS_HARD",
+  "message": "조건에 맞는 공고를 찾지 못했습니다.",
+  "step": "search.query.execute",
+  "trace_id": "trc_20260515_xxxxxxxx",
+  "meta": {
+    "fallback_applied": ["drop_keyword"],
+    "hint": "지역/업종 조건을 완화해보세요."
+  }
+}
+```
+
+### 11-4. MCP 동원 검증 운영안
+
+| 검증 축 | MCP/도구 | 목적 |
+|---|---|---|
+| 실사용 여정 E2E | `browser-use` | UI 흐름/클릭/전환/실패 재현 |
+| DB/로그 확인 | `user-Supabase` | 테이블 상태, 오류 로그, RLS 확인 |
+| 공공 API 점검 | `user-public-data-api-finder`, `user-gov-support-mcp` | 응답 포맷/필드 매핑 검증 |
+| 법/정책 문구 | `user-korean-law` | 고지/약관 문구 정합 확인 |
+| 배포 상태 점검 | `plugin-vercel-vercel` | 프로덕션 배포/로그 확인 |
+| 런타임 점검 | Shell + API 스모크 | 배포 전후 회귀 자동 확인 |
+
+### 11-5. 실행 순서 (Executor가 따를 순서)
+
+1. 오류 코드 유틸 + trace id 생성기 추가  
+2. `/api/query/parse`, `/api/search`, `/api/eligibility`, `/api/documents/*`에 표준 오류 스키마 적용  
+3. 회귀 테스트(US-03, US-04, US-08, US-14, US-15) 우선 작성  
+4. `verify:story` 스크립트 추가 후 배포 게이트에 연결  
+5. 프로덕션에서 MCP 기반 E2E 재검증 후 결과 기록

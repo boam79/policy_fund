@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sync": "tsx scripts/sync.ts"
+    "sync": "tsx scripts/sync.ts",
+    "verify:story": "tsx scripts/verify-story.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

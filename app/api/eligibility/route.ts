@@ -14,17 +14,22 @@ import {
 } from '@/lib/gov-support/tools/eligibility'
 import { GoogleGenAI } from '@google/genai'
 import { takeRateLimit } from '@/lib/security/rateLimit'
+import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  const traceId = createTraceId()
   try {
     const rate = takeRateLimit(request, 'api:eligibility', { windowMs: 60_000, max: 30 })
     if (!rate.ok) {
-      return Response.json(
-        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
-        { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } }
-      )
+      return apiError({
+        status: 429,
+        errorCode: 'ELIGIBILITY_RATE_LIMITED',
+        message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+        step: 'eligibility.rate_limit',
+        traceId,
+      })
     }
 
     const body = await request.json()
@@ -34,7 +39,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (!program_id) {
-      return Response.json({ error: 'program_id 필수' }, { status: 400 })
+      return apiError({
+        status: 400,
+        errorCode: 'ELIGIBILITY_PROGRAM_ID_REQUIRED',
+        message: 'program_id 필수',
+        step: 'eligibility.validate',
+        traceId,
+      })
     }
 
     const supabase = createClient<Database>(
@@ -51,7 +62,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error || !program) {
-      return Response.json({ error: '공고를 찾을 수 없습니다.' }, { status: 404 })
+      return apiError({
+        status: 404,
+        errorCode: 'ELIGIBILITY_PROGRAM_NOT_FOUND',
+        message: '공고를 찾을 수 없습니다.',
+        step: 'eligibility.fetch_program',
+        traceId,
+      })
     }
 
     // 룰 기반 자격판정
@@ -119,9 +136,16 @@ export async function POST(request: NextRequest) {
       failed: eligibility.failed,
       unknown: eligibility.unknown,
       explanation,
+      trace_id: traceId,
     })
   } catch (e: unknown) {
-    console.error('[api/eligibility]', e)
-    return Response.json({ error: '자격판정 중 오류가 발생했습니다.' }, { status: 500 })
+    logApiError('/api/eligibility', traceId, e)
+    return apiError({
+      status: 500,
+      errorCode: 'ELIGIBILITY_INTERNAL_ERROR',
+      message: '자격판정 중 오류가 발생했습니다.',
+      step: 'eligibility.execute',
+      traceId,
+    })
   }
 }
