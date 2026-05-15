@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
-import { FileText, CheckCircle, TrendingUp, Search, RefreshCw } from 'lucide-react'
+import { FileText, CheckCircle, TrendingUp, Search, RefreshCw, Clock, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SearchBar from '@/components/home/SearchBar'
 import ProgramBannerCard from '@/components/home/ProgramBannerCard'
@@ -92,6 +92,79 @@ function BannerSkeleton() {
   )
 }
 
+async function ClosingSoonList() {
+  try {
+    const supabase = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const today = new Date().toISOString().slice(0, 10)
+    const sevenDays = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+    const { data } = await supabase
+      .from('support_programs')
+      .select('id,title,organization,application_end_date')
+      .eq('visibility_status', 'visible')
+      .gte('application_end_date', today)
+      .lte('application_end_date', sevenDays)
+      .order('application_end_date', { ascending: true })
+      .limit(5)
+    if (!data?.length) return <p className="text-sm text-gray-400">마감임박 공고가 없습니다.</p>
+    return (
+      <div className="space-y-2">
+        {data.map(p => {
+          const days = Math.ceil((new Date(p.application_end_date!).getTime() - Date.now()) / 86400000)
+          return (
+            <Link key={p.id} href={`/search/${p.id}`}
+              className="flex items-center justify-between p-3 bg-white rounded-xl border hover:border-red-300 hover:shadow-sm transition-all group">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate group-hover:text-red-600">{p.title}</p>
+                <p className="text-xs text-gray-400">{p.organization}</p>
+              </div>
+              <span className={`text-xs font-bold ml-3 px-2 py-1 rounded-full flex-shrink-0 ${days === 0 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                D-{days}
+              </span>
+            </Link>
+          )
+        })}
+      </div>
+    )
+  } catch { return null }
+}
+
+async function NewlyAddedList() {
+  try {
+    const supabase = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const today = new Date().toISOString().slice(0, 10)
+    const { data } = await supabase
+      .from('support_programs')
+      .select('id,title,organization,application_end_date,source')
+      .eq('visibility_status', 'visible')
+      .in('status', ['active', 'closing_soon'])
+      .gte('application_end_date', today)
+      .order('created_at', { ascending: false })
+      .limit(5)
+    if (!data?.length) return <p className="text-sm text-gray-400">신규 공고가 없습니다.</p>
+    const SRC: Record<string, string> = { bizinfo: '기업마당', kstartup: 'K-Startup', smes24: '중소벤처24' }
+    return (
+      <div className="space-y-2">
+        {data.map(p => (
+          <Link key={p.id} href={`/search/${p.id}`}
+            className="flex items-center justify-between p-3 bg-white rounded-xl border hover:border-blue-300 hover:shadow-sm transition-all group">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">{p.title}</p>
+              <p className="text-xs text-gray-400">{p.organization}</p>
+            </div>
+            <span className="text-xs text-gray-400 ml-3 flex-shrink-0">{SRC[p.source ?? ''] ?? p.source}</span>
+          </Link>
+        ))}
+      </div>
+    )
+  } catch { return null }
+}
+
 export default function HomePage() {
   return (
     <div className="flex flex-col">
@@ -133,6 +206,26 @@ export default function HomePage() {
           <Suspense fallback={<BannerSkeleton />}>
             <RecommendationBanners />
           </Suspense>
+        </div>
+      </section>
+
+      {/* 마감임박 / 신규 공고 트렌딩 */}
+      <section className="bg-gray-50 px-4 py-10">
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid md:grid-cols-2 gap-8">
+            <div>
+              <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 mb-3">
+                <Clock className="h-4 w-4 text-red-500" />마감 임박 공고
+              </h3>
+              <ClosingSoonList />
+            </div>
+            <div>
+              <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 mb-3">
+                <Sparkles className="h-4 w-4 text-blue-500" />신규 등록 공고
+              </h3>
+              <NewlyAddedList />
+            </div>
+          </div>
         </div>
       </section>
 

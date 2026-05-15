@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { Search, Filter, Building2, MapPin, Calendar, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import FeedbackWidget from '@/components/FeedbackWidget'
 import { eligibilityLabel, eligibilityColor, type EligibilityStatus } from '@/lib/gov-support/tools/eligibility'
 import type { SupportProgram } from '@/lib/gov-support/tools/unifiedSearch'
 
@@ -170,11 +171,14 @@ export default function SearchPage() {
       <div className="container mx-auto max-w-5xl px-4 py-6">
         {/* 결과 요약 */}
         {searched && !loading && (
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
             <p className="text-sm text-gray-600">
               총 <span className="font-semibold text-gray-900">{total.toLocaleString()}건</span> 검색됨
             </p>
-            <p className="text-xs text-gray-400">{page}/{totalPages || 1} 페이지</p>
+            <div className="flex items-center gap-4">
+              <p className="text-xs text-gray-400">{page}/{totalPages || 1} 페이지</p>
+              <FeedbackWidget targetType="search" label="검색 결과가 유용했나요?" />
+            </div>
           </div>
         )}
 
