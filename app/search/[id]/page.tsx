@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { Building2, MapPin, Calendar, ExternalLink, ArrowLeft, Clock } from 'lucide-react'
 import Link from 'next/link'
+import AlertButton from '@/components/AlertButton'
 
 const LEGAL_DISCLAIMER = '본 자격판정 결과는 AI 기반 참고 정보이며 법적 효력이 없습니다. 실제 신청 가능 여부는 해당 지원기관의 공식 공고문과 담당자에게 반드시 확인하세요. 폴리시펀드는 판정 결과의 정확성을 보장하지 않습니다.'
 
@@ -102,18 +103,16 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
             )}
           </div>
 
-          {/* 신청 링크 */}
-          {program.application_url && (
-            <a
-              href={program.application_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 flex items-center justify-center gap-2 w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            >
-              공식 공고 바로가기
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          )}
+          {/* 액션 버튼 */}
+          <div className="mt-4 flex gap-2">
+            {program.application_url && (
+              <a href={program.application_url} target="_blank" rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                공식 공고 바로가기 <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
+            <AlertButton programId={program.id} />
+          </div>
         </div>
 
         {/* 지원 내용 */}
