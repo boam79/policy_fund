@@ -130,17 +130,17 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
   // 지역 필터 (전국 공고는 항상 포함)
   if (region) {
     const normalized = normalizeRegion(region)
-    query = query.or(
-      `region.ilike.%${normalized}%,region.ilike.%전국%,region.is.null`
-    )
+    // 사용자가 지역을 명시하면 해당 지역 공고만 노출
+    // (이전에는 전국/지역미기재까지 포함되어 체감 정확도가 떨어졌음)
+    if (normalized !== '전국') {
+      query = query.or(`region.ilike.%${normalized}%`)
+    }
   } else if (city) {
     const normalizedCity = city.replace(/\s+/g, '')
     const inferredRegion = inferRegionFromCity(city)
     const cityOrRegionFilters = [
       `region.ilike.%${normalizedCity}%`,
       inferredRegion ? `region.ilike.%${inferredRegion}%` : null,
-      'region.ilike.%전국%',
-      'region.is.null',
     ]
       .filter(Boolean)
       .join(',')
