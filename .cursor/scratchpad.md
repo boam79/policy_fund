@@ -481,6 +481,8 @@ PAYMENT_SECRET_KEY=
   - `verify:story` 자동 검증 스크립트 추가 (`scripts/verify-story.ts`) 및 PASS 확인
   - `verify:story`를 엄격 시나리오로 확장 (parse/search/eligibility/documents/admin/export/billing/webhook/rate-limit)
   - 확장 검증 PASS + `npm run build` PASS
+  - 관리자 스토리 검증 스크립트 추가: `scripts/verify-admin-story.ts`
+  - `verify:admin`, `verify:strict` 명령 추가 및 PASS 확인
 
 ---
 

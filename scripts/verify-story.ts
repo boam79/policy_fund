@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+export {}
 type Json = Record<string, unknown>
 
 const BASE_URL = process.env.STORY_BASE_URL ?? 'http://localhost:3000'
