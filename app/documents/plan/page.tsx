@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { FileText, Calendar, CheckSquare, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -21,16 +22,25 @@ interface JourneySearchSeed {
   natural_language_query?: string | null
   extracted_conditions?: Record<string, unknown> | null
 }
+interface ProgramSeed {
+  title?: string | null
+  support_type?: string | null
+  eligibility_text?: string | null
+  application_end_date?: string | null
+}
 
 const LEGAL_DISCLAIMER = '본 문서 초안은 AI가 생성한 참고용 자료이며 법적 효력이 없습니다. 실제 제출 전 반드시 전문가 검토 및 공고문 기준에 맞게 수정하세요.'
 
-export default function DocumentPlanPage() {
+function DocumentPlanContent() {
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const hydratedJourneyRef = useRef(false)
+  const hydratedQueryRef = useRef(false)
   const [tab, setTab] = useState<Tab>('plan')
   const [template, setTemplate] = useState<'gov' | 'psst'>('gov')
   const [loading, setLoading] = useState(false)
   const [journeyHint, setJourneyHint] = useState('')
+  const [programId, setProgramId] = useState('')
 
   // 공통 입력
   const [title, setTitle] = useState('')
@@ -52,14 +62,45 @@ export default function DocumentPlanPage() {
   const [timelineResult, setTimelineResult] = useState<{ milestones: Milestone[]; totalDaysLeft: number; warnings: string[]; tips: string[] } | null>(null)
 
   useEffect(() => {
+    if (hydratedQueryRef.current) return
+    hydratedQueryRef.current = true
+
+    const tabParam = searchParams.get('tab')
+    if (tabParam === 'plan' || tabParam === 'checklist' || tabParam === 'timeline') {
+      setTab(tabParam)
+    }
+
+    const pid = searchParams.get('program_id') ?? ''
+    if (pid) setProgramId(pid)
+
+    const titleParam = searchParams.get('title') ?? ''
+    const deadlineParam = searchParams.get('deadline') ?? ''
+    const announcementParam = searchParams.get('announcement') ?? ''
+
+    if (titleParam) setTitle((prev) => prev || titleParam)
+    if (deadlineParam) setDeadline((prev) => prev || deadlineParam.slice(0, 10))
+    if (announcementParam) setAnnouncementText((prev) => prev || announcementParam)
+  }, [searchParams])
+
+  useEffect(() => {
     if (hydratedJourneyRef.current) return
     hydratedJourneyRef.current = true
 
     const hydrateFromJourney = async () => {
       let profileSeed: JourneyProfileSeed | null = null
       let searchSeed: JourneySearchSeed | null = null
+      let programSeed: ProgramSeed | null = null
 
       try {
+        if (programId) {
+          const { data: programData } = await supabase
+            .from('support_programs')
+            .select('title,support_type,eligibility_text,application_end_date')
+            .eq('id', programId)
+            .maybeSingle()
+          programSeed = (programData as ProgramSeed | null) ?? null
+        }
+
         const { data: auth } = await supabase.auth.getUser()
         const user = auth.user
         if (user) {
@@ -106,6 +147,10 @@ export default function DocumentPlanPage() {
 
       const cond = (searchSeed?.extracted_conditions as Record<string, unknown> | null) ?? localParsed ?? {}
       const queryText = searchSeed?.natural_language_query ?? localQuery
+      const programText = [programSeed?.support_type, programSeed?.eligibility_text]
+        .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+        .join('\n\n')
+      const programDeadline = programSeed?.application_end_date?.slice(0, 10) ?? ''
 
       const amount = (profileSeed?.desired_amount_krw as number | null) ?? (cond.desired_amount_krw as number | undefined)
       const workers = (profileSeed?.employee_count as number | null) ?? (cond.employee_count as number | undefined)
@@ -115,9 +160,11 @@ export default function DocumentPlanPage() {
 
       let seededCount = 0
       if (company || industrySeed || workers || amount || queryText) seededCount += 1
+      if (programSeed?.title || programText || programDeadline) seededCount += 1
 
-      setTitle((prev) => prev || (queryText ? `맞춤 지원사업 신청 (${queryText.slice(0, 24)})` : ''))
-      setAnnouncementText((prev) => prev || queryText || '')
+      setTitle((prev) => prev || programSeed?.title || (queryText ? `맞춤 지원사업 신청 (${queryText.slice(0, 24)})` : ''))
+      setAnnouncementText((prev) => prev || programText || queryText || '')
+      setDeadline((prev) => prev || programDeadline)
       setCompanyName((prev) => prev || company || '')
       setIndustry((prev) => prev || industrySeed || '')
       setEmployeeCount((prev) => prev || (workers != null ? String(workers) : ''))
@@ -129,12 +176,16 @@ export default function DocumentPlanPage() {
       setProblemStatement((prev) => prev || (profileSeed?.support_purpose ?? ''))
 
       if (seededCount > 0) {
-        setJourneyHint('최근 검색·마이페이지 입력값을 자동 반영했습니다. 필요하면 수정 후 생성하세요.')
+        if (programSeed?.title) {
+          setJourneyHint('선택한 공고 정보와 최근 입력값을 자동 반영했습니다. 필요하면 수정 후 생성하세요.')
+        } else {
+          setJourneyHint('최근 검색·마이페이지 입력값을 자동 반영했습니다. 필요하면 수정 후 생성하세요.')
+        }
       }
     }
 
     void hydrateFromJourney()
-  }, [supabase])
+  }, [supabase, programId])
 
   const handleGenerate = async () => {
     if (!title) { alert('공고명을 입력하세요'); return }
@@ -148,6 +199,7 @@ export default function DocumentPlanPage() {
             announcementTitle: title,
             announcementText: announcementText || title,
             template,
+            program_id: programId || undefined,
             requestedAmount: requestedAmount ? Number(requestedAmount) : undefined,
             companyProfile: {
               companyName: companyName || undefined,
@@ -165,7 +217,7 @@ export default function DocumentPlanPage() {
         const res = await fetch('/api/documents/checklist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ announcementTitle: title, announcementText, deadline, businessType }),
+          body: JSON.stringify({ program_id: programId || undefined, announcementTitle: title, announcementText, deadline, businessType }),
         })
         const data = await res.json()
         setChecklistResult(data)
@@ -174,7 +226,7 @@ export default function DocumentPlanPage() {
         const res = await fetch('/api/documents/timeline', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ announcementTitle: title, deadline }),
+          body: JSON.stringify({ program_id: programId || undefined, announcementTitle: title, deadline }),
         })
         const data = await res.json()
         setTimelineResult(data)
@@ -308,6 +360,14 @@ export default function DocumentPlanPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function DocumentPlanPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <DocumentPlanContent />
+    </Suspense>
   )
 }
 

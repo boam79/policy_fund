@@ -229,6 +229,33 @@ function EligibilityContent() {
 
             <ResultList title="충족 조건" items={result.passed} icon={<CheckCircle2 className="h-4 w-4 text-green-600" />} emptyText="없음" />
             <ResultList title="미충족/검토 필요" items={result.failed} icon={<AlertTriangle className="h-4 w-4 text-yellow-600" />} emptyText="없음" />
+
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <p className="text-sm font-semibold text-blue-900">다음 단계 진행</p>
+              <p className="mt-1 text-xs text-blue-700">
+                자격판정 결과를 바탕으로 신청 준비 문서를 바로 생성할 수 있습니다.
+              </p>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <Link
+                  href={`/documents/plan?program_id=${encodeURIComponent(programId)}&tab=checklist`}
+                  className="rounded-lg bg-white px-3 py-2 text-center text-xs font-medium text-blue-700 border border-blue-200 hover:bg-blue-100"
+                >
+                  서류 체크리스트
+                </Link>
+                <Link
+                  href={`/documents/plan?program_id=${encodeURIComponent(programId)}&tab=timeline`}
+                  className="rounded-lg bg-white px-3 py-2 text-center text-xs font-medium text-blue-700 border border-blue-200 hover:bg-blue-100"
+                >
+                  신청 타임라인
+                </Link>
+                <Link
+                  href={`/documents/plan?program_id=${encodeURIComponent(programId)}&tab=plan`}
+                  className="rounded-lg bg-blue-600 px-3 py-2 text-center text-xs font-medium text-white hover:bg-blue-700"
+                >
+                  사업계획서 초안
+                </Link>
+              </div>
+            </div>
           </div>
         )}
       </div>

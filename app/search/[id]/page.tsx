@@ -159,12 +159,20 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
           <p className="text-sm text-blue-700 mb-3">
             내 기업 정보를 입력하면 AI가 이 공고에 대한 자격 충족 여부를 즉시 분석해드립니다.
           </p>
-          <Link
-            href={`/eligibility?program_id=${program.id}`}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            자격판정 시작하기
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/eligibility?program_id=${program.id}`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              자격판정 시작하기
+            </Link>
+            <Link
+              href={`/documents/plan?program_id=${program.id}&tab=checklist`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-700 border border-blue-200 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors"
+            >
+              신청 준비 시작하기
+            </Link>
+          </div>
         </div>
 
         {/* 법적 고지 */}
