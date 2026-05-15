@@ -49,6 +49,8 @@ const INDUSTRY_NORMALIZE_MAP: Record<string, string> = {
   software: 'IT/소프트웨어',
   tech: 'IT/소프트웨어',
   technology: 'IT/소프트웨어',
+  '응용소프트웨어': 'IT/소프트웨어',
+  '응용소프트웨어업': 'IT/소프트웨어',
   retail: '유통/도소매',
   distribution: '유통/도소매',
   food: '음식/외식',
@@ -61,6 +63,7 @@ const INDUSTRY_NORMALIZE_MAP: Record<string, string> = {
 function normalizeIndustryValue(value: string): string {
   const raw = value.trim()
   if (!raw) return raw
+  if (raw.includes('응용소프트웨어')) return 'IT/소프트웨어'
   const lower = raw.toLowerCase()
   return INDUSTRY_NORMALIZE_MAP[lower] ?? raw
 }
@@ -158,6 +161,8 @@ const INDUSTRY_KEYWORDS = [
   '서비스업',
   'IT',
   '소프트웨어',
+  '응용소프트웨어',
+  '응용소프트웨어업',
   '유통',
   '도소매',
   '음식',

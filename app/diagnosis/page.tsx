@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { formatKRW } from '@/types'
 import type { ParseNLResult, ParsedConditions } from '@/lib/query/parseNaturalLanguage'
 import { AlertCircle, CheckCircle2, HelpCircle, Pencil, Zap, Search } from 'lucide-react'
+import ConditionEditInput from '@/components/diagnosis/ConditionEditInput'
 
 // ─── 조건 표시 라벨 매핑 ───────────────────────────────────
 const CONDITION_LABELS: Record<string, string> = {
@@ -153,6 +154,8 @@ function DiagnosisContent() {
 
   const [parsed, setParsed] = useState<ParseNLResult | null>(null)
   const [editValues, setEditValues] = useState<Record<string, string>>({})
+  /** 저장 전 임시 입력값 (한글 조합 중 UI가 바뀌지 않도록 editValues 와 분리) */
+  const [draftValues, setDraftValues] = useState<Record<string, string>>({})
   const [editMode, setEditMode] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -181,7 +184,23 @@ function DiagnosisContent() {
     }
   }, [searchParams, router])
 
+  function beginEdit(key: string, initial = '') {
+    setEditMode(key)
+    setDraftValues((prev) => ({
+      ...prev,
+      [key]: prev[key] ?? editValues[key] ?? initial,
+    }))
+  }
+
   function handleEditSave(key: string) {
+    const next = (draftValues[key] ?? editValues[key] ?? '').trim()
+    if (next) {
+      setEditValues((prev) => ({ ...prev, [key]: next }))
+    }
+    setEditMode(null)
+  }
+
+  function handleEditCancel() {
     setEditMode(null)
   }
 
@@ -277,24 +296,26 @@ function DiagnosisContent() {
                       </div>
                       {editMode === key ? (
                         <div className="mt-1 flex items-center gap-2">
-                          <input
-                            autoFocus
-                            type="text"
-                            value={editValues[key] ?? ''}
-                            onChange={(e) =>
-                              setEditValues((prev) => ({ ...prev, [key]: e.target.value }))
+                          <ConditionEditInput
+                            value={draftValues[key] ?? ''}
+                            onChange={(v) => setDraftValues((prev) => ({ ...prev, [key]: v }))}
+                            onSave={() => handleEditSave(key)}
+                            onCancel={handleEditCancel}
+                            placeholder={
+                              key === 'industry' ? '예: 응용소프트웨어업, 제조업, IT' : undefined
                             }
-                            onKeyDown={(e) => e.key === 'Enter' && handleEditSave(key)}
-                            className="h-7 rounded border px-2 text-sm outline-none focus:border-primary"
+                            className="h-7 min-w-[10rem] rounded border px-2 text-sm outline-none focus:border-primary"
                           />
                           <button
+                            type="button"
                             onClick={() => handleEditSave(key)}
                             className={cn(buttonVariants({ size: 'sm' }), 'h-7 px-2 text-xs')}
                           >
                             저장
                           </button>
                           <button
-                            onClick={() => setEditMode(null)}
+                            type="button"
+                            onClick={handleEditCancel}
                             className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-7 px-2 text-xs')}
                           >
                             취소
@@ -306,7 +327,8 @@ function DiagnosisContent() {
                     </div>
                     {editMode !== key && (
                       <button
-                        onClick={() => setEditMode(key)}
+                        type="button"
+                        onClick={() => beginEdit(key, String(c.value ?? ''))}
                         className="text-muted-foreground hover:text-foreground"
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -350,19 +372,18 @@ function DiagnosisContent() {
                     <span className="text-sm font-medium text-yellow-900">{MISSING_LABELS[key] ?? key}</span>
                     {editMode === key ? (
                       <div className="flex flex-1 flex-wrap items-center gap-2 sm:justify-end">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={editValues[key] ?? ''}
+                        <ConditionEditInput
+                          value={draftValues[key] ?? ''}
+                          onChange={(v) => setDraftValues((prev) => ({ ...prev, [key]: v }))}
+                          onSave={() => handleEditSave(key)}
+                          onCancel={handleEditCancel}
                           placeholder={
                             key === 'industry'
-                              ? '예: 제조업, IT, 소상공인'
+                              ? '예: 응용소프트웨어업, 제조업, IT'
                               : key === 'employee_count'
                                 ? '예: 5'
                                 : '값을 입력하세요'
                           }
-                          onChange={(e) => setEditValues((prev) => ({ ...prev, [key]: e.target.value }))}
-                          onKeyDown={(e) => e.key === 'Enter' && handleEditSave(key)}
                           className="h-8 min-w-[12rem] flex-1 rounded border px-2 text-sm outline-none focus:border-primary"
                         />
                         <button
@@ -374,7 +395,7 @@ function DiagnosisContent() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setEditMode(null)}
+                          onClick={handleEditCancel}
                           className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-8 shrink-0 text-xs')}
                         >
                           취소
@@ -383,10 +404,7 @@ function DiagnosisContent() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => {
-                          setEditMode(key)
-                          setEditValues((prev) => ({ ...prev, [key]: prev[key] ?? '' }))
-                        }}
+                        onClick={() => beginEdit(key, '')}
                         className={cn(
                           buttonVariants({ variant: 'secondary', size: 'sm' }),
                           'h-8 w-full shrink-0 text-xs sm:w-auto'
