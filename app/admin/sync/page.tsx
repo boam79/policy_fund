@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { RefreshCw, Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
+import { readApiError } from '@/lib/api/readApiError'
 
 interface SyncLog {
   id: string
@@ -29,7 +30,7 @@ export default function AdminSyncPage() {
       const res = await fetch('/api/admin/sync-logs')
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setLoadError(String(data.error ?? '동기화 이력을 불러오지 못했습니다.'))
+        setLoadError(readApiError(data, '동기화 이력을 불러오지 못했습니다.'))
         setLogs([])
         return
       }
@@ -52,7 +53,7 @@ export default function AdminSyncPage() {
     try {
       const res = await fetch('/api/admin/sync', { method: 'POST' })
       const data = await res.json().catch(() => ({}))
-      setMessage(data.message ?? (res.ok ? '동기화가 요청되었습니다' : `오류: ${data.error ?? res.status}`))
+      setMessage(res.ok ? (data.message ?? '동기화가 요청되었습니다') : readApiError(data, '동기화 실패'))
       setTimeout(loadLogs, 3000)
     } catch (e: unknown) {
       setMessage(e instanceof Error ? e.message : '오류 발생')

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { readApiError } from '@/lib/api/readApiError'
 import { FileText, Search, CheckSquare, MessageSquare, RefreshCw, Loader2, TrendingUp, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -21,7 +22,7 @@ export default function AdminDashboard() {
       const res = await fetch('/api/admin/dashboard')
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(String(data.error ?? '대시보드 데이터를 불러오지 못했습니다.'))
+        throw new Error(readApiError(data, '대시보드 데이터를 불러오지 못했습니다.'))
       }
       setKpi(data.kpi)
       setSyncs(data.recentSyncs ?? [])
@@ -44,7 +45,7 @@ export default function AdminDashboard() {
         method: 'POST',
       })
       const data = await res.json()
-      setSyncMsg(data.message ?? (res.ok ? '동기화 완료' : '동기화 실패'))
+      setSyncMsg(res.ok ? (data.message ?? '동기화 완료') : readApiError(data, '동기화 실패'))
       await loadData()
     } catch { setSyncMsg('오류가 발생했습니다') }
     finally { setSyncing(false) }

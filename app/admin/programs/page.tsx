@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Loader2, Search, Eye, EyeOff, Download } from 'lucide-react'
+import { readApiError } from '@/lib/api/readApiError'
+import { stripHtmlToText } from '@/lib/utils/stripHtml'
 
 interface Program {
   id: string
@@ -52,7 +54,7 @@ export default function AdminProgramsPage() {
       const res = await fetch(`/api/admin/programs?${q}`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setListError(String(data.error ?? '목록을 불러오지 못했습니다.'))
+        setListError(readApiError(data, '목록을 불러오지 못했습니다.'))
         setPrograms([])
         setTotal(0)
         return
@@ -87,7 +89,7 @@ export default function AdminProgramsPage() {
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({}))
-      setListError(String(j.error ?? '노출 상태 변경에 실패했습니다.'))
+      setListError(readApiError(j, '노출 상태 변경에 실패했습니다.'))
       return
     }
     setPrograms((ps) => ps.map((p) => (p.id === id ? { ...p, visibility_status: next } : p)))
@@ -103,7 +105,7 @@ export default function AdminProgramsPage() {
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
-        setListError(String(j.error ?? 'CSV 내보내기에 실패했습니다.'))
+        setListError(readApiError(j, 'CSV보내기에 실패했습니다.'))
         return
       }
       const blob = await res.blob()
@@ -188,10 +190,10 @@ export default function AdminProgramsPage() {
               {programs.map((p) => (
                 <tr key={p.id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-3 max-w-xs">
-                    <p className="font-medium text-gray-900 truncate">{p.title}</p>
-                    <p className="text-xs text-gray-400">{p.region}</p>
+                    <p className="font-medium text-gray-900 truncate">{stripHtmlToText(p.title)}</p>
+                    <p className="text-xs text-gray-400">{p.region ? stripHtmlToText(p.region) : ''}</p>
                   </td>
-                  <td className="px-3 py-3 text-gray-600 text-xs">{p.organization ?? '-'}</td>
+                  <td className="px-3 py-3 text-gray-600 text-xs">{p.organization ? stripHtmlToText(p.organization) : '-'}</td>
                   <td className="px-3 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLOR[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
                       {STATUS_LABEL[p.status] ?? p.status}

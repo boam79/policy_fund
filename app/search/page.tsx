@@ -6,6 +6,7 @@ import { Search, Filter, Building2, MapPin, Calendar, ExternalLink, ChevronLeft,
 import FeedbackWidget from '@/components/FeedbackWidget'
 import { eligibilityLabel, eligibilityColor, type EligibilityStatus } from '@/lib/gov-support/tools/eligibility'
 import type { SupportProgram } from '@/lib/gov-support/tools/unifiedSearch'
+import { readApiError } from '@/lib/api/readApiError'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
 
 interface EligibilityResult {
@@ -82,11 +83,13 @@ function SearchContent() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [searchError, setSearchError] = useState('')
   const LIMIT = 20
 
   const handleSearch = useCallback(async (p = 1) => {
     setLoading(true)
     setSearched(true)
+    setSearchError('')
     try {
       // 검색 단계에서 사용한 조건을 저장해 상세/자격판정 화면에서 자동 채움
       if (typeof window !== 'undefined') {
@@ -121,11 +124,19 @@ function SearchContent() {
         }),
       })
       const data = await res.json()
+      if (!res.ok || data.ok === false) {
+        setSearchError(readApiError(data, '검색에 실패했습니다. 잠시 후 다시 시도해 주세요.'))
+        setPrograms([])
+        setTotal(0)
+        setPage(1)
+        return
+      }
       setPrograms(data.programs ?? [])
       setTotal(data.total ?? 0)
       setPage(p)
     } catch {
       setPrograms([])
+      setSearchError('네트워크 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
@@ -177,6 +188,12 @@ function SearchContent() {
               검색
             </button>
           </div>
+
+          {searchError && (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {searchError}
+            </div>
+          )}
 
           {/* 필터 패널 */}
           {showFilters && (

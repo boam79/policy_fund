@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
-
-const ADMIN_ONLY_EMAIL = 'pjm7908@hanmail.net'
+import { isAdminUser } from '@/lib/auth/admin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,8 +44,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
     }
 
-    const isAdmin = user.email?.toLowerCase().trim() === ADMIN_ONLY_EMAIL
-    if (!isAdmin) {
+    if (!(await isAdminUser())) {
       return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
     }
 

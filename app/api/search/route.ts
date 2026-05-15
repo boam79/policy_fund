@@ -11,6 +11,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { takeRateLimit } from '@/lib/security/rateLimit'
 import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
+import { sanitizeProgramForClient } from '@/lib/utils/stripHtml'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,7 +105,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 각 공고에 자격판정 배지 추가
-    const programsWithEligibility = result.programs.map((p) => {
+    const programsWithEligibility = result.programs.map((raw) => {
+      const p = sanitizeProgramForClient(raw)
       const eligibility = checkEligibility(profile, {
         title: p.title,
         region: p.region,

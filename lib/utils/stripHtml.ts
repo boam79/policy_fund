@@ -40,3 +40,27 @@ export function stripHtmlToText(
   }
   return s
 }
+
+/** API·목록 응답용 — 화면에 노출되는 텍스트 필드만 정리 */
+export function sanitizeProgramForClient<
+  T extends {
+    title: string
+    support_type?: string | null
+    organization?: string | null
+    region?: string | null
+    eligibility_text?: string | null
+    exclusion_text?: string | null
+    summary_text?: string | null
+  },
+>(p: T): T {
+  return {
+    ...p,
+    title: stripHtmlToText(p.title),
+    support_type: p.support_type ? stripHtmlToText(p.support_type) : p.support_type,
+    organization: p.organization ? stripHtmlToText(p.organization) : p.organization,
+    region: p.region ? stripHtmlToText(p.region) : p.region,
+    eligibility_text: p.eligibility_text ? stripHtmlToText(p.eligibility_text) : p.eligibility_text,
+    exclusion_text: p.exclusion_text ? stripHtmlToText(p.exclusion_text) : p.exclusion_text,
+    summary_text: p.summary_text ? stripHtmlToText(p.summary_text) : p.summary_text,
+  }
+}

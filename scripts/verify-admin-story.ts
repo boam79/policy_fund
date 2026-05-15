@@ -31,7 +31,18 @@ async function run() {
   console.log(`[verify-admin] base=${BASE_URL}`)
 
   // 1) Admin pages should not be reachable without login/admin role.
-  const adminPages = ['/admin', '/admin/users', '/admin/dashboard', '/admin/inquiries']
+  const adminPages = [
+    '/admin',
+    '/admin/dashboard',
+    '/admin/programs',
+    '/admin/sync',
+    '/admin/recommendations',
+    '/admin/users',
+    '/admin/inquiries',
+    '/admin/feedback',
+    '/admin/billing',
+    '/admin/settings',
+  ]
   for (const page of adminPages) {
     const res = await requestRaw(page, { redirect: 'manual' })
     assert(
