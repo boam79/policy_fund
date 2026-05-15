@@ -1,24 +1,44 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Send, CheckCircle } from 'lucide-react'
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', category: '서비스 문의', message: '' })
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const type = params.get('type')
+    const categoryFromType =
+      type === 'error'
+        ? '오류 신고'
+        : type === 'partnership'
+          ? '제휴/컨설턴트 문의'
+          : '서비스 문의'
+    setForm((prev) => ({ ...prev, category: categoryFromType }))
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name || !form.email || !form.message) { alert('필수 항목을 입력하세요'); return }
     setLoading(true)
+    setError('')
     try {
-      await fetch('/api/contact', {
+      const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
+      if (!res.ok) {
+        const json = await res.json()
+        throw new Error(String(json.error ?? '문의 전송에 실패했습니다.'))
+      }
       setSubmitted(true)
-    } catch { setSubmitted(true) }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '문의 전송에 실패했습니다.')
+    }
     finally { setLoading(false) }
   }
 
@@ -61,7 +81,7 @@ export default function ContactPage() {
               <label className="text-xs font-medium text-gray-600 mb-1 block">문의 유형</label>
               <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {['서비스 문의', '공고 오류 신고', '기능 제안', '기타'].map(c => <option key={c}>{c}</option>)}
+                {['서비스 문의', '오류 신고', '제휴/컨설턴트 문의', '기능 제안', '기타'].map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
@@ -73,6 +93,7 @@ export default function ContactPage() {
               className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
               <Send className="h-4 w-4" />{loading ? '전송 중...' : '문의 전송'}
             </button>
+            {error && <p className="text-sm text-red-600">{error}</p>}
           </form>
         </div>
         <p className="text-xs text-center text-gray-400 mt-4">영업일 기준 2~3일 이내 이메일로 답변드립니다.</p>

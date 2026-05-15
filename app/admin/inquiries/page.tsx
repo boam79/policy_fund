@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { Loader2, MessageSquare } from 'lucide-react'
-import { createClient } from '@supabase/supabase-js'
 
 interface Inquiry { id: string; name: string; email: string; inquiry_type: string; subject: string; message: string; status: string; created_at: string }
 
@@ -12,23 +11,52 @@ export default function AdminInquiriesPage() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Inquiry | null>(null)
+  const [error, setError] = useState('')
+
+  const loadInquiries = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const res = await fetch('/api/admin/inquiries')
+      const json = await res.json()
+      if (!res.ok) throw new Error(String(json.error ?? '문의 데이터를 불러오지 못했습니다.'))
+      setInquiries((json.inquiries ?? []) as Inquiry[])
+    } catch (err) {
+      setInquiries([])
+      setError(err instanceof Error ? err.message : '문의 데이터를 불러오지 못했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    supabase.from('customer_inquiries').select('*').order('created_at', { ascending: false }).limit(50)
-      .then(({ data }) => { setInquiries((data ?? []) as Inquiry[]); setLoading(false) })
+    void loadInquiries()
   }, [])
 
   const updateStatus = async (id: string, status: string) => {
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    await supabase.from('customer_inquiries').update({ status }).eq('id', id)
-    setInquiries(is => is.map(i => i.id === id ? { ...i, status } : i))
-    if (selected?.id === id) setSelected(s => s ? { ...s, status } : null)
+    try {
+      const res = await fetch('/api/admin/inquiries', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(String(json.error ?? '상태 변경에 실패했습니다.'))
+      setInquiries((is) => is.map((i) => (i.id === id ? { ...i, status } : i)))
+      if (selected?.id === id) setSelected((s) => (s ? { ...s, status } : null))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '상태 변경에 실패했습니다.')
+    }
   }
 
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">문의 관리</h1>
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
       {loading ? (
         <div className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
       ) : (
