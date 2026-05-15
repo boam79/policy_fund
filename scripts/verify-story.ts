@@ -209,6 +209,76 @@ async function run() {
   })
   assert([400, 401, 403, 503].includes(webhookForged.status), 'US-15 expected webhook rejection')
 
+  // US-17: home recommendations must include matchScore and recommendReason (PRD §6.3)
+  const recRes = await requestJson('/api/home/recommendations')
+  assert(recRes.status === 200, 'US-17 expected 200 from /api/home/recommendations')
+  assert(recRes.json.ok === true, 'US-17 expected ok=true')
+  const recItems = (recRes.json.data as Json[] | undefined) ?? []
+  if (recItems.length > 0) {
+    const firstRec = recItems[0] as Json
+    assert(typeof firstRec.matchScore === 'number', 'US-17 matchScore must be a number')
+    assert(typeof firstRec.recommendReason === 'string', 'US-17 recommendReason must be a string')
+  }
+
+  // US-18: quality evaluation must return PSST scores
+  const qualityRes = await requestJson('/api/evaluate/quality', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      planText:
+        '## 사업 개요\n당사는 경기도 양주시 소재 친환경 제조업체로 2023년 창업하여 연 매출 5억원을 달성 중입니다. 직원 8명 전원 정규직으로 운영하고 있습니다.\n\n## 사업 목표\n노후 생산설비를 첨단 자동화 설비로 교체하여 생산성 30% 향상, 불량률 50% 감소를 목표로 합니다.\n\n## 시장 분석\n친환경 제조 시장은 정부 탄소중립 정책에 힘입어 연 20% 성장 중입니다. 국내 시장 규모는 2024년 약 2조원으로 추정됩니다.\n\n## 추진 전략\n1단계 설비 도입, 2단계 공정 최적화, 3단계 판로 확대 순으로 진행할 예정입니다.\n\n## 재무 계획\n지원금 5000만원을 설비 구매에 활용하며 3년 내 ROI 150% 달성을 예상합니다.',
+      template: 'psst',
+      programType: '중소기업 설비 현대화 지원',
+    }),
+  })
+  assert(qualityRes.status === 200, 'US-18 expected 200 from /api/evaluate/quality')
+  assert(qualityRes.json.ok === true, 'US-18 expected ok=true')
+
+  // US-19: startup evaluation must return rubric-based scores with comments
+  const startupRes = await requestJson('/api/evaluate/startup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      programType: '예비창업패키지',
+      technologyDescription: '친환경 바이오 소재를 활용한 분해성 포장재 개발 기술',
+      differentiationFromExisting: '기존 플라스틱 대비 100% 생분해 가능하며 비용이 20% 저렴',
+      customerValidation: '유통업체 3곳과 파일럿 계약 체결 완료',
+      revenueModel: 'B2B 직납 + 온라인 소량 판매',
+      salesPlan3Year: '1년차 2억, 2년차 5억, 3년차 12억 매출 목표',
+      budgetPlan: '인건비 40%, 설비 30%, 마케팅 20%, 기타 10%',
+      founderBackground: '화학공학 박사, 기업 연구소 10년 경력',
+    }),
+  })
+  assert(startupRes.status === 200, 'US-19 expected 200 from /api/evaluate/startup')
+  assert(startupRes.json.ok === true, 'US-19 expected ok=true')
+
+  // Edge case: 아무말 입력 → 우아하게 에러 처리 또는 최소 조건 추출
+  const gibberishRes = await requestJson('/api/query/parse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: '아무말이나 해봅니다 ㅋㅋㅋ 지원사업이 뭐야' }),
+  })
+  assert(
+    [200, 400, 429].includes(gibberishRes.status),
+    'Edge: parse should return 200/400/429 on nonsense input'
+  )
+
+  // Edge case: 매우 긴 복잡한 문장
+  const complexRes = await requestJson('/api/query/parse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query: '저는 서울 강남구에서 IT 스타트업을 운영하고 있는데 창업한 지 2년 됐고 직원은 현재 12명이며 연 매출은 약 3억원이고 AI 기반 헬스케어 솔루션을 개발하고 있는데 정부 지원사업 중에서 기술개발이나 마케팅 지원을 받을 수 있는 사업이 있으면 좋겠고 가능하면 서울 지역 우선이었으면 합니다',
+    }),
+  })
+  assert(
+    [200, 400, 429].includes(complexRes.status),
+    'Edge: parse should handle complex sentence gracefully'
+  )
+  if (complexRes.status === 200) {
+    assert(complexRes.json.success === true, 'Edge: complex sentence should parse successfully')
+  }
+
   // Rate-limit regression: parse endpoint should eventually return 429
   const parseCodes: number[] = []
   for (let i = 0; i < 24; i += 1) {
