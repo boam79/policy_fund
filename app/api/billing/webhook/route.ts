@@ -4,6 +4,14 @@ import type { Database } from '@/types/database.types'
 
 export async function POST(request: NextRequest) {
   try {
+    const pgEnabled = process.env.PAYMENT_PG_ENABLED === 'true'
+    if (!pgEnabled || !process.env.TOSS_SECRET_KEY) {
+      return NextResponse.json(
+        { received: false, message: 'PG 비활성화 상태' },
+        { status: 503 }
+      )
+    }
+
     const body = await request.json()
     const { eventType, data } = body
 

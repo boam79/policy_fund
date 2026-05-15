@@ -16,6 +16,9 @@ function CheckoutForm() {
   const [userEmail, setUserEmail] = useState('')
   const [userId, setUserId] = useState('')
   const [error, setError] = useState('')
+  const pgEnabled =
+    process.env.NEXT_PUBLIC_PAYMENT_PG_ENABLED === 'true' &&
+    Boolean(process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY)
 
   useEffect(() => {
     const supabase = createClient()
@@ -28,6 +31,10 @@ function CheckoutForm() {
 
   const handlePayment = async () => {
     if (!userId) return
+    if (!pgEnabled) {
+      setError('현재 결제 PG 연동 준비 중입니다. 운영자에게 활성화 일정을 문의해주세요.')
+      return
+    }
     setLoading(true)
     setError('')
 
@@ -99,11 +106,16 @@ function CheckoutForm() {
           </div>
 
           {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4">{error}</p>}
+          {!pgEnabled && (
+            <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
+              현재는 결제 기능 점검 단계로, 실제 카드 결제는 비활성화되어 있습니다.
+            </p>
+          )}
 
           <button onClick={handlePayment} disabled={loading || !userId}
             className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-            {loading ? '결제 처리 중...' : `${plan.price.toLocaleString()}원 결제하기`}
+            {loading ? '결제 처리 중...' : pgEnabled ? `${plan.price.toLocaleString()}원 결제하기` : 'PG 연동 준비중'}
           </button>
 
           <div className="flex items-center justify-center gap-1.5 mt-3">

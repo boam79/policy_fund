@@ -5,6 +5,14 @@ import type { PlanId } from '@/lib/billing/plans'
 
 export async function POST(request: NextRequest) {
   try {
+    const pgEnabled = process.env.PAYMENT_PG_ENABLED === 'true'
+    if (!pgEnabled || !process.env.TOSS_SECRET_KEY) {
+      return NextResponse.json(
+        { error: '결제 시스템이 아직 활성화되지 않았습니다. 관리자에게 문의해주세요.' },
+        { status: 503 }
+      )
+    }
+
     const { paymentKey, orderId, amount, plan, userId } = await request.json()
 
     if (!paymentKey || !orderId || !amount || !plan || !userId) {
