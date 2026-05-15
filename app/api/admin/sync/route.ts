@@ -1,7 +1,10 @@
 /**
- * POST /api/admin/sync
- * 기업마당 + K-Startup 공고를 수집해 support_programs DB에 upsert
- * Supabase Service Role Key 필요 (관리자 전용)
+ * POST /api/admin/sync  — 수동 트리거 (Bearer 인증)
+ * GET  /api/admin/sync  — Vercel Cron 트리거 (Pro 플랜 전환 시 자동 실행)
+ *
+ * [Vercel Pro 전환 방법]
+ * 1. vercel.json 의 "crons" 주석 해제
+ * 2. 로컬 launchd 비활성화: launchctl unload ~/Library/LaunchAgents/com.policyfund.sync.plist
  */
 
 import type { NextRequest } from 'next/server'
@@ -32,6 +35,26 @@ export const maxDuration = 60
 /** ms 대기 */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+/** 인증 확인 공통 함수 */
+function checkAuth(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization')
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) return true
+  return authHeader === `Bearer ${cronSecret}`
+}
+
+/**
+ * GET /api/admin/sync
+ * Vercel Pro Cron Job 트리거용 (vercel.json crons 활성화 필요)
+ * 활성화 방법: vercel.json의 "crons" 섹션 주석 해제
+ */
+export async function GET(request: NextRequest) {
+  if (!checkAuth(request)) {
+    return Response.json({ error: '인증 실패' }, { status: 401 })
+  }
+  return runSync()
+}
+
 /** 재시도 포함 fetch 래퍼 */
 async function withRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 1500): Promise<T> {
   for (let i = 0; i <= retries; i++) {
@@ -46,13 +69,13 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 1500): 
 }
 
 export async function POST(request: NextRequest) {
-  // 간단한 관리자 인증 (CRON_SECRET 또는 서비스 롤 키 헤더)
-  const authHeader = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!checkAuth(request)) {
     return Response.json({ error: '인증 실패' }, { status: 401 })
   }
+  return runSync()
+}
 
+async function runSync() {
   const startedAt = new Date().toISOString()
   const supabase = createSyncClient()
 

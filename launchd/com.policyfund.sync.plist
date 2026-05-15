@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- PolicyFund 공고 자동 수집 (매일 오전 9시) -->
+  <key>Label</key>
+  <string>com.policyfund.sync</string>
+
+  <!-- 실행 명령: npm run sync -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/node</string>
+    <string>POLICY_FUND_PATH/node_modules/.bin/tsx</string>
+    <string>POLICY_FUND_PATH/scripts/sync.ts</string>
+  </array>
+
+  <!-- 작업 디렉토리 -->
+  <key>WorkingDirectory</key>
+  <string>POLICY_FUND_PATH</string>
+
+  <!-- 매일 오전 9시 실행 -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>9</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <!-- Mac이 꺼져 있었다면 켜질 때 바로 실행 -->
+  <key>RunAtLoad</key>
+  <false/>
+
+  <!-- 로그 파일 -->
+  <key>StandardOutPath</key>
+  <string>POLICY_FUND_PATH/logs/sync.log</string>
+  <key>StandardErrorPath</key>
+  <string>POLICY_FUND_PATH/logs/sync-error.log</string>
+
+  <!-- 환경변수 -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    <key>NODE_ENV</key>
+    <string>production</string>
+  </dict>
+</dict>
+</plist>
