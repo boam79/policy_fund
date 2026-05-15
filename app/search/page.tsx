@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Search, Filter, Building2, MapPin, Calendar, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import FeedbackWidget from '@/components/FeedbackWidget'
 import { eligibilityLabel, eligibilityColor, type EligibilityStatus } from '@/lib/gov-support/tools/eligibility'
@@ -24,14 +25,22 @@ const REGIONS = ['전국', '서울', '경기', '인천', '부산', '대구', '�
 
 const LEGAL_DISCLAIMER = '본 자격판정 결과는 AI 기반 참고 정보이며 법적 효력이 없습니다. 실제 신청 가능 여부는 해당 지원기관의 공식 공고문을 반드시 확인하세요.'
 
-export default function SearchPage() {
-  const [region, setRegion] = useState('')
-  const [industry, setIndustry] = useState('')
-  const [keyword, setKeyword] = useState('')
-  const [businessAge, setBusinessAge] = useState('')
-  const [employeeCount, setEmployeeCount] = useState('')
-  const [taxArrears, setTaxArrears] = useState<'yes' | 'no' | ''>('')
-  const [showFilters, setShowFilters] = useState(false)
+function SearchContent() {
+  const searchParams = useSearchParams()
+  const autoSearched = useRef(false)
+
+  const [region, setRegion] = useState(() => searchParams.get('region') ?? '')
+  const [industry, setIndustry] = useState(() => searchParams.get('industry') ?? '')
+  const [keyword, setKeyword] = useState(() => searchParams.get('keyword') ?? '')
+  const [businessAge, setBusinessAge] = useState(() => searchParams.get('business_age_years') ?? '')
+  const [employeeCount, setEmployeeCount] = useState(() => searchParams.get('employee_count') ?? '')
+  const [taxArrears, setTaxArrears] = useState<'yes' | 'no' | ''>(() => {
+    const v = searchParams.get('tax_arrears')
+    return (v === 'yes' || v === 'no') ? v : ''
+  })
+  const [showFilters, setShowFilters] = useState(() => {
+    return !!(searchParams.get('business_age_years') || searchParams.get('employee_count') || searchParams.get('tax_arrears'))
+  })
 
   const [programs, setPrograms] = useState<ProgramWithEligibility[]>([])
   const [total, setTotal] = useState(0)
@@ -68,6 +77,17 @@ export default function SearchPage() {
       setLoading(false)
     }
   }, [region, industry, keyword, businessAge, employeeCount, taxArrears])
+
+  // diagnosis 페이지에서 조건 전달 시 자동 검색
+  useEffect(() => {
+    const hasParams = searchParams.get('region') || searchParams.get('industry') ||
+      searchParams.get('keyword') || searchParams.get('business_age_years') ||
+      searchParams.get('employee_count') || searchParams.get('tax_arrears')
+    if (hasParams && !autoSearched.current) {
+      autoSearched.current = true
+      handleSearch(1)
+    }
+  }, [handleSearch, searchParams])
 
   const totalPages = Math.ceil(total / LIMIT)
 
@@ -349,5 +369,13 @@ function ProgramCard({ program: p }: { program: ProgramWithEligibility }) {
         </div>
       )}
     </a>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-gray-400">로딩 중...</div></div>}>
+      <SearchContent />
+    </Suspense>
   )
 }

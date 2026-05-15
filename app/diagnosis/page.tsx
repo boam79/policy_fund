@@ -241,7 +241,20 @@ function DiagnosisContent() {
           </span>
         </a>
         <button
-          onClick={() => router.push('/search')}
+          onClick={() => {
+            if (!parsed) { router.push('/search'); return }
+            const c = parsed.conditions
+            const params = new URLSearchParams()
+            if (c.region?.value) params.set('region', String(c.region.value))
+            if (c.industry?.value) params.set('industry', String(c.industry.value))
+            if (c.business_age_years?.value != null) params.set('business_age_years', String(c.business_age_years.value))
+            if (c.employee_count?.value != null) params.set('employee_count', String(c.employee_count.value))
+            if (c.annual_revenue_krw?.value != null) params.set('annual_revenue_krw', String(c.annual_revenue_krw.value))
+            if (c.credit_score?.value != null) params.set('credit_score', String(c.credit_score.value))
+            if (c.tax_arrears?.value != null) params.set('tax_arrears', c.tax_arrears.value ? 'yes' : 'no')
+            if (c.support_purpose?.value) params.set('keyword', String(c.support_purpose.value))
+            router.push(`/search?${params.toString()}`)
+          }}
           className={cn(
             buttonVariants(),
             'flex h-auto flex-col items-start gap-1 px-5 py-4 text-left'
