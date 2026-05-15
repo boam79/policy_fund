@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { User, LogOut, Star } from 'lucide-react'
+import { User, LogOut, Star, CreditCard } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 const navLinks = [
@@ -73,6 +73,10 @@ export default function Header() {
                   <Link href="/manage" onClick={() => setMenuOpen(false)}
                     className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
                     <Star className="h-4 w-4" />내 신청 관리
+                  </Link>
+                  <Link href="/mypage/billing" onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                    <CreditCard className="h-4 w-4" />결제 관리
                   </Link>
                   <hr className="my-1" />
                   <button onClick={handleLogout}

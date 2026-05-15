@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { User, Building2, FileText, Search, LogOut, Loader2, Save } from 'lucide-react'
+import { User, Building2, FileText, Search, LogOut, Loader2, Save, CreditCard } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 interface Profile {
@@ -176,6 +177,12 @@ export default function MyPage() {
                 저장
               </button>
               {saved && <span className="text-sm text-green-600">✓ 저장되었습니다</span>}
+            </div>
+            <div className="mt-4 pt-4 border-t">
+              <Link href="/mypage/billing"
+                className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
+                <CreditCard className="h-4 w-4" />결제 관리 · 구독 현황 →
+              </Link>
             </div>
           </div>
         )}

@@ -657,6 +657,8 @@ export type Database = {
           created_at: string
           id: string
           metadata: Json | null
+          order_id: string | null
+          order_name: string | null
           paid_at: string | null
           payment_provider: string | null
           provider_payment_id: string | null
@@ -670,6 +672,8 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
+          order_id?: string | null
+          order_name?: string | null
           paid_at?: string | null
           payment_provider?: string | null
           provider_payment_id?: string | null
@@ -683,6 +687,8 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
+          order_id?: string | null
+          order_name?: string | null
           paid_at?: string | null
           payment_provider?: string | null
           provider_payment_id?: string | null
@@ -965,12 +971,14 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          cancel_at_period_end: boolean | null
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
           ended_at: string | null
           id: string
           payment_provider: string | null
+          plan: string | null
           plan_code: string
           provider_subscription_id: string | null
           started_at: string | null
@@ -979,12 +987,14 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          cancel_at_period_end?: boolean | null
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
           ended_at?: string | null
           id?: string
           payment_provider?: string | null
+          plan?: string | null
           plan_code: string
           provider_subscription_id?: string | null
           started_at?: string | null
@@ -993,12 +1003,14 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          cancel_at_period_end?: boolean | null
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
           ended_at?: string | null
           id?: string
           payment_provider?: string | null
+          plan?: string | null
           plan_code?: string
           provider_subscription_id?: string | null
           started_at?: string | null
