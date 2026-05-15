@@ -479,6 +479,8 @@ PAYMENT_SECRET_KEY=
   - 적용 API: `/api/query/parse`, `/api/search`, `/api/eligibility`, `/api/documents/checklist`, `/api/documents/timeline`, `/api/documents/plan`
   - 표준 오류 응답 및 `x-trace-id` 헤더 검증 완료 (로컬 3004 서버)
   - `verify:story` 자동 검증 스크립트 추가 (`scripts/verify-story.ts`) 및 PASS 확인
+  - `verify:story`를 엄격 시나리오로 확장 (parse/search/eligibility/documents/admin/export/billing/webhook/rate-limit)
+  - 확장 검증 PASS + `npm run build` PASS
 
 ---
 
