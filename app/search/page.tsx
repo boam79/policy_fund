@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef, Suspense } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useRef, Suspense } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, Filter, Building2, MapPin, Calendar, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import FeedbackWidget from '@/components/FeedbackWidget'
@@ -97,7 +98,7 @@ function buildSearchQueryString(input: {
 function SearchContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const autoSearched = useRef(false)
+  const autoSearchKeyRef = useRef('')
 
   const [region, setRegion] = useState(() => normalizeRegionForFilter(searchParams.get('region')))
   const [city] = useState(() => searchParams.get('city') ?? '')
@@ -143,9 +144,11 @@ function SearchContent() {
         employeeCount,
         taxArrears,
       })
-      router.replace(qs ? `/search?${qs}` : '/search', { scroll: false })
+      const searchPath = qs ? `/search?${qs}` : '/search'
+      router.replace(searchPath, { scroll: false })
       // 검색 단계에서 사용한 조건을 저장해 상세/자격판정 화면에서 자동 채움
       if (typeof window !== 'undefined') {
+        localStorage.setItem('pf:last_search_url', searchPath)
         const profileDraft = {
           region: region || undefined,
           city: city || undefined,
@@ -197,17 +200,33 @@ function SearchContent() {
     }
   }, [region, city, industry, keyword, supportPurpose, businessAge, employeeCount, annualRevenue, creditScore, taxArrears, router])
 
-  // diagnosis 페이지에서 조건 전달 시 자동 검색
-  useEffect(() => {
-    const hasParams = searchParams.get('region') || searchParams.get('industry') ||
-      searchParams.get('keyword') || searchParams.get('q') || searchParams.get('support_purpose') ||
+  const listQueryString = buildSearchQueryString({
+    region,
+    city,
+    industry,
+    keyword,
+    supportPurpose,
+    businessAge,
+    employeeCount,
+    taxArrears,
+  })
+
+  // diagnosis·URL 쿼리 진입 시 자동 검색 (빈 화면 깜빡임 방지)
+  useLayoutEffect(() => {
+    const key = searchParams.toString()
+    const hasParams =
+      searchParams.get('region') ||
+      searchParams.get('industry') ||
+      searchParams.get('keyword') ||
+      searchParams.get('q') ||
+      searchParams.get('support_purpose') ||
       searchParams.get('business_age_years') ||
-      searchParams.get('employee_count') || searchParams.get('tax_arrears')
-    if (hasParams && !autoSearched.current) {
-      autoSearched.current = true
-      handleSearch(1)
-    }
-  }, [handleSearch, searchParams])
+      searchParams.get('employee_count') ||
+      searchParams.get('tax_arrears')
+    if (!hasParams || autoSearchKeyRef.current === key) return
+    autoSearchKeyRef.current = key
+    void handleSearch(1)
+  }, [searchParams, handleSearch])
 
   const totalPages = Math.ceil(total / LIMIT)
 
@@ -390,7 +409,7 @@ function SearchContent() {
         {!loading && programs.length > 0 && (
           <div className="space-y-3">
             {programs.map((p) => (
-              <ProgramCard key={p.id} program={p} />
+              <ProgramCard key={p.id} program={p} listQuery={listQueryString} />
             ))}
           </div>
         )}
@@ -445,7 +464,13 @@ function SearchContent() {
   )
 }
 
-function ProgramCard({ program: p }: { program: ProgramWithEligibility }) {
+function ProgramCard({
+  program: p,
+  listQuery,
+}: {
+  program: ProgramWithEligibility
+  listQuery: string
+}) {
   const status = p.eligibility?.status ?? 'unknown'
   const colorClass = eligibilityColor(status)
   const label = eligibilityLabel(status)
@@ -453,9 +478,12 @@ function ProgramCard({ program: p }: { program: ProgramWithEligibility }) {
   const isClosingSoon = p.days_left !== null && p.days_left !== undefined && p.days_left <= 7 && p.days_left >= 0
   const isClosed = p.days_left !== null && p.days_left !== undefined && p.days_left < 0
 
+  const returnSuffix = listQuery ? `?return=${encodeURIComponent(`?${listQuery}`)}` : ''
+  const detailHref = `/search/${p.id}${returnSuffix}`
+
   return (
-    <a
-      href={`/search/${p.id}`}
+    <Link
+      href={detailHref}
       className="block bg-white rounded-xl border hover:border-blue-300 hover:shadow-md transition-all p-5 group"
     >
       <div className="flex items-start justify-between gap-3">
@@ -523,7 +551,7 @@ function ProgramCard({ program: p }: { program: ProgramWithEligibility }) {
           </p>
         </div>
       )}
-    </a>
+    </Link>
   )
 }
 

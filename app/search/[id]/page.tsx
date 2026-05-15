@@ -40,8 +40,17 @@ function DaysLeftBadge({ endDate }: { endDate: string | null }) {
   return <span className="px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700">D-{days}</span>
 }
 
-export default async function ProgramDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProgramDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ return?: string }>
+}) {
   const { id } = await params
+  const { return: returnQuery } = await searchParams
+  const backHref = returnQuery?.startsWith('?') ? `/search${returnQuery}` : '/search'
+  const journeyQuery = returnQuery ? `${returnQuery.startsWith('?') ? returnQuery : `?${returnQuery}`}` : ''
   const program = await getProgram(id)
   if (!program) notFound()
 
@@ -55,7 +64,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto max-w-3xl px-4 py-8">
         {/* 뒤로가기 */}
-        <Link href="/search" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors">
+        <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" />
           검색 결과로 돌아가기
         </Link>
@@ -166,13 +175,13 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
           </p>
           <div className="flex flex-wrap gap-2">
             <Link
-              href={`/eligibility?program_id=${program.id}`}
+              href={`/eligibility?program_id=${program.id}${journeyQuery ? `&return=${encodeURIComponent(journeyQuery)}` : ''}`}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
             >
               자격판정 시작하기
             </Link>
             <Link
-              href={`/documents/plan?program_id=${program.id}&tab=checklist`}
+              href={`/documents/plan?program_id=${program.id}&tab=checklist${journeyQuery ? `&return=${encodeURIComponent(journeyQuery)}` : ''}`}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-700 border border-blue-200 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors"
             >
               신청 준비 시작하기

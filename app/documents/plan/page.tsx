@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { FileText, Calendar, CheckSquare, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
+import { readApiError } from '@/lib/api/readApiError'
 
 type Tab = 'plan' | 'checklist' | 'timeline'
 
@@ -58,6 +59,7 @@ function DocumentPlanContent() {
   const [tab, setTab] = useState<Tab>('plan')
   const [template, setTemplate] = useState<'gov' | 'psst'>('gov')
   const [loading, setLoading] = useState(false)
+  const [generateError, setGenerateError] = useState('')
   const [journeyHint, setJourneyHint] = useState('')
   const [programId, setProgramId] = useState('')
 
@@ -234,8 +236,15 @@ function DocumentPlanContent() {
   }, [searchKey, supabase])
 
   const handleGenerate = async () => {
-    if (!title) { alert('공고명을 입력하세요'); return }
+    if (!title) {
+      setGenerateError('공고명을 입력하세요.')
+      return
+    }
     setLoading(true)
+    setGenerateError('')
+    setPlanResult(null)
+    setChecklistResult(null)
+    setTimelineResult(null)
     try {
       if (tab === 'plan') {
         const res = await fetch('/api/documents/plan', {
@@ -257,18 +266,33 @@ function DocumentPlanContent() {
           }),
         })
         const data = await res.json()
+        if (!res.ok || data.ok === false) {
+          throw new Error(readApiError(data, '사업계획서 생성에 실패했습니다.'))
+        }
+        if (!Array.isArray(data.sections)) {
+          throw new Error('생성 결과 형식이 올바르지 않습니다.')
+        }
         setPlanResult(data)
       } else if (tab === 'checklist') {
-        if (!announcementText) { alert('공고 내용을 입력하세요'); setLoading(false); return }
+        if (!announcementText) {
+          setGenerateError('공고 내용을 입력하세요.')
+          return
+        }
         const res = await fetch('/api/documents/checklist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ program_id: programId || undefined, announcementTitle: title, announcementText, deadline, businessType }),
         })
         const data = await res.json()
+        if (!res.ok || data.ok === false) {
+          throw new Error(readApiError(data, '서류 체크리스트 생성에 실패했습니다.'))
+        }
         setChecklistResult(data)
       } else {
-        if (!deadline) { alert('마감일을 입력하세요'); setLoading(false); return }
+        if (!deadline) {
+          setGenerateError('마감일을 입력하세요.')
+          return
+        }
         const res = await fetch('/api/documents/timeline', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -280,8 +304,13 @@ function DocumentPlanContent() {
           }),
         })
         const data = await res.json()
+        if (!res.ok || data.ok === false) {
+          throw new Error(readApiError(data, '신청 타임라인 생성에 실패했습니다.'))
+        }
         setTimelineResult(data)
       }
+    } catch (e) {
+      setGenerateError(e instanceof Error ? e.message : '문서 생성 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
@@ -390,6 +419,12 @@ function DocumentPlanContent() {
               </>
             )}
           </div>
+
+          {generateError && (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {generateError}
+            </div>
+          )}
 
           <button onClick={handleGenerate} disabled={loading}
             className="mt-4 w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">

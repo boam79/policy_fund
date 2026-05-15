@@ -11,7 +11,8 @@
     "verify:story": "tsx scripts/verify-story.ts",
     "verify:admin": "tsx scripts/verify-admin-story.ts",
     "verify:hard": "tsx scripts/verify-story-hard.ts",
-    "verify:strict": "npm run verify:story && npm run verify:admin && npm run verify:hard",
+    "verify:journey": "tsx scripts/verify-journey.ts",
+    "verify:strict": "npm run verify:story && npm run verify:admin && npm run verify:hard && npm run verify:journey",
     "verify:counts": "tsx scripts/verify-source-counts.ts",
     "verify:apply": "tsx scripts/verify-apply-available.ts"
   },
