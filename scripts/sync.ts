@@ -15,9 +15,7 @@ import { createClient } from '@supabase/supabase-js'
 // .env.local 로드
 config({ path: path.resolve(process.cwd(), '.env.local') })
 
-import { fetchBizinfo } from '../lib/gov-support/clients/bizinfo'
-import { fetchKStartup } from '../lib/gov-support/clients/kstartup'
-import { fetchSmes24 } from '../lib/gov-support/clients/smes24'
+import { fetchAllBizinfoPages, fetchAllKStartupPages, fetchAllSmes24Pages } from '../lib/gov-support/clients/paginatedFetch'
 import {
   normalizeBizinfoItem,
   normalizeKStartupItem,
@@ -60,31 +58,27 @@ async function main() {
   const errors: string[] = []
   const rawItems: NormalizedProgram[] = []
 
-  // ── 기업마당 (분야별 순차 요청) ──────────────────────────────
+  // ── 기업마당 (전 페이지, bizinfo 페이지네이션 모듈) ───────────────
   console.log('\n📌 기업마당 수집 중...')
   let bizinfoCount = 0
-  for (const field of ['창업', '금융', '기술', '인력', '수출', '경영'] as const) {
-    try {
-      const result = await withRetry(() => fetchBizinfo({ field, pageUnit: 100 }))
-      const items = result.list.map(normalizeBizinfoItem)
-      rawItems.push(...items)
-      bizinfoCount += items.length
-      process.stdout.write(`  ${field}(${items.length}건) `)
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '오류'
-      errors.push(`bizinfo[${field}]: ${msg}`)
-      process.stdout.write(`  ${field}(실패) `)
-    }
-    await sleep(300)
+  try {
+    const bizRaw = await withRetry(() => fetchAllBizinfoPages())
+    const items = bizRaw.map(normalizeBizinfoItem)
+    rawItems.push(...items)
+    bizinfoCount = items.length
+    console.log(`  → ${bizinfoCount}건`)
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '오류'
+    errors.push(`bizinfo: ${msg}`)
+    console.log(`  → 실패: ${msg}`)
   }
-  console.log(`\n  → 총 ${bizinfoCount}건`)
 
   // ── K-Startup ────────────────────────────────────────────────
   console.log('\n📌 K-Startup 수집 중...')
   let kstartupCount = 0
   try {
-    const result = await withRetry(() => fetchKStartup({ rcrtPrgsYn: 'Y', numOfRows: 100 }))
-    const items = result.list.map(normalizeKStartupItem)
+    const list = await withRetry(() => fetchAllKStartupPages('Y'))
+    const items = list.map(normalizeKStartupItem)
     rawItems.push(...items)
     kstartupCount = items.length
     console.log(`  → ${kstartupCount}건`)
@@ -98,8 +92,8 @@ async function main() {
   console.log('\n📌 중소벤처24 수집 중...')
   let smes24Count = 0
   try {
-    const result = await withRetry(() => fetchSmes24())
-    const items = result.list.map(normalizeSmes24Item)
+    const list = await withRetry(() => fetchAllSmes24Pages())
+    const items = list.map(normalizeSmes24Item)
     rawItems.push(...items)
     smes24Count = items.length
     console.log(`  → ${smes24Count}건`)

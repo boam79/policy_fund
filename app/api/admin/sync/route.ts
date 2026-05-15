@@ -20,9 +20,12 @@ function createSyncClient() {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 }
-import { fetchBizinfo } from '@/lib/gov-support/clients/bizinfo'
-import { fetchKStartup } from '@/lib/gov-support/clients/kstartup'
-import { fetchSmes24 } from '@/lib/gov-support/clients/smes24'
+import {
+  fetchAllBizinfoPages,
+  fetchAllKStartupPages,
+  fetchAllSmes24Pages,
+} from '@/lib/gov-support/clients/paginatedFetch'
+import type { BizinfoItem } from '@/lib/gov-support/clients/bizinfo'
 import {
   normalizeBizinfoItem,
   normalizeKStartupItem,
@@ -31,7 +34,8 @@ import {
 import { deduplicate } from '@/lib/gov-support/core/dedup'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+/** 전 페이지 수집 시 길어질 수 있어 상한 증대 (플랜에 따라 무시될 수 있음) */
+export const maxDuration = 300
 
 /** ms 대기 */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -98,32 +102,26 @@ async function runSync() {
   let upsertedCount = 0
   const errors: string[] = []
 
-  // 기업마당: 분야별 순차 요청 (병렬 시 IP 차단 위험)
-  const bizinfoRawItems = []
-  for (const field of ['창업', '금융', '기술', '인력', '수출', '경영'] as const) {
-    try {
-      const result = await withRetry(() => fetchBizinfo({ field, pageUnit: 100 }))
-      bizinfoRawItems.push(...result.list)
-    } catch (e: unknown) {
-      errors.push(`bizinfo[${field}]: ${e instanceof Error ? e.message : '오류'}`)
-    }
-    await sleep(500) // 분야 간 0.5초 간격
+  // 기업마당·K-Startup·중소벤처24: 동일 패턴 페이지네이션 (공통 모듈)
+  let bizinfoRawItems: BizinfoItem[] = []
+  try {
+    bizinfoRawItems = await withRetry(() => fetchAllBizinfoPages())
+  } catch (e: unknown) {
+    errors.push(`bizinfo: ${e instanceof Error ? e.message : '오류'}`)
   }
 
-  // K-Startup + 중소벤처24 병렬 (bizinfo 완료 후)
   const [kstartupResult, smes24Result] = await Promise.allSettled([
-    withRetry(() => fetchKStartup({ rcrtPrgsYn: 'Y', numOfRows: 100 })),
-    withRetry(() => fetchSmes24()),
+    withRetry(() => fetchAllKStartupPages('Y')),
+    withRetry(() => fetchAllSmes24Pages()),
   ])
 
-  // 기업마당 결과 처리 (이미 위에서 수집됨)
   const bizinfoItems = bizinfoRawItems.map(normalizeBizinfoItem)
   bizinfoCount = bizinfoItems.length
 
   // K-Startup 결과 처리
   const kstartupItems =
     kstartupResult.status === 'fulfilled'
-      ? kstartupResult.value.list.map(normalizeKStartupItem)
+      ? kstartupResult.value.map(normalizeKStartupItem)
       : (errors.push(`kstartup: ${kstartupResult.reason?.message ?? '알 수 없는 오류'}`), [])
 
   kstartupCount = kstartupItems.length
@@ -131,7 +129,7 @@ async function runSync() {
   // 중소벤처24 결과 처리
   const smes24Items =
     smes24Result.status === 'fulfilled'
-      ? smes24Result.value.list.map(normalizeSmes24Item)
+      ? smes24Result.value.map(normalizeSmes24Item)
       : (errors.push(`smes24: ${smes24Result.reason?.message ?? '알 수 없는 오류'}`), [])
 
   smes24Count = smes24Items.length
@@ -177,10 +175,12 @@ async function runSync() {
   }
 
   // api_sync_logs 기록
+  // requested_count: 이번 실행에서 합쳐진 원천 건수(중복 제거 전). smes24 누락 시 UI에서 "수집"이 과소 표시됨.
+  const fetchedBeforeDedup = bizinfoCount + kstartupCount + smes24Count
   await supabase.from('api_sync_logs').insert({
     source: 'bizinfo_kstartup',
     status: errors.length === 0 ? 'success' : 'partial',
-    requested_count: bizinfoCount + kstartupCount,
+    requested_count: fetchedBeforeDedup,
     inserted_count: upsertedCount,
     updated_count: 0,
     failed_count: errors.length,

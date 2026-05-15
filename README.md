@@ -112,6 +112,11 @@ PRD 원칙에 따라, 검색 결과는 LLM이 생성하지 않고 실제 공공 
 - `SMES24_API_BASE` (optional)
 - `SMES24_DEFAULT_STRDT` (optional)
 - `SMES24_DEFAULT_ENDDT` (optional)
+- **동기화 페이지네이션 (optional)** 세 출처 모두 페이지를 넘겨 `totalCount` 또는 짧은 페이지에서 멈춥니다.
+  - `SYNC_PAGE_DELAY_MS`(기본 400)
+  - `SYNC_MAX_PAGES` 출처별 최대 페이지(양수)·로컬 미설정 시 무제한
+  - `VERCEL=1` 이면 `SYNC_VERCEL_SAFE_MAX_PAGES` 기본 48 (`SYNC_MAX_PAGES`가 우선)
+  - `SYNC_BIZINFO_PAGE_UNIT`(≤100), `SYNC_KSTARTUP_NUM_ROWS`(≤100), `SYNC_SMES24_PAGE_SIZE`(≤500), `SYNC_SMES24_LOOKBACK_DAYS`(기본 730), `SMES24_SYNC_STRDT` / `SMES24_SYNC_ENDDT`
 
 ---
 
@@ -158,6 +163,8 @@ npm run sync
 
 ### 2026-05-15
 
+- 기업마당·K-Startup·중소벤처24 동기화를 **동일한 페이지네이션 규칙**으로 통일 (`lib/gov-support/clients/paginatedFetch.ts`)
+- Vercel 기본 출처당 페이지 상한(타임아웃 완화)·로컬 무제한 및 `SYNC_*` 환경변수로 조정 가능
 - 자격판정 후 다음 단계 CTA(체크리스트/타임라인/사업계획서) 연결
 - `documents/plan`에 `program_id` 기반 공고 자동 프리필 연결
 - 유저 여정 입력값 자동 채움 강화

@@ -47,6 +47,9 @@ const FIELD_CODE_MAP: Record<string, string> = {
   기타: '08',
 }
 
+/** 관리 동기화에서 분야별 폴백 시 사용하는 분야 순서 */
+export const BIZINFO_PRIMARY_SYNC_FIELDS = ['창업', '금융', '기술', '인력', '수출', '경영'] as const
+
 export async function fetchBizinfo(options: {
   field?: string
   pageIndex?: number

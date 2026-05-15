@@ -16,25 +16,23 @@ export async function GET() {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    const [programs, syncLogs, searches, eligibility, inquiries] = await Promise.all([
-      supabase.from('support_programs').select('status', { count: 'exact' }),
-      supabase.from('api_sync_logs').select('*').order('created_at', { ascending: false }).limit(5),
-      supabase.from('search_sessions').select('id', { count: 'exact' }),
-      supabase.from('eligibility_checks').select('id', { count: 'exact' }),
-      supabase.from('customer_inquiries').select('id,status', { count: 'exact' }).eq('status', 'open'),
-    ])
-
-    const byStatus = (programs.data ?? []).reduce<Record<string, number>>((acc, p) => {
-      acc[p.status ?? 'unknown'] = (acc[p.status ?? 'unknown'] ?? 0) + 1
-      return acc
-    }, {})
+    const [totalPrograms, activePrograms, closingSoon, syncLogs, searches, eligibility, inquiries] =
+      await Promise.all([
+        supabase.from('support_programs').select('*', { count: 'exact', head: true }),
+        supabase.from('support_programs').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('support_programs').select('*', { count: 'exact', head: true }).eq('status', 'closing_soon'),
+        supabase.from('api_sync_logs').select('*').order('created_at', { ascending: false }).limit(5),
+        supabase.from('search_sessions').select('id', { count: 'exact', head: true }),
+        supabase.from('eligibility_checks').select('id', { count: 'exact', head: true }),
+        supabase.from('customer_inquiries').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+      ])
 
     return Response.json({
       ok: true,
       kpi: {
-        totalPrograms: programs.count ?? 0,
-        activePrograms: byStatus['active'] ?? 0,
-        closingSoon: byStatus['closing_soon'] ?? 0,
+        totalPrograms: totalPrograms.count ?? 0,
+        activePrograms: activePrograms.count ?? 0,
+        closingSoon: closingSoon.count ?? 0,
         totalSearches: searches.count ?? 0,
         totalEligibility: eligibility.count ?? 0,
         openInquiries: inquiries.count ?? 0,

@@ -5,6 +5,11 @@
 
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
+import {
+  PROGRAM_SEARCH_POOL_STATUSES,
+  programSearchPoolEndDateOr,
+  todayISODate,
+} from './programSearchPool'
 
 export interface SearchParams {
   region?: string
@@ -115,14 +120,14 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
   })
 
   const offset = (page - 1) * limit
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISODate()
 
   let query = supabase
     .from('support_programs')
     .select('*', { count: 'exact' })
-    .in('status', ['active', 'closing_soon'])
+    .in('status', [...PROGRAM_SEARCH_POOL_STATUSES])
     .eq('visibility_status', 'visible')
-    .or(`application_end_date.gte.${today},application_end_date.is.null`)
+    .or(programSearchPoolEndDateOr(today))
     .order('recommendation_score', { ascending: false, nullsFirst: false })
     .order('application_end_date', { ascending: true, nullsFirst: false })
     .range(offset, offset + limit - 1)

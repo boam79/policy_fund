@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { FileText, Calendar, CheckSquare, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -24,9 +24,31 @@ interface JourneySearchSeed {
 }
 interface ProgramSeed {
   title?: string | null
+  organization?: string | null
+  region?: string | null
+  industry?: string | null
   support_type?: string | null
   eligibility_text?: string | null
+  summary_text?: string | null
+  raw_content?: string | null
   application_end_date?: string | null
+  application_start_date?: string | null
+}
+
+function buildAnnouncementFromProgram(p: ProgramSeed | null): string {
+  if (!p) return ''
+  const parts: string[] = []
+  if (p.organization?.trim()) parts.push(`주관기관: ${p.organization.trim()}`)
+  if (p.region?.trim()) parts.push(`지원지역: ${p.region.trim()}`)
+  if (p.support_type?.trim()) parts.push(`지원 내용: ${p.support_type.trim()}`)
+  if (p.eligibility_text?.trim()) parts.push(`신청 자격:\n${p.eligibility_text.trim()}`)
+  if (p.summary_text?.trim()) parts.push(`요약:\n${p.summary_text.trim()}`)
+  if (parts.length === 0 && p.raw_content?.trim()) {
+    const raw = p.raw_content.trim()
+    const cap = 12000
+    parts.push(raw.length > cap ? `${raw.slice(0, cap)}\n\n…(이하 생략)` : raw)
+  }
+  return parts.join('\n\n')
 }
 
 const LEGAL_DISCLAIMER = '본 문서 초안은 AI가 생성한 참고용 자료이며 법적 효력이 없습니다. 실제 제출 전 반드시 전문가 검토 및 공고문 기준에 맞게 수정하세요.'
@@ -34,8 +56,6 @@ const LEGAL_DISCLAIMER = '본 문서 초안은 AI가 생성한 참고용 자료�
 function DocumentPlanContent() {
   const searchParams = useSearchParams()
   const supabase = createClient()
-  const hydratedJourneyRef = useRef(false)
-  const hydratedQueryRef = useRef(false)
   const [tab, setTab] = useState<Tab>('plan')
   const [template, setTemplate] = useState<'gov' | 'psst'>('gov')
   const [loading, setLoading] = useState(false)
@@ -60,10 +80,13 @@ function DocumentPlanContent() {
   const [planResult, setPlanResult] = useState<{ sections: Section[]; draftMeta: { missingData: string[]; confidence: number } } | null>(null)
   const [checklistResult, setChecklistResult] = useState<{ checklist: ChecklistItem[]; totalDocuments: number; preparationLeadDays: number; tips: string[] } | null>(null)
   const [timelineResult, setTimelineResult] = useState<{ milestones: Milestone[]; totalDaysLeft: number; warnings: string[]; tips: string[] } | null>(null)
+  /** 공고에서 가져온 접수 시작일 — 타임라인 API startDate 전달용 */
+  const [applicationStartDate, setApplicationStartDate] = useState('')
+
+  const searchKey = searchParams.toString()
 
   useEffect(() => {
-    if (hydratedQueryRef.current) return
-    hydratedQueryRef.current = true
+    let cancelled = false
 
     const tabParam = searchParams.get('tab')
     if (tabParam === 'plan' || tabParam === 'checklist' || tabParam === 'timeline') {
@@ -71,32 +94,27 @@ function DocumentPlanContent() {
     }
 
     const pid = searchParams.get('program_id') ?? ''
-    if (pid) setProgramId(pid)
+    setProgramId(pid)
 
-    const titleParam = searchParams.get('title') ?? ''
-    const deadlineParam = searchParams.get('deadline') ?? ''
-    const announcementParam = searchParams.get('announcement') ?? ''
-
-    if (titleParam) setTitle((prev) => prev || titleParam)
-    if (deadlineParam) setDeadline((prev) => prev || deadlineParam.slice(0, 10))
-    if (announcementParam) setAnnouncementText((prev) => prev || announcementParam)
-  }, [searchParams])
-
-  useEffect(() => {
-    if (hydratedJourneyRef.current) return
-    hydratedJourneyRef.current = true
+    const urlTitle = searchParams.get('title')?.trim() ?? ''
+    const urlDeadlineRaw = searchParams.get('deadline')?.trim() ?? ''
+    const urlAnnouncement = searchParams.get('announcement')?.trim() ?? ''
+    const urlDeadline = urlDeadlineRaw ? urlDeadlineRaw.slice(0, 10) : ''
 
     const hydrateFromJourney = async () => {
+      setJourneyHint('')
       let profileSeed: JourneyProfileSeed | null = null
       let searchSeed: JourneySearchSeed | null = null
       let programSeed: ProgramSeed | null = null
 
       try {
-        if (programId) {
+        if (pid) {
           const { data: programData } = await supabase
             .from('support_programs')
-            .select('title,support_type,eligibility_text,application_end_date')
-            .eq('id', programId)
+            .select(
+              'title,organization,region,industry,support_type,eligibility_text,summary_text,raw_content,application_end_date,application_start_date'
+            )
+            .eq('id', pid)
             .maybeSingle()
           programSeed = (programData as ProgramSeed | null) ?? null
         }
@@ -145,26 +163,52 @@ function DocumentPlanContent() {
         }
       }
 
+      if (cancelled) return
+
       const cond = (searchSeed?.extracted_conditions as Record<string, unknown> | null) ?? localParsed ?? {}
       const queryText = searchSeed?.natural_language_query ?? localQuery
-      const programText = [programSeed?.support_type, programSeed?.eligibility_text]
-        .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
-        .join('\n\n')
+      const programAnnouncement = buildAnnouncementFromProgram(programSeed)
       const programDeadline = programSeed?.application_end_date?.slice(0, 10) ?? ''
+      const progStart = programSeed?.application_start_date?.slice(0, 10) ?? ''
 
-      const amount = (profileSeed?.desired_amount_krw as number | null) ?? (cond.desired_amount_krw as number | undefined)
+      const amount =
+        (profileSeed?.desired_amount_krw as number | null) ?? (cond.desired_amount_krw as number | undefined)
       const workers = (profileSeed?.employee_count as number | null) ?? (cond.employee_count as number | undefined)
       const company = profileSeed?.company_name ?? null
-      const industrySeed = (profileSeed?.industry as string | null) ?? (cond.industry as string | undefined) ?? null
+      const industrySeed =
+        (profileSeed?.industry as string | null) ??
+        programSeed?.industry ??
+        (cond.industry as string | undefined) ??
+        null
       const businessTypeSeed = profileSeed?.business_type === '개인사업자' ? '개인' : profileSeed?.business_type
 
       let seededCount = 0
       if (company || industrySeed || workers || amount || queryText) seededCount += 1
-      if (programSeed?.title || programText || programDeadline) seededCount += 1
+      if (programSeed?.title || programAnnouncement || programDeadline) seededCount += 1
 
-      setTitle((prev) => prev || programSeed?.title || (queryText ? `맞춤 지원사업 신청 (${queryText.slice(0, 24)})` : ''))
-      setAnnouncementText((prev) => prev || programText || queryText || '')
-      setDeadline((prev) => prev || programDeadline)
+      setTitle((prev) => {
+        if (urlTitle) return urlTitle
+        if (pid) return programSeed?.title ?? ''
+        if (prev) return prev
+        if (queryText) return `맞춤 지원사업 신청 (${queryText.slice(0, 80)})`
+        return ''
+      })
+      setAnnouncementText((prev) => {
+        if (urlAnnouncement) return urlAnnouncement
+        if (pid) return programAnnouncement || ''
+        if (prev) return prev
+        return queryText || ''
+      })
+      setDeadline((prev) => {
+        if (urlDeadline) return urlDeadline
+        if (pid) return programDeadline || ''
+        return prev || programDeadline || ''
+      })
+
+      if (pid) {
+        setApplicationStartDate(progStart || '')
+      }
+
       setCompanyName((prev) => prev || company || '')
       setIndustry((prev) => prev || industrySeed || '')
       setEmployeeCount((prev) => prev || (workers != null ? String(workers) : ''))
@@ -175,17 +219,20 @@ function DocumentPlanContent() {
       })
       setProblemStatement((prev) => prev || (profileSeed?.support_purpose ?? ''))
 
-      if (seededCount > 0) {
-        if (programSeed?.title) {
-          setJourneyHint('선택한 공고 정보와 최근 입력값을 자동 반영했습니다. 필요하면 수정 후 생성하세요.')
-        } else {
-          setJourneyHint('최근 검색·마이페이지 입력값을 자동 반영했습니다. 필요하면 수정 후 생성하세요.')
-        }
+      if (pid && programSeed?.title) {
+        setJourneyHint('선택한 공고 정보와 최근 입력값을 자동 반영했습니다. 필요하면 수정 후 생성하세요.')
+      } else if (pid && !programSeed) {
+        setJourneyHint('공고 ID로 저장된 정보를 찾지 못했습니다. 공고명·내용을 직접 입력해 주세요.')
+      } else if (seededCount > 0) {
+        setJourneyHint('최근 검색·마이페이지 입력값을 자동 반영했습니다. 필요하면 수정 후 생성하세요.')
       }
     }
 
     void hydrateFromJourney()
-  }, [supabase, programId])
+    return () => {
+      cancelled = true
+    }
+  }, [searchKey, supabase])
 
   const handleGenerate = async () => {
     if (!title) { alert('공고명을 입력하세요'); return }
@@ -226,7 +273,12 @@ function DocumentPlanContent() {
         const res = await fetch('/api/documents/timeline', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ program_id: programId || undefined, announcementTitle: title, deadline }),
+          body: JSON.stringify({
+            program_id: programId || undefined,
+            announcementTitle: title,
+            deadline,
+            startDate: applicationStartDate || undefined,
+          }),
         })
         const data = await res.json()
         setTimelineResult(data)
