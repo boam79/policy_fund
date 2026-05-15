@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, UserPlus, CheckCircle } from 'lucide-react'
 import { SITE_NAME } from '@/lib/site-config'
+import SocialAuthButtons, { SocialAuthDivider } from '@/components/auth/SocialAuthButtons'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -122,6 +123,8 @@ export default function SignupPage() {
 
         <div className="bg-white rounded-2xl border p-8 shadow-sm">
           <h1 className="text-xl font-bold text-gray-900 mb-6">회원가입</h1>
+          <SocialAuthButtons nextPath="/" variant="signup" />
+          <SocialAuthDivider />
           <form onSubmit={handleSignup} className="space-y-4">
             <div>
               <label className="text-xs font-medium text-gray-600 mb-1 block">이메일</label>

@@ -94,9 +94,17 @@ PRD 원칙에 따라, 검색 결과는 LLM이 생성하지 않고 실제 공공 
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_APP_URL` (OAuth `redirectTo`와 맞춤: 예 `https://policyfund-zeta.vercel.app`, 로컬은 `http://localhost:3000`)
+- `NEXT_PUBLIC_SITE_URL` (선택, canonical·OG 등과 동일 도메인 권장)
 - `NEXT_PUBLIC_PAYMENT_PG_ENABLED`
 - `NEXT_PUBLIC_TOSS_CLIENT_KEY`
+
+### Supabase 소셜 로그인 (Google·카카오)
+
+- Supabase 대시보드 **Authentication → Providers**에서 **Google**, **Kakao**를 켜고 각 플랫폼에서 발급한 Client ID·Secret을 입력합니다.
+- **Authentication → URL Configuration**: Site URL과 Redirect URLs에  
+  `https://<배포도메인>/auth/callback` 및 로컬 사용 시 `http://localhost:3000/auth/callback`을 추가합니다.
+- 클라이언트는 `NEXT_PUBLIC_APP_URL`(또는 브라우저 `origin`)과 동일한 베이스로 위 콜백 URL을 구성합니다.
 
 ### Server Only (절대 클라이언트 노출 금지)
 

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, LogIn } from 'lucide-react'
 import { SITE_NAME } from '@/lib/site-config'
+import SocialAuthButtons, { SocialAuthDivider } from '@/components/auth/SocialAuthButtons'
 
 function LoginForm() {
   const router = useRouter()
@@ -36,6 +37,8 @@ function LoginForm() {
 
         <div className="bg-white rounded-2xl border p-8 shadow-sm">
           <h1 className="text-xl font-bold text-gray-900 mb-6">로그인</h1>
+          <SocialAuthButtons nextPath={next} variant="login" />
+          <SocialAuthDivider />
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="text-xs font-medium text-gray-600 mb-1 block">이메일</label>
