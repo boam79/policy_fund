@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const PROTECTED = ['/mypage', '/manage', '/admin', '/billing']
-const ADMIN_ONLY_EMAIL = 'pjm7908@hanmail.net'
+const ADMIN_ONLY_EMAIL = (process.env.ADMIN_ONLY_EMAIL ?? 'pjm7908@hanmail.net').toLowerCase().trim()
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -29,7 +29,8 @@ export async function middleware(request: NextRequest) {
 
   const isProtected = PROTECTED.some(p => path.startsWith(p))
   const isAdminPath = path.startsWith('/admin')
-  const isAdminApiPath = path.startsWith('/api/admin') && !path.startsWith('/api/admin/sync')
+  /** 수동 동기화 API만 라우트 내 세션/시크릿 검증 (다른 /api/admin/* 는 미들웨어에서 관리자 이메일 강제) */
+  const isAdminApiPath = path.startsWith('/api/admin') && path !== '/api/admin/sync'
   const isAdminArea = isAdminPath || isAdminApiPath
 
   if (isProtected && !user) {

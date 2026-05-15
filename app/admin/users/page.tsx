@@ -49,11 +49,11 @@ export default function AdminUsersPage() {
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
 
   return (
-    <div>
+    <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
+        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <Users className="h-5 w-5 text-cyan-400" />회원 관리
-          <span className="text-sm font-normal text-gray-400 ml-1">총 {total}명</span>
+          <span className="text-sm font-normal text-gray-500 ml-1">총 {total}명</span>
         </h1>
       </div>
       {error && (

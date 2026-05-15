@@ -52,6 +52,9 @@ async function run() {
     '/api/admin/billing',
     '/api/admin/recommendations/home-slots',
     '/api/admin/inquiries',
+    '/api/admin/sync-logs',
+    '/api/admin/programs',
+    '/api/admin/system-settings',
   ]
   for (const api of blockedAdminApis) {
     const res = await requestJson(api)

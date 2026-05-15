@@ -55,8 +55,8 @@ export default function AdminFeedbackPage() {
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
 
   return (
-    <div>
-      <h1 className="text-xl font-bold text-white flex items-center gap-2 mb-6"><MessageSquare className="h-5 w-5 text-purple-400" />피드백 관리</h1>
+    <div className="p-6">
+      <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-6"><MessageSquare className="h-5 w-5 text-purple-400" />피드백 관리</h1>
       {error && (
         <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}

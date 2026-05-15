@@ -36,7 +36,7 @@ export const maxDuration = 60
 /** ms 대기 */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-const ADMIN_ONLY_EMAIL = 'pjm7908@hanmail.net'
+const ADMIN_ONLY_EMAIL = (process.env.ADMIN_ONLY_EMAIL ?? 'pjm7908@hanmail.net').toLowerCase().trim()
 
 /** 인증 확인 공통 함수 (cron secret 또는 관리자 세션) */
 async function checkAuth(request: NextRequest): Promise<boolean> {

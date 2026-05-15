@@ -123,7 +123,17 @@ export default function AdminDashboard() {
                       <tr key={s.id} className="border-b last:border-0">
                         <td className="py-2 pr-4 font-medium">{s.source}</td>
                         <td className="py-2 pr-4">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${s.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{s.status}</span>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full ${
+                              s.status === 'success'
+                                ? 'bg-green-100 text-green-700'
+                                : s.status === 'partial'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-red-100 text-red-700'
+                            }`}
+                          >
+                            {s.status}
+                          </span>
                         </td>
                         <td className="py-2 pr-4">{s.requested_count}</td>
                         <td className="py-2 pr-4">{s.inserted_count}</td>
