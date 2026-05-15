@@ -128,13 +128,14 @@ export function normalizeSmes24Item(item: Smes24Item): NormalizedProgram {
   const organization = item.sportInsttNm ?? item.jrsdInsttNm ?? ''
   const region = item.areaNm ?? item.ereAtrgNm ?? null
   const industry = item.bizType ?? item.bizTpcdNm ?? null
+  const title = item.pblancNm ?? item.pbancNm ?? item.detailBsnsNm ?? ''
   const startDate = toISODate(item.pblancBgnDt ?? item.reqstBgnDt)
   const endDate = toISODate(item.pblancEndDt ?? item.reqstEndDt)
 
   return {
     source: 'smes24',
     external_id: externalId ? String(externalId) : `smes24-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    title: item.pbancNm?.trim() ?? '',
+    title: title.trim(),
     organization: organization.trim(),
     region,
     industry,

@@ -8,6 +8,7 @@ export interface Smes24Item {
   // 신규(실제 응답) 필드
   pblancSeq?: number | string
   pblancNm?: string
+  detailBsnsNm?: string
   sportInsttNm?: string
   pblancBgnDt?: string
   pblancEndDt?: string
