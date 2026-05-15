@@ -51,24 +51,34 @@ export default function SearchBar({
         body: JSON.stringify({ query: q }),
       })
 
-      const data = await res.json()
+      const data = await res.json() as {
+        success?: boolean
+        ok?: boolean
+        error_code?: string
+        message?: string
+        error?: string
+        data?: { parsed: ParseNLResult }
+      }
 
-      if (!data.success) {
-        const message = String(data.error ?? '조건 추출에 실패했습니다.')
-        const isTemporaryLlmIssue =
-          /UNAVAILABLE|503|high demand|일시적으로|불안정/i.test(message)
+      const parseSucceeded = res.ok && data.success === true && data.ok !== false && data?.data?.parsed != null
 
-        // LLM 과부하/일시 장애 시에는 키워드 기반 실제 공고 검색으로 즉시 폴백
-        if (isTemporaryLlmIssue) {
-          router.push(`/search?keyword=${encodeURIComponent(q)}`)
+      if (!parseSucceeded) {
+        const message = String(data.message ?? data.error ?? '')
+        const isInputValidationError =
+          res.status === 400 &&
+          ['PARSE_INVALID_INPUT', 'PARSE_QUERY_TOO_LONG'].includes(String(data.error_code ?? ''))
+
+        // 비어 있거나 잘못된 입력이 아니면 분석 단계 장애와 관계 없이 공고 검색으로 이어짐
+        if (!isInputValidationError && q.trim()) {
+          router.push(`/search?keyword=${encodeURIComponent(q)}&q=${encodeURIComponent(q)}`)
           return
         }
 
-        setError(message)
+        setError(message.length > 0 ? message : '조건 추출에 실패했습니다.')
         return
       }
 
-      const parsed: ParseNLResult = data.data.parsed
+      const parsed: ParseNLResult = data.data!.parsed
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('pf:last_parsed', JSON.stringify(parsed))

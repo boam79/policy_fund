@@ -102,6 +102,23 @@ function inferRegionFromCity(rawCity: string): string | null {
   return CITY_TO_REGION[city] ?? null
 }
 
+/**
+ * 통계상 region 컬럼이 비어 있거나 '전국'인 공고가 많아서, 지역 검색 결과가 거의 안 나오는 문제를 줄인다.
+ * — 지역 키(또는 광역시도 별명) 매칭
+ * — 전국
+ * — DB 미기재(null / 빈 문자열)까지 포함해 이후 업종·키워드 필터와 조합된다.
+ */
+function buildRegionPredicateOr(normalizedRegionalKey: string): string {
+  const aliases =
+    REGION_MAP[normalizedRegionalKey as keyof typeof REGION_MAP] ?? [normalizedRegionalKey]
+  return [
+    'region.is.null',
+    'region.eq.',
+    ...aliases.map((a) => `region.ilike.%${a}%`),
+    'region.ilike.%전국%',
+  ].join(',')
+}
+
 export async function unifiedSearch(params: SearchParams): Promise<SearchResult> {
   const {
     region,
@@ -132,20 +149,23 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
     .order('application_end_date', { ascending: true, nullsFirst: false })
     .range(offset, offset + limit - 1)
 
-  // 지역 필터 (전국 공고는 항상 포함)
+  // 지역 필터 — 명시 매칭 + 전국 + 지역 미기재(null·빈값) 포함
   if (region) {
     const normalized = normalizeRegion(region)
-    // 사용자가 지역을 명시하면 해당 지역 공고만 노출
-    // (이전에는 전국/지역미기재까지 포함되어 체감 정확도가 떨어졌음)
     if (normalized !== '전국') {
-      query = query.or(`region.ilike.%${normalized}%`)
+      query = query.or(buildRegionPredicateOr(normalized))
     }
   } else if (city) {
     const normalizedCity = city.replace(/\s+/g, '')
     const inferredRegion = inferRegionFromCity(city)
+    const inferredAliases = inferredRegion ? REGION_MAP[inferredRegion as keyof typeof REGION_MAP] ?? [] : []
     const cityOrRegionFilters = [
+      'region.is.null',
+      'region.eq.',
       `region.ilike.%${normalizedCity}%`,
       inferredRegion ? `region.ilike.%${inferredRegion}%` : null,
+      ...inferredAliases.map((a) => `region.ilike.%${a}%`),
+      'region.ilike.%전국%',
     ]
       .filter(Boolean)
       .join(',')

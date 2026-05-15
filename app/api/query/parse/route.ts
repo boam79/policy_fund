@@ -78,12 +78,15 @@ export async function POST(req: NextRequest): Promise<Response> {
       error instanceof Error ? error.message : '조건 추출 중 오류가 발생했습니다.'
     const isTemporaryLlmIssue =
       /UNAVAILABLE|503|high demand|RESOURCE_EXHAUSTED|overloaded/i.test(rawMessage)
-    const message = isTemporaryLlmIssue
+    const isGeminiMisconfigured =
+      /GEMINI_API_KEY|설정되지 않았습니다|missing.*api.?key/i.test(rawMessage)
+
+    const message = isTemporaryLlmIssue || isGeminiMisconfigured
       ? 'AI 분석 서버가 일시적으로 혼잡합니다. 키워드 기반 검색으로 계속 진행해주세요.'
       : rawMessage
 
-    // LLM 혼잡/일시 장애 시에는 규칙 기반 추출로 진단 흐름을 유지
-    if (isTemporaryLlmIssue && queryText.length > 0) {
+    // LLM 혼잡·키 미설정 등일 때 규칙 기반 추출로 진단·검색은 계속된다
+    if ((isTemporaryLlmIssue || isGeminiMisconfigured) && queryText.length > 0) {
       const parsed = parseNaturalLanguageFallback(queryText)
       const conditions = toBusinessConditions(parsed.conditions, 0.3)
       return NextResponse.json<ApiResponse>({
