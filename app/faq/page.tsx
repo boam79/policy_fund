@@ -1,10 +1,75 @@
-export default function Page() {
+'use client'
+import { useState } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
+
+const FAQS = [
+  {
+    cat: '서비스 일반',
+    items: [
+      { q: 'PolicyFund AI는 무엇인가요?', a: '정부·공공기관의 중소기업·창업 지원사업을 실제 공공 API 데이터로 검색하고, 자격 확인부터 서류·사업계획서 준비까지 돕는 AI 보조 도구입니다.' },
+      { q: '무료로 사용할 수 있나요?', a: '현재 베타 운영 중으로 핵심 기능을 무료로 사용할 수 있습니다. 추후 구독 플랜이 도입될 예정입니다.' },
+      { q: '어떤 기기에서 사용할 수 있나요?', a: '웹 브라우저가 있는 모든 기기(PC, 스마트폰, 태블릿)에서 사용 가능합니다.' },
+    ],
+  },
+  {
+    cat: '공고 데이터',
+    items: [
+      { q: '공고 데이터는 어디서 가져오나요?', a: '기업마당(bizinfo.go.kr), K-Startup(k-startup.go.kr), 중소벤처기업부 공공 API에서 매일 자동 수집합니다. AI가 생성한 가상 데이터는 없습니다.' },
+      { q: '데이터 업데이트 주기는 어떻게 되나요?', a: '매일 오전 9시 공공 API를 통해 최신 공고를 수집·갱신합니다. 마감된 공고는 자동으로 상태가 변경됩니다.' },
+      { q: '공고가 누락되거나 잘못된 경우 어떻게 하나요?', a: '고객센터(/contact)로 제보해 주시면 확인 후 수정하겠습니다. 최종 정보는 반드시 원문 공고를 확인하세요.' },
+    ],
+  },
+  {
+    cat: '자격 판정',
+    items: [
+      { q: 'AI가 자격 여부를 보장하나요?', a: '아닙니다. 자격 가능성은 룰 기반 엔진이 참고용으로 제공합니다. 최종 자격 여부는 주관기관이 결정하며, 반드시 공고문 원문을 확인하세요.' },
+      { q: '\'검토 필요\' 결과는 무슨 뜻인가요?', a: '자격 조건 일부가 불명확하거나 추가 확인이 필요한 경우입니다. 주관기관에 직접 문의하거나 공고문을 세밀히 검토하세요.' },
+    ],
+  },
+  {
+    cat: '사업계획서',
+    items: [
+      { q: '초안을 그대로 제출해도 되나요?', a: '초안은 작성 시작을 돕는 참고용입니다. 반드시 실제 공고 양식에 맞게 수정하고 전문가 검토 후 제출하세요.' },
+      { q: 'gov 템플릿과 PSST 템플릿의 차이는?', a: 'gov는 정부보조금 신청용 6섹션 공문서 형식이고, PSST는 예비창업패키지·VC 심사용 Problem·Solution·Scale-up·Team 4축 형식입니다. 공고 유형에 맞게 선택하세요.' },
+    ],
+  },
+]
+
+export default function FaqPage() {
+  const [open, setOpen] = useState<string | null>(null)
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-16">
-      <div className="rounded-xl border bg-muted/30 p-12 text-center">
-        <h1 className="mb-3 text-3xl font-bold">자주 묻는 질문</h1>
-        <p className="text-muted-foreground">서비스 이용 관련 자주 묻는 질문을 모았습니다.</p>
-        <p className="mt-4 text-sm text-orange-500">🚧 개발 예정 (Phase 구현 중)</p>
+    <div className="min-h-screen bg-gray-50">
+      <section className="bg-white border-b py-12">
+        <div className="container mx-auto max-w-3xl px-4 text-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">자주 묻는 질문</h1>
+          <p className="text-gray-500">궁금한 점을 먼저 확인해보세요</p>
+        </div>
+      </section>
+      <div className="container mx-auto max-w-3xl px-4 py-10">
+        {FAQS.map(cat => (
+          <div key={cat.cat} className="mb-8">
+            <h2 className="text-sm font-bold text-blue-600 uppercase tracking-wide mb-3">{cat.cat}</h2>
+            <div className="space-y-2">
+              {cat.items.map((item, i) => {
+                const key = `${cat.cat}-${i}`
+                return (
+                  <div key={key} className="bg-white rounded-lg border overflow-hidden">
+                    <button onClick={() => setOpen(open === key ? null : key)}
+                      className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-gray-50 transition-colors">
+                      <span className="text-sm font-medium text-gray-900">{item.q}</span>
+                      {open === key ? <ChevronUp className="h-4 w-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+                    </button>
+                    {open === key && (
+                      <div className="px-4 pb-4 border-t bg-gray-50">
+                        <p className="text-sm text-gray-600 pt-3 leading-relaxed">{item.a}</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
