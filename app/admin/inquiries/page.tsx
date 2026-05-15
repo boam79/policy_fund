@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { Loader2, MessageSquare } from 'lucide-react'
+import { readApiError } from '@/lib/api/readApiError'
 
 interface Inquiry { id: string; name: string; email: string; inquiry_type: string; subject: string; message: string; status: string; created_at: string }
 
@@ -29,7 +30,7 @@ export default function AdminInquiriesPage() {
       setError('')
       const res = await fetch('/api/admin/inquiries')
       const json = await res.json()
-      if (!res.ok) throw new Error(String(json.error ?? '문의 데이터를 불러오지 못했습니다.'))
+      if (!res.ok) throw new Error(readApiError(json, '문의 데이터를 불러오지 못했습니다.'))
       setInquiries((json.inquiries ?? []) as Inquiry[])
     } catch (err) {
       setInquiries([])
@@ -51,7 +52,7 @@ export default function AdminInquiriesPage() {
         body: JSON.stringify({ id, status }),
       })
       const json = await res.json()
-      if (!res.ok) throw new Error(String(json.error ?? '상태 변경에 실패했습니다.'))
+      if (!res.ok) throw new Error(readApiError(json, '상태 변경에 실패했습니다.'))
       setInquiries((is) => is.map((i) => (i.id === id ? { ...i, status } : i)))
       if (selected?.id === id) setSelected((s) => (s ? { ...s, status } : null))
     } catch (err) {

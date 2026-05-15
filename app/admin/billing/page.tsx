@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Loader2, CreditCard, TrendingUp } from 'lucide-react'
 import type { Database } from '@/types/database.types'
+import { readApiError } from '@/lib/api/readApiError'
 
 type Payment = Database['public']['Tables']['payments']['Row']
 
@@ -27,7 +28,7 @@ export default function AdminBillingPage() {
         const res = await fetch('/api/admin/billing')
         const json = await res.json()
         if (!res.ok) {
-          throw new Error(String(json.error ?? '결제 데이터를 불러오지 못했습니다.'))
+          throw new Error(readApiError(json, '결제 데이터를 불러오지 못했습니다.'))
         }
 
         setPayments((json.payments ?? []) as Payment[])

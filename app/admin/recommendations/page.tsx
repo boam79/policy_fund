@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Trash2, Eye, EyeOff, Loader2, Star } from 'lucide-react'
 import type { Database } from '@/types/database.types'
+import { readApiError } from '@/lib/api/readApiError'
 
 type Slot = Database['public']['Tables']['home_recommendation_slots']['Row'] & {
   program?: { title: string } | null
@@ -29,7 +30,7 @@ export default function RecommendationsPage() {
       const res = await fetch('/api/admin/recommendations/home-slots')
       const data = await res.json().catch(() => null)
       if (!res.ok) {
-        setLoadError(typeof data?.error === 'string' ? data.error : '슬롯 목록을 불러오지 못했습니다.')
+        setLoadError(readApiError(data, '슬롯 목록을 불러오지 못했습니다.'))
         setSlots([])
         return
       }

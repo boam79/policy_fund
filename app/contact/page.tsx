@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { Send, CheckCircle } from 'lucide-react'
+import { readApiError } from '@/lib/api/readApiError'
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', category: '서비스 문의', message: '' })
@@ -33,7 +34,7 @@ export default function ContactPage() {
       })
       if (!res.ok) {
         const json = await res.json()
-        throw new Error(String(json.error ?? '문의 전송에 실패했습니다.'))
+        throw new Error(readApiError(json, '문의 전송에 실패했습니다.'))
       }
       setSubmitted(true)
     } catch (err) {

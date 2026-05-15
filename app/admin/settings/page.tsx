@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Loader2, Save } from 'lucide-react'
+import { readApiError } from '@/lib/api/readApiError'
 
 export default function AdminSettingsPage() {
   const [dataMode, setDataMode] = useState('api_minimal_cache')
@@ -16,7 +17,7 @@ export default function AdminSettingsPage() {
       try {
         const res = await fetch('/api/admin/system-settings')
         const j = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(String(j.error ?? '설정을 불러오지 못했습니다.'))
+        if (!res.ok) throw new Error(readApiError(j, '설정을 불러오지 못했습니다.'))
         if (typeof j.data_mode === 'string') setDataMode(j.data_mode)
       } catch (e) {
         setError(e instanceof Error ? e.message : '설정을 불러오지 못했습니다.')
@@ -37,7 +38,7 @@ export default function AdminSettingsPage() {
         body: JSON.stringify({ data_mode: dataMode }),
       })
       const j = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(String(j.error ?? '저장에 실패했습니다.'))
+      if (!res.ok) throw new Error(readApiError(j, '저장에 실패했습니다.'))
       if (typeof j.data_mode === 'string') setDataMode(j.data_mode)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
+import { readApiError } from '@/lib/api/readApiError'
 
 type EligibilityResponse = {
   ok: boolean
@@ -151,7 +152,7 @@ function EligibilityContent() {
         }),
       })
       const json = await res.json()
-      if (!res.ok) throw new Error(String(json.error ?? '자격판정에 실패했습니다.'))
+      if (!res.ok) throw new Error(readApiError(json, '자격판정에 실패했습니다.'))
       setResult(json as EligibilityResponse)
     } catch (e) {
       setError(e instanceof Error ? e.message : '자격판정 중 오류가 발생했습니다.')

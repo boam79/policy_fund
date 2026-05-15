@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { Loader2, Users, Crown } from 'lucide-react'
+import { readApiError } from '@/lib/api/readApiError'
 
 interface UserRow {
   id: string
@@ -31,7 +32,7 @@ export default function AdminUsersPage() {
         const res = await fetch('/api/admin/users')
         const json = await res.json()
         if (!res.ok) {
-          throw new Error(String(json.error ?? '회원 데이터를 불러오지 못했습니다.'))
+          throw new Error(readApiError(json, '회원 데이터를 불러오지 못했습니다.'))
         }
         setUsers(json.users ?? [])
         setTotal(json.total ?? 0)
