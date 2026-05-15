@@ -4,8 +4,18 @@ import { Loader2, MessageSquare } from 'lucide-react'
 
 interface Inquiry { id: string; name: string; email: string; inquiry_type: string; subject: string; message: string; status: string; created_at: string }
 
-const STATUS_COLOR: Record<string, string> = { open: 'bg-red-100 text-red-700', in_progress: 'bg-yellow-100 text-yellow-700', closed: 'bg-gray-100 text-gray-600' }
-const STATUS_LABEL: Record<string, string> = { open: '미처리', in_progress: '처리중', closed: '완료' }
+const STATUS_COLOR: Record<string, string> = {
+  received: 'bg-red-100 text-red-700',
+  in_progress: 'bg-yellow-100 text-yellow-700',
+  resolved: 'bg-blue-100 text-blue-700',
+  closed: 'bg-gray-100 text-gray-600',
+}
+const STATUS_LABEL: Record<string, string> = {
+  received: '접수됨',
+  in_progress: '처리중',
+  resolved: '답변완료',
+  closed: '종료',
+}
 
 export default function AdminInquiriesPage() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([])

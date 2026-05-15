@@ -55,7 +55,7 @@ export async function PATCH(request: NextRequest) {
     if (!id || !status) {
       return NextResponse.json({ error: '필수 파라미터 누락' }, { status: 400 })
     }
-    if (!['open', 'in_progress', 'closed'].includes(status)) {
+    if (!['received', 'in_progress', 'resolved', 'closed'].includes(status)) {
       return NextResponse.json({ error: '유효하지 않은 상태값' }, { status: 400 })
     }
 

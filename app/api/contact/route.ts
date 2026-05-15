@@ -4,6 +4,14 @@ import type { Database } from '@/types/database.types'
 
 export const dynamic = 'force-dynamic'
 
+function normalizeInquiryType(category?: string): 'general' | 'partnership' {
+  const raw = (category ?? '').toLowerCase()
+  if (raw.includes('제휴') || raw.includes('컨설턴트') || raw.includes('partnership')) {
+    return 'partnership'
+  }
+  return 'general'
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { name, email, category, message } = await request.json()
@@ -17,14 +25,17 @@ export async function POST(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    await supabase.from('customer_inquiries').insert({
+    const { error } = await supabase.from('customer_inquiries').insert({
       name,
       email,
-      inquiry_type: category ?? '서비스 문의',
+      inquiry_type: normalizeInquiryType(category),
       subject: category ?? '서비스 문의',
       message,
-      status: 'open',
+      status: 'received',
     })
+    if (error) {
+      return Response.json({ error: `문의 저장 실패: ${error.message}` }, { status: 500 })
+    }
 
     return Response.json({ ok: true })
   } catch (e: unknown) {
