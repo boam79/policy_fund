@@ -50,12 +50,53 @@ const REGION_MAP: Record<string, string[]> = {
   전국: ['전국'],
 }
 
+const CITY_TO_REGION: Record<string, string> = {
+  수원: '경기',
+  성남: '경기',
+  고양: '경기',
+  용인: '경기',
+  부천: '경기',
+  안산: '경기',
+  안양: '경기',
+  남양주: '경기',
+  화성: '경기',
+  평택: '경기',
+  의정부: '경기',
+  시흥: '경기',
+  파주: '경기',
+  김포: '경기',
+  광명: '경기',
+  광주: '경기',
+  군포: '경기',
+  오산: '경기',
+  이천: '경기',
+  안성: '경기',
+  구리: '경기',
+  의왕: '경기',
+  하남: '경기',
+  양주: '경기',
+  동두천: '경기',
+  과천: '경기',
+  여주: '경기',
+  양평: '경기',
+  가평: '경기',
+  연천: '경기',
+  포천: '경기',
+}
+
 /** 지역명 정규화 (예: "경기도 수원시" → "경기") */
 function normalizeRegion(raw: string): string {
   for (const [key, aliases] of Object.entries(REGION_MAP)) {
     if (aliases.some((a) => raw.includes(a))) return key
   }
   return raw.slice(0, 2)
+}
+
+/** 시/군 입력 시 광역시도 보정 (예: "양주시" -> "경기") */
+function inferRegionFromCity(rawCity: string): string | null {
+  const city = rawCity.replace(/\s+/g, '').replace(/(시|군|구)$/u, '')
+  if (!city) return null
+  return CITY_TO_REGION[city] ?? null
 }
 
 export async function unifiedSearch(params: SearchParams): Promise<SearchResult> {
@@ -95,7 +136,17 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
       `region.ilike.%${normalized}%,region.ilike.%전국%,region.is.null`
     )
   } else if (city) {
-    query = query.or(`region.ilike.%${city}%,region.ilike.%전국%,region.is.null`)
+    const normalizedCity = city.replace(/\s+/g, '')
+    const inferredRegion = inferRegionFromCity(city)
+    const cityOrRegionFilters = [
+      `region.ilike.%${normalizedCity}%`,
+      inferredRegion ? `region.ilike.%${inferredRegion}%` : null,
+      'region.ilike.%전국%',
+      'region.is.null',
+    ]
+      .filter(Boolean)
+      .join(',')
+    query = query.or(cityOrRegionFilters)
   }
 
   // 업종 필터
