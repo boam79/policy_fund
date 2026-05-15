@@ -1,20 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FileText, Calendar, CheckSquare, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 type Tab = 'plan' | 'checklist' | 'timeline'
 
 interface Section { order?: number; title: string; draft?: string; guideline?: string; fillInRequired?: string[]; subsections?: { title: string; draft: string; fillInRequired?: string[] }[] }
 interface ChecklistItem { name: string; issuer: string; issuanceDays: number; collectBy?: string; url?: string; note?: string; requirementType: string; isStandardDocument: boolean }
 interface Milestone { stage: string; date: string; dow: string; isWeekend: boolean; description: string; actionItems: string[]; urgency: string }
+interface JourneyProfileSeed {
+  company_name?: string | null
+  industry?: string | null
+  employee_count?: number | null
+  business_type?: string | null
+  desired_amount_krw?: number | null
+  support_purpose?: string | null
+}
+interface JourneySearchSeed {
+  natural_language_query?: string | null
+  extracted_conditions?: Record<string, unknown> | null
+}
 
 const LEGAL_DISCLAIMER = '본 문서 초안은 AI가 생성한 참고용 자료이며 법적 효력이 없습니다. 실제 제출 전 반드시 전문가 검토 및 공고문 기준에 맞게 수정하세요.'
 
 export default function DocumentPlanPage() {
+  const supabase = createClient()
+  const hydratedJourneyRef = useRef(false)
   const [tab, setTab] = useState<Tab>('plan')
   const [template, setTemplate] = useState<'gov' | 'psst'>('gov')
   const [loading, setLoading] = useState(false)
+  const [journeyHint, setJourneyHint] = useState('')
 
   // 공통 입력
   const [title, setTitle] = useState('')
@@ -34,6 +50,91 @@ export default function DocumentPlanPage() {
   const [planResult, setPlanResult] = useState<{ sections: Section[]; draftMeta: { missingData: string[]; confidence: number } } | null>(null)
   const [checklistResult, setChecklistResult] = useState<{ checklist: ChecklistItem[]; totalDocuments: number; preparationLeadDays: number; tips: string[] } | null>(null)
   const [timelineResult, setTimelineResult] = useState<{ milestones: Milestone[]; totalDaysLeft: number; warnings: string[]; tips: string[] } | null>(null)
+
+  useEffect(() => {
+    if (hydratedJourneyRef.current) return
+    hydratedJourneyRef.current = true
+
+    const hydrateFromJourney = async () => {
+      let profileSeed: JourneyProfileSeed | null = null
+      let searchSeed: JourneySearchSeed | null = null
+
+      try {
+        const { data: auth } = await supabase.auth.getUser()
+        const user = auth.user
+        if (user) {
+          const [profileRes, searchRes] = await Promise.all([
+            supabase
+              .from('business_profiles')
+              .select('company_name,industry,employee_count,business_type,desired_amount_krw,support_purpose')
+              .eq('user_id', user.id)
+              .order('updated_at', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            supabase
+              .from('search_sessions')
+              .select('natural_language_query,extracted_conditions')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+          ])
+
+          profileSeed = (profileRes.data as JourneyProfileSeed | null) ?? null
+          searchSeed = (searchRes.data as JourneySearchSeed | null) ?? null
+        }
+      } catch {
+        // 클라이언트 초기화 실패는 무시하고 localStorage 폴백 사용
+      }
+
+      let localQuery = ''
+      let localParsed: Record<string, unknown> | null = null
+      if (typeof window !== 'undefined') {
+        localQuery = localStorage.getItem('pf:last_query') ?? ''
+        try {
+          const raw = localStorage.getItem('pf:last_parsed')
+          if (raw) {
+            const parsed = JSON.parse(raw) as { conditions?: Record<string, { value?: unknown }> }
+            localParsed = Object.fromEntries(
+              Object.entries(parsed.conditions ?? {}).map(([k, v]) => [k, v?.value])
+            )
+          }
+        } catch {
+          localParsed = null
+        }
+      }
+
+      const cond = (searchSeed?.extracted_conditions as Record<string, unknown> | null) ?? localParsed ?? {}
+      const queryText = searchSeed?.natural_language_query ?? localQuery
+
+      const amount = (profileSeed?.desired_amount_krw as number | null) ?? (cond.desired_amount_krw as number | undefined)
+      const workers = (profileSeed?.employee_count as number | null) ?? (cond.employee_count as number | undefined)
+      const company = profileSeed?.company_name ?? null
+      const industrySeed = (profileSeed?.industry as string | null) ?? (cond.industry as string | undefined) ?? null
+      const businessTypeSeed = profileSeed?.business_type === '개인사업자' ? '개인' : profileSeed?.business_type
+
+      let seededCount = 0
+      if (company || industrySeed || workers || amount || queryText) seededCount += 1
+
+      setTitle((prev) => prev || (queryText ? `맞춤 지원사업 신청 (${queryText.slice(0, 24)})` : ''))
+      setAnnouncementText((prev) => prev || queryText || '')
+      setCompanyName((prev) => prev || company || '')
+      setIndustry((prev) => prev || industrySeed || '')
+      setEmployeeCount((prev) => prev || (workers != null ? String(workers) : ''))
+      setRequestedAmount((prev) => prev || (amount != null ? String(amount) : ''))
+      setBusinessType((prev) => {
+        if (prev === '개인') return prev
+        return businessTypeSeed === '개인' ? '개인' : '법인'
+      })
+      setProblemStatement((prev) => prev || (profileSeed?.support_purpose ?? ''))
+
+      if (seededCount > 0) {
+        setJourneyHint('최근 검색·마이페이지 입력값을 자동 반영했습니다. 필요하면 수정 후 생성하세요.')
+      }
+    }
+
+    void hydrateFromJourney()
+  }, [supabase])
 
   const handleGenerate = async () => {
     if (!title) { alert('공고명을 입력하세요'); return }
@@ -105,6 +206,11 @@ export default function DocumentPlanPage() {
 
         {/* 입력 폼 */}
         <div className="bg-white rounded-xl border p-5 mb-4">
+          {journeyHint && (
+            <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+              <p className="text-xs text-blue-700">{journeyHint}</p>
+            </div>
+          )}
           <div className="grid gap-3">
             <div>
               <label className="text-xs font-medium text-gray-600 mb-1 block">공고명 *</label>

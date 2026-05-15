@@ -48,8 +48,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error('[/api/query/parse] error:', error)
 
-    const message =
+    const rawMessage =
       error instanceof Error ? error.message : '조건 추출 중 오류가 발생했습니다.'
+    const isTemporaryLlmIssue =
+      /UNAVAILABLE|503|high demand|RESOURCE_EXHAUSTED|overloaded/i.test(rawMessage)
+    const message = isTemporaryLlmIssue
+      ? 'AI 분석 서버가 일시적으로 혼잡합니다. 키워드 기반 검색으로 계속 진행해주세요.'
+      : rawMessage
 
     return NextResponse.json<ApiResponse>(
       { success: false, error: message },

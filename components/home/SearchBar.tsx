@@ -38,6 +38,12 @@ export default function SearchBar({
     setLoading(true)
     setError(null)
 
+    // 유저 여정 연결을 위한 최근 입력값 저장 (문서 생성 화면에서 활용)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('pf:last_query', q)
+      localStorage.setItem('pf:last_query_at', new Date().toISOString())
+    }
+
     try {
       const res = await fetch('/api/query/parse', {
         method: 'POST',
@@ -48,11 +54,25 @@ export default function SearchBar({
       const data = await res.json()
 
       if (!data.success) {
-        setError(data.error ?? '조건 추출에 실패했습니다.')
+        const message = String(data.error ?? '조건 추출에 실패했습니다.')
+        const isTemporaryLlmIssue =
+          /UNAVAILABLE|503|high demand|일시적으로|불안정/i.test(message)
+
+        // LLM 과부하/일시 장애 시에는 키워드 기반 실제 공고 검색으로 즉시 폴백
+        if (isTemporaryLlmIssue) {
+          router.push(`/search?keyword=${encodeURIComponent(q)}`)
+          return
+        }
+
+        setError(message)
         return
       }
 
       const parsed: ParseNLResult = data.data.parsed
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pf:last_parsed', JSON.stringify(parsed))
+      }
 
       // 추출 결과를 URL 파라미터로 인코딩 후 /diagnosis 페이지로 이동
       const params = new URLSearchParams({

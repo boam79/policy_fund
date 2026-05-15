@@ -87,10 +87,17 @@ function DiagnosisContent() {
   }
 
   if (error) {
+    const q = searchParams.get('q') ?? ''
+    const searchHref = q ? `/search?keyword=${encodeURIComponent(q)}` : '/search'
     return (
       <div className="container mx-auto max-w-2xl px-4 py-16 text-center">
         <p className="mb-4 text-destructive">{error}</p>
-        <a href="/" className={buttonVariants()}>홈으로 돌아가기</a>
+        <div className="flex items-center justify-center gap-2">
+          <a href={searchHref} className={buttonVariants()}>
+            실제 공고 검색으로 이동
+          </a>
+          <a href="/" className={buttonVariants({ variant: 'outline' })}>홈으로 돌아가기</a>
+        </div>
       </div>
     )
   }
