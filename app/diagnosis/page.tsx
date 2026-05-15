@@ -12,6 +12,8 @@ import { formatKRW } from '@/types'
 import type { ParseNLResult, ParsedConditions } from '@/lib/query/parseNaturalLanguage'
 import { AlertCircle, CheckCircle2, HelpCircle, Pencil, Zap, Search } from 'lucide-react'
 import ConditionEditInput from '@/components/diagnosis/ConditionEditInput'
+import { mergeSavedProfileIntoParsed } from '@/lib/profile/business-profile-defaults'
+import { fetchMyBusinessProfileDefaults } from '@/lib/profile/fetch-my-business-profile'
 
 // ─── 조건 표시 라벨 매핑 ───────────────────────────────────
 const CONDITION_LABELS: Record<string, string> = {
@@ -170,17 +172,34 @@ function DiagnosisContent() {
       setError('검색 조건이 없습니다. 홈으로 돌아가 검색해주세요.')
       return
     }
-    try {
-      const data = JSON.parse(decodeURIComponent(dataParam)) as ParseNLResult
-      setParsed(data)
-      // 편집용 초기값 설정
-      const initValues: Record<string, string> = {}
-      Object.entries(data.conditions).forEach(([key, cond]) => {
-        if (cond) initValues[key] = String((cond as { value: unknown }).value)
-      })
-      setEditValues(initValues)
-    } catch {
-      setError('조건 데이터가 유효하지 않습니다.')
+
+    let cancelled = false
+    setError(null)
+
+    ;(async () => {
+      try {
+        const data = JSON.parse(decodeURIComponent(dataParam)) as ParseNLResult
+        let merged = data
+        try {
+          const prof = await fetchMyBusinessProfileDefaults()
+          if (!cancelled && prof) merged = mergeSavedProfileIntoParsed(data, prof)
+        } catch {
+          /* 프로필 없음·오류 시 원본만 사용 */
+        }
+        if (cancelled) return
+        setParsed(merged)
+        const initValues: Record<string, string> = {}
+        Object.entries(merged.conditions).forEach(([key, cond]) => {
+          if (cond) initValues[key] = String((cond as { value: unknown }).value)
+        })
+        setEditValues(initValues)
+      } catch {
+        if (!cancelled) setError('조건 데이터가 유효하지 않습니다.')
+      }
+    })()
+
+    return () => {
+      cancelled = true
     }
   }, [searchParams, router])
 

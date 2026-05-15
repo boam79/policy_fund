@@ -7,10 +7,18 @@ import { useRouter } from 'next/navigation'
 import { SITE_NAME } from '@/lib/site-config'
 
 interface Profile {
-  company_name: string; region: string; city: string; industry: string;
-  business_age_years: number | null; employee_count: number | null;
-  annual_revenue_krw: number | null; tax_arrears: boolean;
-  business_type: string; startup_stage: string;
+  company_name: string
+  region: string
+  city: string
+  industry: string
+  business_age_years: number | null
+  employee_count: number | null
+  annual_revenue_krw: number | null
+  desired_amount_krw: number | null
+  tax_arrears: boolean
+  business_type: string
+  startup_stage: string
+  support_purpose: string
 }
 
 const REGIONS = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
@@ -57,14 +65,29 @@ export default function MyPage() {
 
   const handleSave = async () => {
     setSaving(true)
-    const record = { ...profile, user_id: userId }
+    const payload = {
+      user_id: userId,
+      company_name: profile.company_name?.trim() || null,
+      region: profile.region?.trim() || null,
+      city: profile.city?.trim() || null,
+      industry: profile.industry?.trim() || null,
+      business_age_years: profile.business_age_years ?? null,
+      employee_count: profile.employee_count ?? null,
+      annual_revenue_krw: profile.annual_revenue_krw ?? null,
+      desired_amount_krw: profile.desired_amount_krw ?? null,
+      tax_arrears: profile.tax_arrears ?? false,
+      business_type: profile.business_type?.trim() || null,
+      startup_stage: profile.startup_stage?.trim() || null,
+      support_purpose: profile.support_purpose?.trim() || null,
+    }
     if (profileId) {
-      await supabase.from('business_profiles').update(record).eq('id', profileId)
+      await supabase.from('business_profiles').update(payload).eq('id', profileId)
     } else {
-      const { data } = await supabase.from('business_profiles').insert(record).select('id').single()
+      const { data } = await supabase.from('business_profiles').insert(payload).select('id').single()
       if (data) setProfileId(data.id as string)
     }
-    setSaving(false); setSaved(true)
+    setSaving(false)
+    setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
 
@@ -99,7 +122,7 @@ export default function MyPage() {
 
         {/* 탭 */}
         <div className="flex gap-1 mb-6 bg-white rounded-xl border p-1">
-          {([['profile', '기업 프로필', Building2], ['docs', '생성 문서', FileText], ['searches', '검색 기록', Search]] as [typeof tab, string, React.ElementType][]).map(([id, label, Icon]) => (
+          {([['profile', '기업 기초정보', Building2], ['docs', '생성 문서', FileText], ['searches', '검색 기록', Search]] as [typeof tab, string, React.ElementType][]).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${tab === id ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
               <Icon className="h-4 w-4" />{label}
@@ -109,81 +132,207 @@ export default function MyPage() {
 
         {/* 프로필 탭 */}
         {tab === 'profile' && (
-          <div className="bg-white rounded-xl border p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">기업 프로필</h2>
-            <p className="text-xs text-gray-400 mb-4">입력한 정보는 자격 판정 및 맞춤 검색에 자동으로 활용됩니다.</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="text-xs font-medium text-gray-600 mb-1 block">회사명</label>
-                <input value={profile.company_name ?? ''} onChange={e => set('company_name', e.target.value)}
-                  placeholder="(주)폴리시펀드" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">지역</label>
-                <select value={profile.region ?? ''} onChange={e => set('region', e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">선택</option>
-                  {REGIONS.map(r => <option key={r}>{r}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">업종</label>
-                <select value={profile.industry ?? ''} onChange={e => set('industry', e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">선택</option>
-                  {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">업력 (년)</label>
-                <input type="number" value={profile.business_age_years ?? ''} onChange={e => set('business_age_years', e.target.value ? Number(e.target.value) : null)}
-                  placeholder="3" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">직원 수</label>
-                <input type="number" value={profile.employee_count ?? ''} onChange={e => set('employee_count', e.target.value ? Number(e.target.value) : null)}
-                  placeholder="10" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">연매출 (원)</label>
-                <input type="number" value={profile.annual_revenue_krw ?? ''} onChange={e => set('annual_revenue_krw', e.target.value ? Number(e.target.value) : null)}
-                  placeholder="500000000" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">창업 단계</label>
-                <select value={profile.startup_stage ?? ''} onChange={e => set('startup_stage', e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {STAGES.map(s => <option key={s} value={s}>{s || '선택'}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">기업 형태</label>
-                <select value={profile.business_type ?? ''} onChange={e => set('business_type', e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">선택</option>
-                  <option value="법인">법인</option>
-                  <option value="개인">개인사업자</option>
-                </select>
-              </div>
-              <div className="col-span-2 flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <input type="checkbox" id="tax" checked={profile.tax_arrears ?? false} onChange={e => set('tax_arrears', e.target.checked)} className="h-4 w-4" />
-                <label htmlFor="tax" className="text-sm text-gray-700">세금 체납 이력이 있습니다</label>
-              </div>
+          <div className="space-y-6">
+            <div className="rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3 text-sm text-blue-900/90">
+              <p className="font-medium text-blue-950">사업자 기초 정보는 이렇게 쓰입니다</p>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-blue-900/80">
+                <li>홈 검색창에서 <strong>기업정보로 채우기</strong>로 검색 문장을 한 번에 넣을 수 있습니다.</li>
+                <li>진단(조건 확인) 단계에서 LLM이 놓친 항목은 저장된 값으로 보강됩니다.</li>
+                <li>사업계획서 초안 등 문서 생성 시 회사 개요·지원 목적에 반영됩니다.</li>
+              </ul>
             </div>
 
-            <div className="flex items-center gap-3 mt-5">
-              <button onClick={handleSave} disabled={saving}
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                저장
-              </button>
-              {saved && <span className="text-sm text-green-600">✓ 저장되었습니다</span>}
-            </div>
-            <div className="mt-4 pt-4 border-t">
-              <Link href="/mypage/billing"
-                className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
-                <CreditCard className="h-4 w-4" />결제 관리 · 구독 현황 →
-              </Link>
+            <div className="bg-white rounded-xl border p-6 space-y-8">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">사업자 기초 정보</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  업종·업력·직원 수 등을 저장해 두면 이후 검색·진단·문서 작성의 기본값으로 사용됩니다.
+                </p>
+              </div>
+
+              <section className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-800 border-b pb-2">사업자·회사</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">회사명 / 상호</label>
+                    <input
+                      value={profile.company_name ?? ''}
+                      onChange={(e) => set('company_name', e.target.value)}
+                      placeholder="(주)예시테크"
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">기업 형태</label>
+                    <select
+                      value={profile.business_type ?? ''}
+                      onChange={(e) => set('business_type', e.target.value)}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">선택</option>
+                      <option value="법인">법인</option>
+                      <option value="개인">개인사업자</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-800 border-b pb-2">지역·업종·규모</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">시·도</label>
+                    <select
+                      value={profile.region ?? ''}
+                      onChange={(e) => set('region', e.target.value)}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">선택</option>
+                      {REGIONS.map((r) => (
+                        <option key={r}>{r}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">시·군·구 (선택)</label>
+                    <input
+                      value={profile.city ?? ''}
+                      onChange={(e) => set('city', e.target.value)}
+                      placeholder="예: 강남구"
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">업종</label>
+                    <select
+                      value={profile.industry ?? ''}
+                      onChange={(e) => set('industry', e.target.value)}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">선택</option>
+                      {INDUSTRIES.map((i) => (
+                        <option key={i}>{i}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">창업 단계</label>
+                    <select
+                      value={profile.startup_stage ?? ''}
+                      onChange={(e) => set('startup_stage', e.target.value)}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {STAGES.map((s) => (
+                        <option key={s} value={s}>
+                          {s || '선택'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">업력 (년)</label>
+                    <input
+                      type="number"
+                      value={profile.business_age_years ?? ''}
+                      onChange={(e) =>
+                        set('business_age_years', e.target.value ? Number(e.target.value) : null)
+                      }
+                      placeholder="3"
+                      min={0}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">직원 수</label>
+                    <input
+                      type="number"
+                      value={profile.employee_count ?? ''}
+                      onChange={(e) =>
+                        set('employee_count', e.target.value ? Number(e.target.value) : null)
+                      }
+                      placeholder="10"
+                      min={0}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-sm font-medium text-gray-800 border-b pb-2">재무·지원 계획</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">연매출 (원, 세전)</label>
+                    <input
+                      type="number"
+                      value={profile.annual_revenue_krw ?? ''}
+                      onChange={(e) =>
+                        set('annual_revenue_krw', e.target.value ? Number(e.target.value) : null)
+                      }
+                      placeholder="500000000"
+                      min={0}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">희망 지원금 (원)</label>
+                    <input
+                      type="number"
+                      value={profile.desired_amount_krw ?? ''}
+                      onChange={(e) =>
+                        set('desired_amount_krw', e.target.value ? Number(e.target.value) : null)
+                      }
+                      placeholder="50000000"
+                      min={0}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">지원 목적 / 필요성</label>
+                    <textarea
+                      value={profile.support_purpose ?? ''}
+                      onChange={(e) => set('support_purpose', e.target.value)}
+                      rows={4}
+                      placeholder="예: 시설 개선·R&D 인력 확보·사업화 자금 등"
+                      className="w-full resize-y border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="col-span-2 flex items-center gap-3 rounded-lg bg-gray-50 p-3">
+                    <input
+                      type="checkbox"
+                      id="tax"
+                      checked={profile.tax_arrears ?? false}
+                      onChange={(e) => set('tax_arrears', e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="tax" className="text-sm text-gray-700">
+                      세금 체납 이력이 있습니다
+                    </label>
+                  </div>
+                </div>
+              </section>
+
+              <div className="flex flex-wrap items-center gap-3 border-t pt-6">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  기초 정보 저장
+                </button>
+                {saved && <span className="text-sm text-green-600">저장되었습니다</span>}
+              </div>
+              <div className="border-t pt-4">
+                <Link
+                  href="/mypage/billing"
+                  className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  결제 관리 · 구독 현황 →
+                </Link>
+              </div>
             </div>
           </div>
         )}

@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, Loader2 } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
+import { fetchMyBusinessProfileDefaults } from '@/lib/profile/fetch-my-business-profile'
+import { buildDefaultSearchQueryFromProfile } from '@/lib/profile/business-profile-defaults'
 
 const EXAMPLE_QUERIES = [
   '경기도 제조업 3년차 직원 5명인데 받을 수 있는 지원사업 찾아줘',
@@ -16,17 +18,39 @@ const EXAMPLE_QUERIES = [
 interface SearchBarProps {
   placeholder?: string
   size?: 'default' | 'large'
+  /** 로그인 시 마이페이지 기업 기초정보로 검색문 채우기 안내 */
+  useSavedProfileDefaults?: boolean
 }
 
 export default function SearchBar({
   placeholder = '예: 경기도 제조업 3년차인데 받을 수 있는 정책자금 찾아줘',
   size = 'default',
+  useSavedProfileDefaults = true,
 }: SearchBarProps) {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [savedProfileQuery, setSavedProfileQuery] = useState<string | null>(null)
   const router = useRouter()
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (!useSavedProfileDefaults) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const row = await fetchMyBusinessProfileDefaults()
+        if (cancelled || !row) return
+        const q = buildDefaultSearchQueryFromProfile(row)
+        if (q) setSavedProfileQuery(q)
+      } catch {
+        /* 비로그인·네트워크 오류 무시 */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [useSavedProfileDefaults])
 
   async function handleSearch(searchQuery?: string) {
     const q = (searchQuery ?? query).trim()
@@ -152,6 +176,26 @@ export default function SearchBar({
       {/* 오류 메시지 */}
       {error && (
         <p className="mt-2 text-sm text-destructive">{error}</p>
+      )}
+
+      {/* 마이페이지 기본 검색문 */}
+      {savedProfileQuery && (
+        <div className="mt-3 flex flex-col gap-2 rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-blue-900/80">
+            마이페이지에 저장한 <strong>사업자 기초정보</strong>로 검색 문장을 채울 수 있습니다.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setQuery(savedProfileQuery)
+              inputRef.current?.focus()
+            }}
+            disabled={loading}
+            className="shrink-0 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            기업정보로 채우기
+          </button>
+        </div>
       )}
 
       {/* 예시 질문 칩 */}

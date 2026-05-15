@@ -62,14 +62,9 @@ export default function Footer() {
           ))}
         </div>
         <div className="mt-8 border-t pt-6 text-center text-xs text-muted-foreground">
-          <p>© 2026 {SITE_NAME}</p>
+          <p>© 2026 {SITE_NAME}. 저작권자 Boam79.</p>
           <p className="mt-1">
             본 서비스의 자격판정 및 추천 결과는 참고용이며, 실제 선정 여부는 주관기관 심사 기준에 따릅니다.
-          </p>
-          <p className="mt-2">
-            <Link href="/llms.txt" className="underline underline-offset-2 hover:text-foreground">
-              llms.txt · AI·검색 참고
-            </Link>
           </p>
         </div>
       </div>

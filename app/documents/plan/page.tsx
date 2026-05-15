@@ -19,6 +19,12 @@ interface JourneyProfileSeed {
   business_type?: string | null
   desired_amount_krw?: number | null
   support_purpose?: string | null
+  region?: string | null
+  city?: string | null
+  business_age_years?: number | null
+  startup_stage?: string | null
+  annual_revenue_krw?: number | null
+  tax_arrears?: boolean | null
 }
 interface JourneySearchSeed {
   natural_language_query?: string | null
@@ -126,7 +132,9 @@ function DocumentPlanContent() {
           const [profileRes, searchRes] = await Promise.all([
             supabase
               .from('business_profiles')
-              .select('company_name,industry,employee_count,business_type,desired_amount_krw,support_purpose')
+              .select(
+                'company_name,industry,employee_count,business_type,desired_amount_krw,support_purpose,region,city,business_age_years,startup_stage,annual_revenue_krw,tax_arrears'
+              )
               .eq('user_id', user.id)
               .order('updated_at', { ascending: false })
               .limit(1)
@@ -218,7 +226,28 @@ function DocumentPlanContent() {
         if (prev === '개인') return prev
         return businessTypeSeed === '개인' ? '개인' : '법인'
       })
-      setProblemStatement((prev) => prev || (profileSeed?.support_purpose ?? ''))
+      setProblemStatement((prev) => {
+        if (prev) return prev
+        const purpose = (profileSeed?.support_purpose ?? '').trim()
+        const contextLine = [
+          profileSeed?.region?.trim() && `지역: ${profileSeed.region}`,
+          profileSeed?.city?.trim() && `시군구: ${profileSeed.city}`,
+          profileSeed?.business_age_years != null &&
+            Number.isFinite(profileSeed.business_age_years) &&
+            `업력: ${profileSeed.business_age_years}년`,
+          profileSeed?.startup_stage?.trim() && `창업단계: ${profileSeed.startup_stage}`,
+          profileSeed?.annual_revenue_krw != null &&
+            profileSeed.annual_revenue_krw > 0 &&
+            `연매출(참고): ${profileSeed.annual_revenue_krw.toLocaleString('ko-KR')}원`,
+          profileSeed?.tax_arrears === true ? '세금 체납: 있음' : profileSeed?.tax_arrears === false ? '세금 체납: 없음' : '',
+        ]
+          .filter(Boolean)
+          .join(' | ')
+        if (purpose && contextLine) return `${purpose}\n\n(기업 기초정보: ${contextLine})`
+        if (purpose) return purpose
+        if (contextLine) return `기업 기초정보: ${contextLine}`
+        return ''
+      })
 
       if (pid && programSeed?.title) {
         setJourneyHint('선택한 공고 정보와 최근 입력값을 자동 반영했습니다. 필요하면 수정 후 생성하세요.')
