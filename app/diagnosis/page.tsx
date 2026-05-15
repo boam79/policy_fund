@@ -297,8 +297,12 @@ function DiagnosisContent() {
             if (typeof taxArrears === 'boolean') params.set('tax_arrears', taxArrears ? 'yes' : 'no')
             if (supportPurpose) params.set('support_purpose', String(supportPurpose))
 
-            // 자연어 검색 맥락 유지를 위해 원문 질의를 항상 keyword 폴백으로 전달
-            params.set('keyword', String(parsed.raw_query ?? ''))
+            // keyword는 짧은 목적/업종 중심으로만 전달 (긴 자연어 문장 직접 전달 금지)
+            if (supportPurpose) {
+              params.set('keyword', String(supportPurpose))
+            } else if (industry) {
+              params.set('keyword', String(industry))
+            }
             router.push(`/search?${params.toString()}`)
           }}
           className={cn(
