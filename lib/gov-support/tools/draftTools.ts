@@ -79,10 +79,10 @@ type MergedProfile = {
 function buildMissingData(profile: MergedProfile): { missingData: string[]; assumptions: string[] } {
   const missingData: string[] = [];
   const assumptions: string[] = [];
-  if (!profile.companyName) { missingData.push("회사명 (companyProfile.companyName)"); assumptions.push("회사명: [입력 필요]"); }
-  if (!profile.industry) missingData.push("업종 (companyProfile.industry)");
-  if (!profile.problemStatement) missingData.push("해결 문제 (companyProfile.problemStatement)");
-  if (!profile.solution) missingData.push("솔루션 설명 (companyProfile.solution)");
+  if (!profile.companyName) { missingData.push("회사명"); assumptions.push("회사명: [입력 필요]"); }
+  if (!profile.industry) missingData.push("업종");
+  if (!profile.problemStatement) missingData.push("해결하고자 하는 시장 문제");
+  if (!profile.solution) missingData.push("솔루션·차별화 방안 설명");
   if (!profile.annualRevenue) assumptions.push("연매출: 추후 입력 필요");
   return { missingData, assumptions };
 }

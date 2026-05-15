@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -83,6 +83,52 @@ function formatConditionValue(key: string, value: unknown): string {
   return String(value)
 }
 
+function getConditionEntries(conditions: ParsedConditions) {
+  return Object.entries(conditions).filter(([, v]) => v != null) as [
+    string,
+    { value: unknown; confidence: number; source_text?: string },
+  ][]
+}
+
+function conditionHasDisplayValue(
+  parsed: ParseNLResult,
+  editValues: Record<string, string>,
+  key: string
+): boolean {
+  const rawEdit = editValues[key]
+  if (rawEdit !== undefined && rawEdit.trim() !== '') return true
+  const cond = parsed.conditions[key as keyof ParsedConditions]
+  if (cond == null) return false
+  const v = cond.value
+  if (v === undefined || v === null) return false
+  if (typeof v === 'string') return v.trim() !== ''
+  if (typeof v === 'number' || typeof v === 'boolean') return true
+  return true
+}
+
+function buildEffectiveEntries(
+  parsed: ParseNLResult,
+  editValues: Record<string, string>
+): [string, { value: unknown; confidence: number; source_text?: string }][] {
+  const base = getConditionEntries(parsed.conditions)
+  const keysInBase = new Set(base.map(([k]) => k))
+
+  const extra: [string, { value: unknown; confidence: number; source_text?: string }][] = []
+  for (const k of parsed.missing_important) {
+    if (keysInBase.has(k)) continue
+    const raw = (editValues[k] ?? '').trim()
+    if (!raw) continue
+    const coerced = coerceValueByKey(k, raw)
+    extra.push([k, { value: coerced !== undefined ? coerced : raw, confidence: 0.35 }])
+  }
+  return [...base, ...extra]
+}
+
+function missingNeedsYellowAddRow(parsed: ParseNLResult, key: string): boolean {
+  const inExtracted = getConditionEntries(parsed.conditions).some(([k]) => k === key)
+  return !inExtracted
+}
+
 function coerceValueByKey(key: string, raw: string): unknown {
   const value = raw.trim()
   if (value.length === 0) return undefined
@@ -138,10 +184,6 @@ function DiagnosisContent() {
     setEditMode(null)
   }
 
-  function getConditionEntries(conditions: ParsedConditions) {
-    return Object.entries(conditions).filter(([, v]) => v != null)
-  }
-
   function getConfidenceBadge(confidence: number) {
     if (confidence >= 0.8) {
       return <span className="ml-1.5 flex items-center gap-0.5 text-xs text-green-600"><CheckCircle2 className="h-3 w-3" /> 확인</span>
@@ -179,7 +221,10 @@ function DiagnosisContent() {
     )
   }
 
-  const entries = getConditionEntries(parsed.conditions)
+  const effectiveEntries = useMemo(
+    () => buildEffectiveEntries(parsed, editValues),
+    [parsed, editValues]
+  )
 
   return (
     <div className="container mx-auto max-w-2xl px-4 py-10">
@@ -208,13 +253,13 @@ function DiagnosisContent() {
           </p>
         </CardHeader>
         <CardContent>
-          {entries.length === 0 ? (
+          {effectiveEntries.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
               추출된 조건이 없습니다. 질문을 더 구체적으로 입력해주세요.
             </p>
           ) : (
             <div className="space-y-2">
-              {entries.map(([key, cond]) => {
+              {effectiveEntries.map(([key, cond]) => {
                 const c = cond as { value: unknown; confidence: number; source_text?: string }
                 const label = CONDITION_LABELS[key] ?? key
                 const displayValue = formatConditionValue(key, editValues[key] ?? c.value)
@@ -287,6 +332,72 @@ function DiagnosisContent() {
               </Badge>
             ))}
           </div>
+          {parsed.missing_important.some(
+            (k) => !conditionHasDisplayValue(parsed, editValues, k) && missingNeedsYellowAddRow(parsed, k)
+          ) && (
+            <div className="mt-3 space-y-2 border-t border-yellow-200/80 pt-3">
+              <p className="text-xs text-yellow-800">아래에서 직접 입력할 수 있습니다.</p>
+              {parsed.missing_important
+                .filter(
+                  (k) => !conditionHasDisplayValue(parsed, editValues, k) && missingNeedsYellowAddRow(parsed, k)
+                )
+                .map((key) => (
+                  <div
+                    key={key}
+                    className="flex flex-col gap-2 rounded-md border border-yellow-200/80 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <span className="text-sm font-medium text-yellow-900">{MISSING_LABELS[key] ?? key}</span>
+                    {editMode === key ? (
+                      <div className="flex flex-1 flex-wrap items-center gap-2 sm:justify-end">
+                        <input
+                          autoFocus
+                          type="text"
+                          value={editValues[key] ?? ''}
+                          placeholder={
+                            key === 'industry'
+                              ? '예: 제조업, IT, 소상공인'
+                              : key === 'employee_count'
+                                ? '예: 5'
+                                : '값을 입력하세요'
+                          }
+                          onChange={(e) => setEditValues((prev) => ({ ...prev, [key]: e.target.value }))}
+                          onKeyDown={(e) => e.key === 'Enter' && handleEditSave(key)}
+                          className="h-8 min-w-[12rem] flex-1 rounded border px-2 text-sm outline-none focus:border-primary"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleEditSave(key)}
+                          className={cn(buttonVariants({ size: 'sm' }), 'h-8 shrink-0 text-xs')}
+                        >
+                          저장
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditMode(null)}
+                          className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-8 shrink-0 text-xs')}
+                        >
+                          취소
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditMode(key)
+                          setEditValues((prev) => ({ ...prev, [key]: prev[key] ?? '' }))
+                        }}
+                        className={cn(
+                          buttonVariants({ variant: 'secondary', size: 'sm' }),
+                          'h-8 w-full shrink-0 text-xs sm:w-auto'
+                        )}
+                      >
+                        입력하기
+                      </button>
+                    )}
+                  </div>
+                ))}
+            </div>
+          )}
         </div>
       )}
 
