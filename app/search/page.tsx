@@ -34,6 +34,9 @@ const FALLBACK_LABELS: Record<string, string> = {
   drop_industry: '업종 조건을 완화했습니다.',
 }
 
+const REGION_FILTER_HINT =
+  '선택한 지역·전국 단위 공고만 표시합니다. 지역 미기재 공고는 제외됩니다.'
+
 interface AppliedFilters {
   region: string | null
   city: string | null
@@ -365,6 +368,9 @@ function SearchContent() {
                   <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">검색어: {appliedFilters.keyword}</span>
                 )}
               </div>
+            )}
+            {appliedFilters?.region && appliedFilters.region !== '전국' && (
+              <p className="text-xs text-gray-500">{REGION_FILTER_HINT}</p>
             )}
             {fallbackApplied.length > 0 && (
               <p className="text-xs text-amber-700">

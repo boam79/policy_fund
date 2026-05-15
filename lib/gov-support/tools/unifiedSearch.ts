@@ -103,20 +103,17 @@ function inferRegionFromCity(rawCity: string): string | null {
 }
 
 /**
- * 통계상 region 컬럼이 비어 있거나 '전국'인 공고가 많아서, 지역 검색 결과가 거의 안 나오는 문제를 줄인다.
- * — 지역 키(또는 광역시도 별명) 매칭
- * — 전국
- * — DB 미기재(null / 빈 문자열)까지 포함해 이후 업종·키워드 필터와 조합된다.
+ * 지역 필터 — region 컬럼 또는 공고명(title)에 해당 광역시도가 있을 때만 매칭.
+ * (null/빈 region 은 포함하지 않음: 제목은 [전북]인데 region 이 비어 있으면 다른 지역으로 오염됨)
  */
 function buildRegionPredicateOr(normalizedRegionalKey: string): string {
   const aliases =
     REGION_MAP[normalizedRegionalKey as keyof typeof REGION_MAP] ?? [normalizedRegionalKey]
-  return [
-    'region.is.null',
-    'region.eq.',
-    ...aliases.map((a) => `region.ilike.%${a}%`),
-    'region.ilike.%전국%',
-  ].join(',')
+  const regionCols = aliases.flatMap((a) => [
+    `region.ilike.%${a}%`,
+    `title.ilike.%${a}%`,
+  ])
+  return [...regionCols, 'region.ilike.%전국%', 'title.ilike.%전국%'].join(',')
 }
 
 /** PostgREST `.or()` 구문에 콤마가 들어가면 깨지므로 제거 */
@@ -185,7 +182,7 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
     .order('application_end_date', { ascending: true, nullsFirst: false })
     .range(offset, offset + limit - 1)
 
-  // 지역 필터 — 명시 매칭 + 전국 + 지역 미기재(null·빈값) 포함
+  // 지역 필터 — 선택한 광역시도·전국만 (미기재 공고는 제외)
   if (region) {
     const normalized = normalizeRegion(region)
     if (normalized !== '전국') {
@@ -196,12 +193,13 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
     const inferredRegion = inferRegionFromCity(city)
     const inferredAliases = inferredRegion ? REGION_MAP[inferredRegion as keyof typeof REGION_MAP] ?? [] : []
     const cityOrRegionFilters = [
-      'region.is.null',
-      'region.eq.',
       `region.ilike.%${normalizedCity}%`,
+      `title.ilike.%${normalizedCity}%`,
       inferredRegion ? `region.ilike.%${inferredRegion}%` : null,
-      ...inferredAliases.map((a) => `region.ilike.%${a}%`),
+      inferredRegion ? `title.ilike.%${inferredRegion}%` : null,
+      ...inferredAliases.flatMap((a) => [`region.ilike.%${a}%`, `title.ilike.%${a}%`]),
       'region.ilike.%전국%',
+      'title.ilike.%전국%',
     ]
       .filter(Boolean)
       .join(',')
