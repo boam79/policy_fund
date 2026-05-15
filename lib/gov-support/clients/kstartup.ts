@@ -62,10 +62,18 @@ export async function fetchKStartup(options: {
 
   const url = `${KSTARTUP_BASE}?${params.toString()}`
 
-  const res = await fetch(url, {
-    headers: { Accept: 'application/json' },
-    next: { revalidate: 3600 },
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 15000)
+  let res: Response
+  try {
+    res = await fetch(url, {
+      headers: { Accept: 'application/json', 'User-Agent': 'PolicyFundBot/1.0' },
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   if (!res.ok) {
     throw new Error(`[kstartup] API 오류: ${res.status} ${res.statusText}`)

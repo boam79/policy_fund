@@ -29,6 +29,22 @@ import { deduplicate } from '@/lib/gov-support/core/dedup'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
+/** ms 대기 */
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** 재시도 포함 fetch 래퍼 */
+async function withRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 1500): Promise<T> {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn()
+    } catch (e) {
+      if (i === retries) throw e
+      await sleep(delayMs * (i + 1))
+    }
+  }
+  throw new Error('unreachable')
+}
+
 export async function POST(request: NextRequest) {
   // 간단한 관리자 인증 (CRON_SECRET 또는 서비스 롤 키 헤더)
   const authHeader = request.headers.get('authorization')
@@ -46,32 +62,26 @@ export async function POST(request: NextRequest) {
   let upsertedCount = 0
   const errors: string[] = []
 
-  // 기업마당 + K-Startup + 중소벤처24 병렬 수집
-  const [bizinfoResults, kstartupResult, smes24Result] = await Promise.allSettled([
-    // 기업마당: 3개 분야 병렬
-    Promise.allSettled(
-      ['창업', '금융', '기술', '인력'].map((field) =>
-        fetchBizinfo({ field, pageUnit: 50 })
-      )
-    ),
-    // K-Startup: 모집 중 전체
-    fetchKStartup({ rcrtPrgsYn: 'Y', numOfRows: 50 }),
-    // 중소벤처24: 최근 90일 공고
+  // 기업마당: 분야별 순차 요청 (병렬 시 IP 차단 위험)
+  const bizinfoRawItems = []
+  for (const field of ['창업', '금융', '기술', '인력'] as const) {
+    try {
+      const result = await withRetry(() => fetchBizinfo({ field, pageUnit: 50 }))
+      bizinfoRawItems.push(...result.list)
+    } catch (e: unknown) {
+      errors.push(`bizinfo[${field}]: ${e instanceof Error ? e.message : '오류'}`)
+    }
+    await sleep(500) // 분야 간 0.5초 간격
+  }
+
+  // K-Startup + 중소벤처24 병렬 (bizinfo 완료 후)
+  const [kstartupResult, smes24Result] = await Promise.allSettled([
+    withRetry(() => fetchKStartup({ rcrtPrgsYn: 'Y', numOfRows: 50 })),
     fetchSmes24(),
   ])
 
-  // 기업마당 결과 처리
-  const bizinfoItems =
-    bizinfoResults.status === 'fulfilled'
-      ? bizinfoResults.value
-          .flatMap((r) => {
-            if (r.status === 'fulfilled') return r.value.list
-            errors.push(`bizinfo: ${r.reason?.message ?? '알 수 없는 오류'}`)
-            return []
-          })
-          .map(normalizeBizinfoItem)
-      : (errors.push(`bizinfo: ${bizinfoResults.reason?.message}`), [])
-
+  // 기업마당 결과 처리 (이미 위에서 수집됨)
+  const bizinfoItems = bizinfoRawItems.map(normalizeBizinfoItem)
   bizinfoCount = bizinfoItems.length
 
   // K-Startup 결과 처리

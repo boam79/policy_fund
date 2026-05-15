@@ -77,10 +77,18 @@ export async function fetchBizinfo(options: {
 
   const url = `${BIZINFO_BASE}?${params.toString()}`
 
-  const res = await fetch(url, {
-    headers: { Accept: 'application/json' },
-    next: { revalidate: 3600 }, // 1시간 캐시
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 15000)
+  let res: Response
+  try {
+    res = await fetch(url, {
+      headers: { Accept: 'application/json', 'User-Agent': 'PolicyFundBot/1.0' },
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   if (!res.ok) {
     throw new Error(`[bizinfo] API 오류: ${res.status} ${res.statusText}`)
