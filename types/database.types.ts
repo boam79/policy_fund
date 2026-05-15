@@ -1005,6 +1005,7 @@ export type Database = {
           organization: string | null
           parsed_conditions: Json | null
           raw_content: string | null
+          recommendation_score: number | null
           region: string | null
           required_docs: Json | null
           source: string
@@ -1039,6 +1040,7 @@ export type Database = {
           organization?: string | null
           parsed_conditions?: Json | null
           raw_content?: string | null
+          recommendation_score?: number | null
           region?: string | null
           required_docs?: Json | null
           source: string
@@ -1073,6 +1075,7 @@ export type Database = {
           organization?: string | null
           parsed_conditions?: Json | null
           raw_content?: string | null
+          recommendation_score?: number | null
           region?: string | null
           required_docs?: Json | null
           source?: string

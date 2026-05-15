@@ -1,10 +1,96 @@
+import { Suspense } from 'react'
+import { createClient } from '@supabase/supabase-js'
 import { buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
-import { FileText, CheckCircle, TrendingUp, Search } from 'lucide-react'
+import { FileText, CheckCircle, TrendingUp, Search, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import SearchBar from '@/components/home/SearchBar'
+import ProgramBannerCard from '@/components/home/ProgramBannerCard'
+import type { RecommendedProgram } from '@/app/api/home/recommendations/route'
+import type { Database } from '@/types/database.types'
+
+export const revalidate = 1800 // 30분 ISR
+
+async function fetchRecommendations(): Promise<RecommendedProgram[]> {
+  try {
+    const supabase = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+
+    const today = new Date().toISOString().slice(0, 10)
+    const { data, error } = await supabase
+      .from('support_programs')
+      .select('id, source, title, organization, region, support_type, application_end_date, application_url, status, recommendation_score')
+      .eq('visibility_status', 'visible')
+      .in('status', ['active', 'closing_soon'])
+      .gte('application_end_date', today)
+      .not('application_url', 'is', null)
+      .order('recommendation_score', { ascending: false })
+      .order('application_end_date', { ascending: true })
+      .limit(8)
+
+    if (error || !data) return []
+
+    const now = Date.now()
+    return data.map((p) => ({
+      id: p.id,
+      source: p.source,
+      title: p.title,
+      organization: p.organization,
+      region: p.region,
+      support_type: p.support_type,
+      application_end_date: p.application_end_date as string | null,
+      application_url: p.application_url,
+      status: p.status ?? 'active',
+      days_left: p.application_end_date
+        ? Math.ceil((new Date(p.application_end_date).getTime() - now) / 86400000)
+        : null,
+    }))
+  } catch {
+    return []
+  }
+}
+
+async function RecommendationBanners() {
+  const programs = await fetchRecommendations()
+
+  if (programs.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 bg-muted/30 py-16 text-center">
+        <RefreshCw className="mb-3 h-8 w-8 text-muted-foreground/50" />
+        <p className="text-sm font-medium text-muted-foreground">
+          공고 데이터를 동기화 중입니다
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground/70">
+          관리자가 공공 API 동기화를 실행하면 실제 공고가 표시됩니다.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {programs.map((prog) => (
+        <ProgramBannerCard key={`${prog.source}:${prog.id}`} program={prog} />
+      ))}
+    </div>
+  )
+}
+
+function BannerSkeleton() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {[...Array(4)].map((_, i) => (
+        <div
+          key={i}
+          className="h-44 rounded-xl border border-border/40 bg-muted/30 animate-pulse"
+        />
+      ))}
+    </div>
+  )
+}
 
 export default function HomePage() {
   return (
@@ -29,46 +115,24 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* AI 추천 지원사업 배너 */}
+      {/* 실제 공고 추천 배너 */}
       <section className="bg-white px-4 py-12">
         <div className="container mx-auto max-w-7xl">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold">AI 추천 지원사업</h2>
+              <h2 className="text-xl font-bold">실제 공고 추천</h2>
               <p className="text-sm text-muted-foreground">
-                실제 공공 데이터와 조건 매칭 결과를 기반으로 추천합니다.
+                기업마당 · K-Startup 실제 공공 데이터 기반
               </p>
             </div>
             <Link href="/search" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
-              더보기 →
+              전체 보기 →
             </Link>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="border-l-4 border-l-blue-500">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <Badge variant="default" className="shrink-0 text-xs">신청 가능</Badge>
-                    <span className="text-xs text-muted-foreground">D-{10 + i}</span>
-                  </div>
-                  <CardTitle className="mt-2 text-base">공고 데이터 동기화 준비 중</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    공공 API 연동 후 실제 공고 데이터가 표시됩니다.
-                  </p>
-                  <div className="mt-3 flex gap-2">
-                    <button className={cn(buttonVariants({ size: 'sm', variant: 'outline' }), 'flex-1 text-xs')} disabled>
-                      자세히 보기
-                    </button>
-                    <button className={cn(buttonVariants({ size: 'sm' }), 'flex-1 text-xs')} disabled>
-                      자격판정
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+          <Suspense fallback={<BannerSkeleton />}>
+            <RecommendationBanners />
+          </Suspense>
         </div>
       </section>
 
