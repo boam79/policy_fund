@@ -87,9 +87,9 @@ async function runSync() {
 
   // 기업마당: 분야별 순차 요청 (병렬 시 IP 차단 위험)
   const bizinfoRawItems = []
-  for (const field of ['창업', '금융', '기술', '인력'] as const) {
+  for (const field of ['창업', '금융', '기술', '인력', '수출', '경영'] as const) {
     try {
-      const result = await withRetry(() => fetchBizinfo({ field, pageUnit: 50 }))
+      const result = await withRetry(() => fetchBizinfo({ field, pageUnit: 100 }))
       bizinfoRawItems.push(...result.list)
     } catch (e: unknown) {
       errors.push(`bizinfo[${field}]: ${e instanceof Error ? e.message : '오류'}`)
@@ -99,8 +99,8 @@ async function runSync() {
 
   // K-Startup + 중소벤처24 병렬 (bizinfo 완료 후)
   const [kstartupResult, smes24Result] = await Promise.allSettled([
-    withRetry(() => fetchKStartup({ rcrtPrgsYn: 'Y', numOfRows: 50 })),
-    fetchSmes24(),
+    withRetry(() => fetchKStartup({ rcrtPrgsYn: 'Y', numOfRows: 100 })),
+    withRetry(() => fetchSmes24()),
   ])
 
   // 기업마당 결과 처리 (이미 위에서 수집됨)
