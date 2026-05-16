@@ -26,18 +26,19 @@ export async function POST(req: NextRequest): Promise<Response> {
   const traceId = createTraceId()
   let queryText = ''
   try {
-    const rate = takeRateLimit(req, 'api:query-parse', { windowMs: 60_000, max: 20 })
-    if (!rate.ok) {
+    let body: ParseRequestBody
+    try {
+      body = (await req.json()) as ParseRequestBody
+    } catch {
       return apiError({
-        status: 429,
-        errorCode: 'PARSE_RATE_LIMITED',
-        message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
-        step: 'query.parse.rate_limit',
+        status: 400,
+        errorCode: 'PARSE_INVALID_JSON',
+        message: '요청 본문이 올바르지 않습니다.',
+        step: 'query.parse.validate',
         traceId,
       })
     }
 
-    const body = (await req.json()) as ParseRequestBody
     const { query } = body
     queryText = typeof query === 'string' ? query.trim() : ''
 
@@ -57,6 +58,18 @@ export async function POST(req: NextRequest): Promise<Response> {
         errorCode: 'PARSE_QUERY_TOO_LONG',
         message: '검색어는 500자 이내로 입력해주세요.',
         step: 'query.parse.validate',
+        traceId,
+      })
+    }
+
+    /** 유효한 질의만 LLM 호출 비용·레이트 리밋에 포함 (검증 스토리·빈 요청 스팸 완화) */
+    const rate = takeRateLimit(req, 'api:query-parse', { windowMs: 60_000, max: 20 })
+    if (!rate.ok) {
+      return apiError({
+        status: 429,
+        errorCode: 'PARSE_RATE_LIMITED',
+        message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+        step: 'query.parse.rate_limit',
         traceId,
       })
     }

@@ -326,18 +326,6 @@ async function run() {
     assert(complexRes.json.success === true, 'Edge: complex sentence should parse successfully')
   }
 
-  // Rate-limit regression: parse endpoint should eventually return 429
-  const parseCodes: number[] = []
-  for (let i = 0; i < 24; i += 1) {
-    const res = await requestJson('/api/query/parse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: `테스트 레이트리밋 ${i}` }),
-    })
-    parseCodes.push(res.status)
-  }
-  assert(parseCodes.some((c) => c === 429), 'Rate-limit regression: expected at least one 429')
-
   console.log('[verify-story] PASS')
 }
 

@@ -12,6 +12,7 @@
     "verify:admin": "tsx scripts/verify-admin-story.ts",
     "verify:hard": "tsx scripts/verify-story-hard.ts",
     "verify:journey": "tsx scripts/verify-journey.ts",
+    "verify:parse-rate": "tsx scripts/verify-parse-rate.ts",
     "verify:strict": "npm run verify:story && npm run verify:admin && npm run verify:hard && npm run verify:journey",
     "verify:counts": "tsx scripts/verify-source-counts.ts",
     "verify:apply": "tsx scripts/verify-apply-available.ts"

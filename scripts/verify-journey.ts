@@ -85,6 +85,20 @@ async function run() {
   assert(eligPage.status === 200, `Eligibility page expected 200, got ${eligPage.status}`)
   assert(!eligPage.text.includes('공고 정보가 없습니다'), 'Eligibility page missing program_id handling')
 
+  // 4a) 공개 API — 비로그인 사용자도 홈·트렌딩 조회 가능
+  const homeRecRes = await fetch(`${BASE}/api/home/recommendations`)
+  const homeRecJson = (await homeRecRes.json().catch(() => ({}))) as Json
+  assert(homeRecRes.status === 200, `GET /api/home/recommendations expected 200, got ${homeRecRes.status}`)
+  assert(homeRecJson.ok === true, 'home recommendations expected ok: true')
+
+  const trendingRes = await fetch(`${BASE}/api/programs/trending`)
+  assert(trendingRes.status === 200, `GET /api/programs/trending expected 200, got ${trendingRes.status}`)
+  const trendingJson = (await trendingRes.json().catch(() => ({}))) as Json
+  assert(
+    typeof trendingJson === 'object' && trendingJson !== null,
+    'trending response should be an object'
+  )
+
   // 4) 자격판정 API
   const elig = await fetchJson('/api/eligibility', {
     method: 'POST',
@@ -104,9 +118,52 @@ async function run() {
     assert(!docPage.text.includes('공고 ID로 저장된 정보를 찾지 못했습니다'), `Program ${programId} not found for tab ${tab}`)
   }
 
-  // 6–8) 문서 API (로그인 세션 필요)
+  // 6–8) 문서 AI API: 로그인 시 성공 경로 / 비로그인 시 401 (불특정 다수 남용 방지)
   if (!STORY_SESSION_COOKIE) {
-    console.warn('[verify-journey] STORY_SESSION_COOKIE 없음 — checklist/timeline/plan API 검증 생략')
+    const announcementText = [
+      String(programs[0].organization ?? ''),
+      String(programs[0].support_type ?? ''),
+      String(programs[0].eligibility_text ?? title),
+    ]
+      .filter(Boolean)
+      .join('\n')
+    const deadline =
+      typeof programs[0].application_end_date === 'string'
+        ? String(programs[0].application_end_date).slice(0, 10)
+        : '2026-12-31'
+
+    const rPlan = await fetch(`${BASE}/api/documents/plan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        announcementTitle: '여정 검증',
+        announcementText: 'a'.repeat(120),
+      }),
+    })
+    assert(rPlan.status === 401, `비로그인 documents/plan 기대 401, 실제 ${rPlan.status}`)
+
+    const rCheck = await fetch(`${BASE}/api/documents/checklist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        announcementTitle: title,
+        announcementText: announcementText || title,
+        deadline,
+        businessType: '법인',
+      }),
+    })
+    assert(rCheck.status === 401, `비로그인 documents/checklist 기대 401, 실제 ${rCheck.status}`)
+
+    const rTime = await fetch(`${BASE}/api/documents/timeline`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        announcementTitle: title,
+        deadline,
+      }),
+    })
+    assert(rTime.status === 401, `비로그인 documents/timeline 기대 401, 실제 ${rTime.status}`)
+    console.warn('[verify-journey] STORY_SESSION_COOKIE 없음 — 문서 API는 401 확인만 수행(성공 경로 생략)')
   } else {
   const announcementText = [
     String(programs[0].organization ?? ''),
