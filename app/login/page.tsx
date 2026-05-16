@@ -3,6 +3,7 @@ import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { safeInternalNextPath } from '@/lib/auth/safeNextPath'
 import { Loader2, LogIn } from 'lucide-react'
 import { SITE_NAME } from '@/lib/site-config'
 import SocialAuthButtons, { SocialAuthDivider } from '@/components/auth/SocialAuthButtons'
@@ -10,7 +11,7 @@ import SocialAuthButtons, { SocialAuthDivider } from '@/components/auth/SocialAu
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const next = searchParams.get('next') ?? '/'
+  const next = safeInternalNextPath(searchParams.get('next'))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)

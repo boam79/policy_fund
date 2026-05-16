@@ -43,8 +43,12 @@ export async function POST(request: NextRequest) {
     })
 
     if (!tossRes.ok) {
-      const err = await tossRes.json()
-      return NextResponse.json({ error: err.message ?? '결제 확인 실패' }, { status: 400 })
+      const err = await tossRes.json().catch(() => ({}))
+      console.warn('[billing/confirm] toss confirm failed', tossRes.status, err)
+      return NextResponse.json(
+        { error: '결제 확인에 실패했습니다. 금액·주문 정보를 확인한 뒤 다시 시도해주세요.' },
+        { status: 400 }
+      )
     }
 
     const payment = await tossRes.json()

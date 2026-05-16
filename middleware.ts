@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { safeInternalNextPath } from '@/lib/auth/safeNextPath'
 
 const PROTECTED = ['/mypage', '/manage', '/admin', '/billing']
 const ADMIN_ONLY_EMAIL = (process.env.ADMIN_ONLY_EMAIL ?? 'pjm7908@hanmail.net').toLowerCase().trim()
@@ -39,7 +40,7 @@ export async function middleware(request: NextRequest) {
     }
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    url.searchParams.set('next', path)
+    url.searchParams.set('next', safeInternalNextPath(path))
     return NextResponse.redirect(url)
   }
 
