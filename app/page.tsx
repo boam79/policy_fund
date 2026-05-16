@@ -305,11 +305,17 @@ export default function HomePage() {
           <p className="mb-6 text-blue-100">
             AI가 당신의 상황에 맞는 정부지원사업을 찾아드립니다.
           </p>
-          <div className="flex justify-center gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
             <Link href="/signup" className={cn(buttonVariants({ variant: 'secondary', size: 'lg' }))}>
               무료로 시작하기
             </Link>
-            <Link href="/search" className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'border-white text-white hover:bg-blue-600')}>
+            <Link
+              href="/search"
+              className={cn(
+                buttonVariants({ variant: 'outline', size: 'lg' }),
+                'border-2 border-white bg-transparent text-white shadow-none hover:bg-white/15 hover:text-white'
+              )}
+            >
               지원사업 찾기
             </Link>
           </div>
