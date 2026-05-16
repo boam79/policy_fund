@@ -98,3 +98,8 @@ export function normalizePlanId(raw: string | null | undefined): PlanId {
 export function getPlan(id: PlanId | string): Plan {
   return PLANS.find((p) => p.id === normalizePlanId(String(id))) ?? PLANS[0]
 }
+
+/** Starter 이상: 검색·진단 등 사용자 데이터 CSV/XLSX 보내기 */
+export function planAllowsTabularExport(planId: PlanId): boolean {
+  return planId === 'starter' || planId === 'pro'
+}

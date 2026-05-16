@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 interface BillingData {
   subscription: { plan: PlanId; status: string; current_period_end?: string; cancel_at_period_end?: boolean }
   payments: { id: string; order_name: string; amount_krw: number; status: string; paid_at: string; order_id: string }[]
-  usage: { eligibility_check: number; document_generate: number }
+  usage: { eligibility_check: number; document_generate: number; evaluation: number }
 }
 
 const STATUS_LABEL: Record<string, string> = { done: '결제 완료', canceled: '취소', failed: '실패', pending: '처리중' }
@@ -99,7 +99,7 @@ export default function BillingPage() {
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Zap className="h-4 w-4 text-blue-500" />이번 달 사용량
           </h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <UsageBar
               label="자격판정"
               used={data?.usage.eligibility_check ?? 0}
@@ -109,6 +109,11 @@ export default function BillingPage() {
               label="문서 생성"
               used={data?.usage.document_generate ?? 0}
               limit={planLimits.documents_per_month}
+            />
+            <UsageBar
+              label="심사 예측"
+              used={data?.usage.evaluation ?? 0}
+              limit={planLimits.evaluations_per_month}
             />
           </div>
           {currentPlan.id === 'free' && (
@@ -153,16 +158,20 @@ export default function BillingPage() {
 }
 
 function UsageBar({ label, used, limit }: { label: string; used: number; limit: number | null }) {
-  const pct = limit === null ? 0 : Math.min((used / limit) * 100, 100)
+  const effectiveLimit = limit === 0 ? null : limit
+  const pct =
+    effectiveLimit === null ? 0 : Math.min((used / effectiveLimit) * 100, 100)
+  const limitLabel =
+    limit === null ? '무제한' : limit === 0 ? '미포함' : `${limit}회`
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs text-gray-600">{label}</span>
         <span className="text-xs font-medium text-gray-900">
-          {used} / {limit === null ? '무제한' : `${limit}회`}
+          {limit === 0 ? '—' : `${used} / ${limitLabel}`}
         </span>
       </div>
-      {limit !== null && (
+      {limit !== null && limit > 0 && (
         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div className={`h-full rounded-full transition-all ${pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-orange-400' : 'bg-blue-500'}`}
             style={{ width: `${pct}%` }} />

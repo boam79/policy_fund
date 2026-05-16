@@ -1,13 +1,37 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
-import { getPlan, type PlanId } from './plans'
+import { getPlan, normalizePlanId, type PlanId } from './plans'
 
-type EventType = 'eligibility_check' | 'document_generate' | 'evaluation'
+export type UsageEventType = 'eligibility_check' | 'document_generate' | 'evaluation'
 
-const EVENT_LIMIT_MAP: Record<EventType, keyof ReturnType<typeof getPlan>['limits']> = {
+const EVENT_LIMIT_MAP: Record<UsageEventType, keyof ReturnType<typeof getPlan>['limits']> = {
   eligibility_check: 'diagnoses_per_month',
   document_generate: 'documents_per_month',
   evaluation: 'evaluations_per_month',
+}
+
+function serviceSupabase() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!key) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
+  }
+  return createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+}
+
+/**
+ * 구독 행에서 결제 플랜 ID (plan_code 우선, 레거시 plan 폴백)
+ */
+export async function getPlanIdForUser(userId: string): Promise<PlanId> {
+  const supabase = serviceSupabase()
+  const { data: sub } = await supabase
+    .from('subscriptions')
+    .select('plan_code, plan')
+    .eq('user_id', userId)
+    .maybeSingle()
+  const raw = sub?.plan_code ?? sub?.plan ?? 'free'
+  return normalizePlanId(String(raw))
 }
 
 /**
@@ -16,26 +40,17 @@ const EVENT_LIMIT_MAP: Record<EventType, keyof ReturnType<typeof getPlan>['limit
  */
 export async function checkUsageLimit(
   userId: string,
-  eventType: EventType
+  eventType: UsageEventType
 ): Promise<{ allowed: boolean; used: number; limit: number | null; plan: PlanId }> {
-  const supabase = createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const supabase = serviceSupabase()
 
-  // 현재 플랜 조회
-  const { data: sub } = await supabase
-    .from('subscriptions')
-    .select('plan')
-    .eq('user_id', userId)
-    .single()
-  const plan = getPlan((sub?.plan ?? 'free') as PlanId)
+  const planId = await getPlanIdForUser(userId)
+  const plan = getPlan(planId)
   const limitKey = EVENT_LIMIT_MAP[eventType]
   const limit = plan.limits[limitKey] as number | null
 
   if (limit === null) return { allowed: true, used: 0, limit: null, plan: plan.id }
 
-  // 이번 달 사용량 조회
   const startOfMonth = new Date()
   startOfMonth.setDate(1)
   startOfMonth.setHours(0, 0, 0, 0)
@@ -54,10 +69,12 @@ export async function checkUsageLimit(
 /**
  * 사용량 이벤트 기록
  */
-export async function recordUsage(userId: string, eventType: EventType): Promise<void> {
-  const supabase = createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-  await supabase.from('usage_events').insert({ user_id: userId, event_type: eventType })
+export async function recordUsage(userId: string, eventType: UsageEventType): Promise<void> {
+  try {
+    const supabase = serviceSupabase()
+    const { error } = await supabase.from('usage_events').insert({ user_id: userId, event_type: eventType })
+    if (error) console.error('[recordUsage]', eventType, error.message)
+  } catch (e) {
+    console.error('[recordUsage]', eventType, e)
+  }
 }

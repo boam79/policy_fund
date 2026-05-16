@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useRef, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, Filter, Building2, MapPin, Calendar, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Filter, Building2, MapPin, Calendar, ExternalLink, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import FeedbackWidget from '@/components/FeedbackWidget'
 import { eligibilityLabel, eligibilityColor, type EligibilityStatus } from '@/lib/gov-support/tools/eligibility'
 import type { SupportProgram } from '@/lib/gov-support/tools/unifiedSearch'
@@ -130,6 +130,62 @@ function SearchContent() {
   const [fallbackApplied, setFallbackApplied] = useState<string[]>([])
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters | null>(null)
   const LIMIT = 20
+  const [exporting, setExporting] = useState<'csv' | 'xlsx' | null>(null)
+
+  const exportSearchResults = useCallback(
+    async (format: 'csv' | 'xlsx') => {
+      if (!programs.length) {
+        alert('먼저 검색 결과를 불러오세요.')
+        return
+      }
+      setExporting(format)
+      try {
+        const subRes = await fetch('/api/billing/subscription')
+        if (!subRes.ok) {
+          alert('로그인이 필요합니다.')
+          return
+        }
+        const subJson = (await subRes.json()) as { subscription?: { plan?: string } }
+        const plan = subJson.subscription?.plan ?? 'free'
+        if (plan !== 'starter' && plan !== 'pro') {
+          alert('CSV·XLSX 보내기는 Starter 이상 플랜에서 이용할 수 있습니다.')
+          return
+        }
+        const rows = programs.map((pr) => ({
+          사업명: stripHtmlToText(pr.title ?? ''),
+          주관기관: pr.organization ?? '',
+          지역: pr.region ?? '',
+          업종: pr.industry ?? '',
+          자격판정: eligibilityLabel(pr.eligibility.status),
+          적합점수: pr.eligibility.score,
+          지원유형: pr.support_type ?? '',
+          마감일: pr.application_end_date ?? '',
+          공고ID: pr.id,
+        }))
+        const res = await fetch('/api/export/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ format, rows, filenamePrefix: 'search_results' }),
+        })
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}))
+          alert(readApiError(j, '보내기에 실패했습니다.'))
+          return
+        }
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        const ext = format === 'csv' ? 'csv' : 'xlsx'
+        a.download = `search_results_${new Date().toISOString().slice(0, 10)}.${ext}`
+        a.click()
+        URL.revokeObjectURL(url)
+      } finally {
+        setExporting(null)
+      }
+    },
+    [programs]
+  )
 
   const handleSearch = useCallback(async (p = 1) => {
     setLoading(true)
@@ -354,9 +410,27 @@ function SearchContent() {
               <p className="text-sm text-gray-600">
                 총 <span className="font-semibold text-gray-900">{total.toLocaleString()}건</span> 검색됨
               </p>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 <p className="text-xs text-gray-400">{page}/{totalPages || 1} 페이지</p>
                 <FeedbackWidget targetType="search" label="검색 결과가 유용했나요?" />
+                <button
+                  type="button"
+                  onClick={() => void exportSearchResults('csv')}
+                  disabled={!!exporting || programs.length === 0}
+                  className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {exporting === 'csv' ? '처리중…' : 'CSV'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void exportSearchResults('xlsx')}
+                  disabled={!!exporting || programs.length === 0}
+                  className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {exporting === 'xlsx' ? '처리중…' : 'XLSX'}
+                </button>
               </div>
             </div>
             {(appliedFilters?.region || appliedFilters?.city || appliedFilters?.industry ||

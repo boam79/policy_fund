@@ -32,8 +32,8 @@ export default function PricingPage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       setIsLoggedIn(true)
-      const { data } = await supabase.from('subscriptions').select('plan').eq('user_id', user.id).single()
-      setCurrentPlan(normalizePlanId((data?.plan as string) ?? 'free'))
+      const { data } = await supabase.from('subscriptions').select('plan_code, plan').eq('user_id', user.id).maybeSingle()
+      setCurrentPlan(normalizePlanId(String(data?.plan_code ?? data?.plan ?? 'free')))
     })
   }, [])
 

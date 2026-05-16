@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Loader2, Download, BarChart2, FileText } from 'lucide-react'
 import { EXPORT_FILE_PREFIX } from '@/lib/site-config'
+import { readApiError } from '@/lib/api/readApiError'
+import { downloadEvaluationRows, flattenQualityForExport, flattenStartupForExport } from '@/lib/evaluate/resultExport'
 
 type Tab = 'quality' | 'startup'
 
@@ -61,13 +63,27 @@ export default function EvaluatePage() {
     setLoading(true)
     try {
       if (tab === 'quality') {
-        if (planText.length < 100) { alert('사업계획서 본문을 100자 이상 입력하세요'); return }
+        if (planText.length < 100) {
+          alert('사업계획서 본문을 100자 이상 입력하세요')
+          return
+        }
         const res = await fetch('/api/evaluate/quality', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ planText, programType: qProgramType }),
         })
-        setQualityResult(await res.json())
+        const data = await res.json()
+        if (!res.ok) {
+          alert(readApiError(data))
+          setQualityResult(null)
+          return
+        }
+        if (data && typeof data === 'object' && data.ok === false) {
+          alert(readApiError(data))
+          setQualityResult(null)
+          return
+        }
+        setQualityResult(data as QualityResult)
       } else {
         const res = await fetch('/api/evaluate/startup', {
           method: 'POST',
@@ -93,27 +109,42 @@ export default function EvaluatePage() {
             teamComposition: teamComp || undefined,
           }),
         })
-        setStartupResult(await res.json())
+        const data = await res.json()
+        if (!res.ok) {
+          alert(readApiError(data))
+          setStartupResult(null)
+          return
+        }
+        if (data && typeof data === 'object' && data.ok === false) {
+          alert(readApiError(data))
+          setStartupResult(null)
+          return
+        }
+        setStartupResult(data as StartupResult)
       }
     } finally {
       setLoading(false)
     }
   }
 
-  const handleExport = async (format: 'csv' | 'xlsx') => {
-    const res = await fetch(`/api/export/${format}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'programs' }),
-    })
-    if (!res.ok) { alert('내보내기 실패'); return }
-    const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${EXPORT_FILE_PREFIX}_programs_${new Date().toISOString().slice(0, 10)}.${format}`
-    a.click()
-    URL.revokeObjectURL(url)
+  const handleExportEvaluation = async (format: 'csv' | 'xlsx') => {
+    const hasQuality = tab === 'quality' && qualityResult
+    const hasStartup = tab === 'startup' && startupResult
+    if (!hasQuality && !hasStartup) {
+      alert('먼저 점수 예측을 실행하세요.')
+      return
+    }
+    const rows =
+      tab === 'quality' && qualityResult
+        ? flattenQualityForExport(qualityResult)
+        : tab === 'startup' && startupResult
+          ? flattenStartupForExport(startupResult)
+          : []
+    if (!rows.length) {
+      alert('보낼 결과 데이터가 없습니다.')
+      return
+    }
+    await downloadEvaluationRows(format, rows, `${EXPORT_FILE_PREFIX}_심사결과_${tab}`)
   }
 
   return (
@@ -248,14 +279,20 @@ export default function EvaluatePage() {
 
         {/* 내보내기 */}
         <div className="mt-6 bg-white rounded-xl border p-4">
-          <p className="text-sm font-medium text-gray-800 mb-3">공고 데이터 내보내기</p>
+          <p className="text-sm font-medium text-gray-800 mb-3">심사 결과보내기 (CSV / XLSX)</p>
           <div className="flex gap-2">
-            <button onClick={() => handleExport('csv')}
-              className="flex items-center gap-1.5 px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+            <button
+              type="button"
+              onClick={() => void handleExportEvaluation('csv')}
+              className="flex items-center gap-1.5 px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+            >
               <Download className="h-4 w-4" />CSV 다운로드
             </button>
-            <button onClick={() => handleExport('xlsx')}
-              className="flex items-center gap-1.5 px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+            <button
+              type="button"
+              onClick={() => void handleExportEvaluation('xlsx')}
+              className="flex items-center gap-1.5 px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+            >
               <Download className="h-4 w-4" />XLSX 다운로드
             </button>
           </div>

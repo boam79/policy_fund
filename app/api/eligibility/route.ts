@@ -15,6 +15,8 @@ import {
 import { GoogleGenAI } from '@google/genai'
 import { takeRateLimit } from '@/lib/security/rateLimit'
 import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
+import { createClient as createServerClient } from '@/lib/supabase/server'
+import { checkUsageLimit, recordUsage } from '@/lib/billing/usage'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +46,36 @@ export async function POST(request: NextRequest) {
         errorCode: 'ELIGIBILITY_PROGRAM_ID_REQUIRED',
         message: 'program_id 필수',
         step: 'eligibility.validate',
+        traceId,
+      })
+    }
+
+    let billingUserId: string | null = null
+    try {
+      const serverAuth = await createServerClient()
+      const {
+        data: { user },
+      } = await serverAuth.auth.getUser()
+      billingUserId = user?.id ?? null
+      if (billingUserId) {
+        const gate = await checkUsageLimit(billingUserId, 'eligibility_check')
+        if (!gate.allowed) {
+          return apiError({
+            status: 403,
+            errorCode: 'USAGE_ELIGIBILITY_LIMIT',
+            message: `이번 달 AI 자격·적합 판정 한도를 모두 사용했습니다. (사용 ${gate.used}/${gate.limit}회)`,
+            step: 'eligibility.usage_limit',
+            traceId,
+          })
+        }
+      }
+    } catch (usageErr) {
+      console.error('[eligibility] usage gate', usageErr)
+      return apiError({
+        status: 503,
+        errorCode: 'USAGE_CHECK_FAILED',
+        message: '이용량 확인에 실패했습니다. 잠시 후 다시 시도해주세요.',
+        step: 'eligibility.usage_gate',
         traceId,
       })
     }
@@ -116,6 +148,7 @@ export async function POST(request: NextRequest) {
     try {
       await supabase.from('eligibility_checks').insert({
         program_id,
+        user_id: billingUserId,
         status: eligibility.status,
         score: eligibility.score,
         matched_conditions: JSON.parse(JSON.stringify(eligibility.passed)),
@@ -124,6 +157,10 @@ export async function POST(request: NextRequest) {
       })
     } catch {
       // 저장 실패 무시
+    }
+
+    if (billingUserId) {
+      await recordUsage(billingUserId, 'eligibility_check')
     }
 
     return Response.json({

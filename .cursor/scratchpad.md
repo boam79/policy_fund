@@ -507,13 +507,11 @@ PAYMENT_SECRET_KEY=
   - API 오류 응답에서 `error_code` 없는 반환 금지
   - 버그 수정 시 재현 테스트(회귀) 1건 이상 필수 추가
   - 배포 전 핵심 유저스토리 자동 검증 결과를 첨부
-- **2026-05-15 (Executor 보고)**: Phase 11-2 1차 반영 후 검증 성공
-  - `npm run build` 성공
-  - 오류 스키마 샘플 검증:
-    - `PARSE_INVALID_INPUT`
-    - `ELIGIBILITY_PROGRAM_ID_REQUIRED`
-    - `DOC_TIMELINE_INPUT_REQUIRED`
-  - 다음 작업 제안: Phase 11-3 (공통 로깅 유틸 확장 + 민감정보 마스킹)
+- **2026-05-16 (Executor)**: 요금제·사용량·보내기 정합 후속
+  - `app/evaluate/page.tsx`: `handleExportEvaluation` 추가, `handleEvaluate`에서 `res.ok` / `data.ok === false` 시 `readApiError` 알림, 심사 결과보내기 문구 정리
+  - `app/mypage/billing/page.tsx`: `usage.evaluation` 표시, `UsageBar`에서 `limit === 0` 시 나눗셈·표시 보정(미포함)
+  - `app/api/export/user/route.ts`: XLSX 응답 본문을 `new Uint8Array(buf)`로 감싸 TS/Response 타입 통과
+  - `npm run build`, `npm run verify:story`, `npm run verify:journey` — 모두 PASS (로컬 `localhost:3000` 기준)
 - **2026-05-16**: 브랜드명 **지원둥지**로 사용자 노출·SEO·GEO(`llms.txt`·`ai.txt`)·메타·약관 등 통일. `SITE_BOT_USER_AGENT`, `EXPORT_FILE_PREFIX`, npm 패키지명 `jiwondungji`. launchd 번들 ID는 기존 설치 호환을 위해 `com.policyfund.sync` 유지. `npm run build` PASS.
 
 ---

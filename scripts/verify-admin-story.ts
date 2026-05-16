@@ -91,7 +91,27 @@ async function run() {
   })
   assert([401, 403].includes(exportXlsx.status), `Export XLSX must be blocked (got ${exportXlsx.status})`)
 
-  console.log('[verify-admin] PASS')
+  // 5) 선택: 브라우저 개발자도구(Network)에서 관리자로 로그인한 뒤 아무 /api/admin/* 요청의
+  //    Request Headers > Cookie 값 전체를 복사해 환경변수 ADMIN_VERIFY_COOKIE에 넣으면
+  //    동일 쿠키로 대시보드·결제·회원 API를 추가 검증합니다. (.env.local 전용, 커밋 금지)
+  const adminCookie = process.env.ADMIN_VERIFY_COOKIE?.trim()
+  if (adminCookie) {
+    const dash = await requestJson('/api/admin/dashboard', {
+      headers: { Cookie: adminCookie },
+    })
+    assert(dash.status === 200, `Admin dashboard with cookie expected 200 (got ${dash.status})`)
+    assert(dash.json && (dash.json as { ok?: boolean }).ok === true, 'Admin dashboard JSON should include ok:true')
+
+    const bill = await requestJson('/api/admin/billing', { headers: { Cookie: adminCookie } })
+    assert(bill.status === 200, `Admin billing with cookie expected 200 (got ${bill.status})`)
+
+    const users = await requestJson('/api/admin/users', { headers: { Cookie: adminCookie } })
+    assert(users.status === 200, `Admin users with cookie expected 200 (got ${users.status})`)
+
+    console.log('[verify-admin] PASS (including ADMIN_VERIFY_COOKIE simulation)')
+  } else {
+    console.log('[verify-admin] PASS (set ADMIN_VERIFY_COOKIE to also hit /api/admin/* as logged-in admin)')
+  }
 }
 
 run().catch((err) => {

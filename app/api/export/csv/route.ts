@@ -3,21 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { isAdminUser } from '@/lib/auth/admin'
 import { EXPORT_FILE_PREFIX } from '@/lib/site-config'
+import { rowsToCsv } from '@/lib/export/csvString'
 
 export const dynamic = 'force-dynamic'
-
-function toCsv(rows: Record<string, unknown>[]): string {
-  if (!rows.length) return ''
-  const headers = Object.keys(rows[0])
-  const escape = (v: unknown) => {
-    const s = v == null ? '' : String(v).replace(/"/g, '""')
-    return s.includes(',') || s.includes('\n') || s.includes('"') ? `"${s}"` : s
-  }
-  return [
-    headers.join(','),
-    ...rows.map(r => headers.map(h => escape(r[h])).join(',')),
-  ].join('\n')
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,7 +34,7 @@ export async function POST(request: NextRequest) {
       rows = (data ?? []) as Record<string, unknown>[]
     }
 
-    const csv = toCsv(rows)
+    const csv = rowsToCsv(rows)
     const filename = `${EXPORT_FILE_PREFIX}_${type}_${new Date().toISOString().slice(0, 10)}.csv`
 
     return new Response(csv, {
