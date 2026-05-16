@@ -39,13 +39,13 @@ export default function Footer() {
       <div className="container mx-auto max-w-7xl px-4 py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="inline-flex items-center gap-2">
+            <Link href="/" className="inline-flex items-center gap-2.5">
               <Image
                 src="/jiwondungji-logo-mark.png"
                 alt={`${SITE_NAME} 로고`}
-                width={32}
-                height={32}
-                className="h-8 w-8 shrink-0 rounded-md object-contain"
+                width={40}
+                height={40}
+                className="h-10 w-10 shrink-0 rounded-lg object-contain"
               />
               <span className="text-lg font-bold text-foreground">{SITE_NAME}</span>
             </Link>
