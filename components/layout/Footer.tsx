@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { SITE_NAME } from '@/lib/site-config'
 
@@ -38,7 +39,16 @@ export default function Footer() {
       <div className="container mx-auto max-w-7xl px-4 py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
-            <p className="text-lg font-bold text-foreground">{SITE_NAME}</p>
+            <Link href="/" className="inline-flex items-center gap-2">
+              <Image
+                src="/jiwondungji-logo-mark.png"
+                alt={`${SITE_NAME} 로고`}
+                width={32}
+                height={32}
+                className="h-8 w-8 shrink-0 rounded-md object-contain"
+              />
+              <span className="text-lg font-bold text-foreground">{SITE_NAME}</span>
+            </Link>
             <p className="mt-2 text-sm text-muted-foreground">
               정부지원사업 공고 검색·매칭과 참고용 자격 확인·문서 초안을 돕는 서비스
             </p>

@@ -59,6 +59,10 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
   },
   robots: { index: true, follow: true },
+  icons: {
+    icon: [{ url: '/jiwondungji-logo-mark.png', type: 'image/png' }],
+    apple: '/jiwondungji-logo-mark.png',
+  },
 }
 
 export default function RootLayout({
