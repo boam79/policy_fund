@@ -15,7 +15,6 @@ const PLAN_COLOR: Record<string, string> = {
   free: 'text-gray-400 bg-gray-700',
   starter: 'text-blue-400 bg-blue-900/40',
   pro: 'text-indigo-400 bg-indigo-900/40',
-  premium: 'text-purple-400 bg-purple-900/40',
 }
 
 export default function AdminUsersPage() {
@@ -75,19 +74,28 @@ export default function AdminUsersPage() {
           <tbody>
             {users.length === 0 ? (
               <tr><td colSpan={4} className="px-4 py-10 text-center text-gray-500">회원이 없습니다</td></tr>
-            ) : users.map(u => (
+            ) : users.map(u => {
+              const colorKey =
+                u.plan === 'premium'
+                  ? 'pro'
+                  : u.plan === 'free' || u.plan === 'starter' || u.plan === 'pro'
+                    ? u.plan
+                    : 'free'
+              const label = (u.plan === 'premium' ? 'pro' : u.plan ?? 'free').toUpperCase()
+              return (
               <tr key={u.id} className="border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors">
                 <td className="px-4 py-3 text-gray-200">{u.email}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 w-fit ${PLAN_COLOR[u.plan] ?? PLAN_COLOR.free}`}>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 w-fit ${PLAN_COLOR[colorKey] ?? PLAN_COLOR.free}`}>
                     {u.plan !== 'free' && <Crown className="h-3 w-3" />}
-                    {u.plan?.toUpperCase() ?? 'FREE'}
+                    {label}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-400">{new Date(u.created_at).toLocaleDateString('ko-KR')}</td>
                 <td className="px-4 py-3 text-xs text-gray-400">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('ko-KR') : '-'}</td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>

@@ -2,7 +2,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { PLANS, type PlanId } from '@/lib/billing/plans'
+import { PLANS, normalizePlanId, type PlanId } from '@/lib/billing/plans'
 import { Loader2, CreditCard, Shield, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { SITE_NAME } from '@/lib/site-config'
@@ -10,7 +10,9 @@ import { SITE_NAME } from '@/lib/site-config'
 function CheckoutForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const planId = (searchParams.get('plan') ?? 'starter') as PlanId
+  const rawPlan = searchParams.get('plan') ?? 'starter'
+  let planId: PlanId = normalizePlanId(rawPlan)
+  if (planId === 'free') planId = 'starter'
   const plan = PLANS.find(p => p.id === planId) ?? PLANS[1]
 
   const [loading, setLoading] = useState(false)

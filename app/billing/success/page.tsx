@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { CheckCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { PLANS, type PlanId } from '@/lib/billing/plans'
+import { PLANS, normalizePlanId, type PlanId } from '@/lib/billing/plans'
 import { SITE_NAME } from '@/lib/site-config'
 
 function SuccessContent() {
@@ -13,7 +13,9 @@ function SuccessContent() {
   const paymentKey = searchParams.get('paymentKey')
   const orderId = searchParams.get('orderId')
   const amount = searchParams.get('amount')
-  const planId = (searchParams.get('plan') ?? 'starter') as PlanId
+  const rawPlan = searchParams.get('plan') ?? 'starter'
+  let planId: PlanId = normalizePlanId(rawPlan)
+  if (planId === 'free') planId = 'starter'
   const plan = PLANS.find(p => p.id === planId)
 
   const [status, setStatus] = useState<'processing' | 'done' | 'error'>('processing')
@@ -39,7 +41,7 @@ function SuccessContent() {
       }
     }
     if (paymentKey && orderId && amount) confirm()
-  }, [paymentKey, orderId, amount])
+  }, [paymentKey, orderId, amount, planId, router])
 
   if (status === 'processing') {
     return (

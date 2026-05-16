@@ -1,4 +1,4 @@
-export type PlanId = 'free' | 'starter' | 'pro' | 'premium'
+export type PlanId = 'free' | 'starter' | 'pro'
 
 export interface Plan {
   id: PlanId
@@ -34,7 +34,7 @@ export const PLANS: Plan[] = [
       { label: '서류 체크리스트', included: false },
       { label: '사업계획서 초안', included: false },
       { label: '심사 점수 예측', included: false },
-      { label: 'CSV/XLSX 내보내기', included: false },
+      { label: 'CSV/XLSX보내기', included: false },
     ],
     limits: { diagnoses_per_month: 3, documents_per_month: 0, evaluations_per_month: 0, searches_per_month: null },
   },
@@ -53,7 +53,7 @@ export const PLANS: Plan[] = [
       { label: '공고 북마크', included: true },
       { label: '사업계획서 초안', included: false },
       { label: '심사 점수 예측', included: false },
-      { label: 'CSV/XLSX 내보내기', included: true },
+      { label: 'CSV/XLSX보내기', included: true },
       { label: '우선 AI 생성', included: false },
     ],
     limits: { diagnoses_per_month: 10, documents_per_month: 10, evaluations_per_month: 0, searches_per_month: null },
@@ -72,34 +72,22 @@ export const PLANS: Plan[] = [
       { label: '서류 체크리스트 무제한', included: true },
       { label: '사업계획서 초안 월 3건', included: true },
       { label: '심사 점수 예측 월 30회', included: true },
-      { label: 'CSV/XLSX 내보내기', included: true },
+      { label: 'CSV/XLSX보내기', included: true },
       { label: '공고 북마크 무제한', included: true },
       { label: '우선 AI 생성', included: false },
     ],
     limits: { diagnoses_per_month: 30, documents_per_month: 3, evaluations_per_month: 30, searches_per_month: null },
   },
-  {
-    id: 'premium',
-    name: 'Premium',
-    price: 59000,
-    priceLabel: '월 59,000원',
-    description: '모든 기능 무제한 + 우선 처리',
-    color: 'purple',
-    highlight: false,
-    features: [
-      { label: '모든 기능 무제한', included: true },
-      { label: '사업계획서 초안 월 10건', included: true },
-      { label: '심사 점수 예측 무제한', included: true },
-      { label: 'CSV/XLSX 내보내기 무제한', included: true },
-      { label: '우선 AI 생성', included: true },
-      { label: '공고 북마크 무제한', included: true },
-      { label: '전용 고객 지원', included: true },
-      { label: 'B2B 보고서 출력', included: true },
-    ],
-    limits: { diagnoses_per_month: null, documents_per_month: 10, evaluations_per_month: null, searches_per_month: null },
-  },
 ]
 
-export function getPlan(id: PlanId): Plan {
-  return PLANS.find(p => p.id === id) ?? PLANS[0]
+/** URL·DB 레거시 `premium` → 최고 구독은 `pro`로 취급 */
+export function normalizePlanId(raw: string | null | undefined): PlanId {
+  const s = String(raw ?? '').trim()
+  if (s === 'premium') return 'pro'
+  if (s === 'free' || s === 'starter' || s === 'pro') return s
+  return 'free'
+}
+
+export function getPlan(id: PlanId | string): Plan {
+  return PLANS.find((p) => p.id === normalizePlanId(String(id))) ?? PLANS[0]
 }

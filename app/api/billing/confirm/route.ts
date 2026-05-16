@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
-import type { PlanId } from '@/lib/billing/plans'
+import { normalizePlanId } from '@/lib/billing/plans'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
     if (!paymentKey || !orderId || !amount || !plan) {
       return NextResponse.json({ error: '필수 파라미터 누락' }, { status: 400 })
     }
-    if (!['starter', 'pro', 'premium'].includes(String(plan))) {
+    const planNorm = normalizePlanId(String(plan))
+    if (planNorm !== 'starter' && planNorm !== 'pro') {
       return NextResponse.json({ error: '유효하지 않은 플랜입니다.' }, { status: 400 })
     }
 
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
     // subscriptions upsert
     await supabase.from('subscriptions').upsert({
       user_id: user.id,
-      plan_code: plan as PlanId,
+      plan_code: planNorm,
       status: 'active',
       current_period_start: now.toISOString(),
       current_period_end: periodEnd.toISOString(),

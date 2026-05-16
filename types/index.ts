@@ -63,7 +63,6 @@ export type PlanCode =
   | 'free'
   | 'starter'
   | 'pro'
-  | 'premium'
   | 'consultant_basic'
   | 'consultant_pro'
   | 'agency'

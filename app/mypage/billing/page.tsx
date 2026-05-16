@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CreditCard, Zap, Calendar, Receipt, Loader2, AlertCircle } from 'lucide-react'
-import { PLANS, getPlan, type PlanId } from '@/lib/billing/plans'
+import { getPlan, type PlanId } from '@/lib/billing/plans'
 import { createClient } from '@/lib/supabase/client'
 
 interface BillingData {
@@ -45,7 +45,7 @@ export default function BillingPage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
 
   const sub = data?.subscription
-  const currentPlan = getPlan((sub?.plan ?? 'free') as PlanId)
+  const currentPlan = getPlan(sub?.plan ?? 'free')
   const planLimits = currentPlan.limits
 
   return (
@@ -79,7 +79,7 @@ export default function BillingPage() {
               )}
             </div>
             <div className="flex flex-col gap-2">
-              {currentPlan.id !== 'premium' && (
+              {currentPlan.id !== 'pro' && (
                 <Link href="/pricing" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors text-center">
                   플랜 업그레이드
                 </Link>
@@ -114,8 +114,7 @@ export default function BillingPage() {
           {currentPlan.id === 'free' && (
             <p className="text-xs text-gray-400 mt-3">
               사용량이 부족하신가요?{' '}
-              <Link href="/pricing" className="text-blue-500 hover:underline">업그레이드</Link>하거나{' '}
-              <Link href="/pricing?tab=payper" className="text-blue-500 hover:underline">건당 결제</Link>를 이용해보세요.
+              <Link href="/pricing" className="text-blue-500 hover:underline">요금제에서 업그레이드</Link>해 보세요.
             </p>
           )}
         </div>
