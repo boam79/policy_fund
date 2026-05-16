@@ -1,11 +1,37 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { safeInternalNextPath } from '@/lib/auth/safeNextPath'
+import { takeRateLimit } from '@/lib/security/rateLimit'
 
 const PROTECTED = ['/mypage', '/manage', '/admin', '/billing']
 const ADMIN_ONLY_EMAIL = (process.env.ADMIN_ONLY_EMAIL ?? 'pjm7908@hanmail.net').toLowerCase().trim()
 
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname
+
+  /** 공개 GET API — IP별 남용 방지(불특정 다수), Supabase 세션 갱신 생략 */
+  if (request.method === 'GET' && path === '/api/home/recommendations') {
+    const rate = takeRateLimit(request, 'api:home:recommendations', { windowMs: 60_000, max: 120 })
+    if (!rate.ok) {
+      return NextResponse.json(
+        { ok: false, error: '요청이 너무 많습니다.' },
+        { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } }
+      )
+    }
+    return NextResponse.next()
+  }
+
+  if (request.method === 'GET' && path === '/api/programs/trending') {
+    const rate = takeRateLimit(request, 'api:programs:trending', { windowMs: 60_000, max: 120 })
+    if (!rate.ok) {
+      return NextResponse.json(
+        { ok: false, error: '요청이 너무 많습니다.' },
+        { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } }
+      )
+    }
+    return NextResponse.next()
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -26,7 +52,6 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  const path = request.nextUrl.pathname
 
   const isProtected = PROTECTED.some(p => path.startsWith(p))
   const isAdminPath = path.startsWith('/admin')
@@ -62,5 +87,13 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/mypage/:path*', '/manage/:path*', '/admin/:path*', '/billing/:path*', '/api/admin/:path*'],
+  matcher: [
+    '/mypage/:path*',
+    '/manage/:path*',
+    '/admin/:path*',
+    '/billing/:path*',
+    '/api/admin/:path*',
+    '/api/home/recommendations',
+    '/api/programs/trending',
+  ],
 }

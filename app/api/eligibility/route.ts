@@ -34,6 +34,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    const contentLength = request.headers.get('content-length')
+    if (contentLength) {
+      const n = parseInt(contentLength, 10)
+      if (Number.isFinite(n) && n > 180_000) {
+        return apiError({
+          status: 413,
+          errorCode: 'ELIGIBILITY_BODY_TOO_LARGE',
+          message: '요청 본문이 너무 큽니다.',
+          step: 'eligibility.validate',
+          traceId,
+        })
+      }
+    }
+
     const body = await request.json()
     const { program_id, profile } = body as {
       program_id: string
@@ -57,6 +71,25 @@ export async function POST(request: NextRequest) {
         data: { user },
       } = await serverAuth.auth.getUser()
       billingUserId = user?.id ?? null
+
+      /** 비로그인: LLM·비용 남용 방지 — 분당 한도 외에 시간당 상한 (로그인 시 월간 플랜 한도 적용) */
+      if (!billingUserId) {
+        const anonHour = takeRateLimit(request, 'api:eligibility:anon-hour', {
+          windowMs: 3_600_000,
+          max: 45,
+        })
+        if (!anonHour.ok) {
+          return apiError({
+            status: 429,
+            errorCode: 'ELIGIBILITY_ANON_HOUR_LIMIT',
+            message:
+              '비로그인 상태에서는 자격 판정 호출이 시간당 제한됩니다. 로그인하면 월간 이용 한도로 이용할 수 있습니다.',
+            step: 'eligibility.anon_hour_limit',
+            traceId,
+          })
+        }
+      }
+
       if (billingUserId) {
         const gate = await checkUsageLimit(billingUserId, 'eligibility_check')
         if (!gate.allowed) {
