@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { SITE_NAME } from '@/lib/site-config'
 
 export default function PrivacyPage() {
@@ -140,13 +139,10 @@ export default function PrivacyPage() {
               <li>동의 철회(회원 탈퇴 등)</li>
             </ul>
             <p>
-              권리 행사는{' '}
-              <Link href="/contact" className="text-blue-600 underline hover:text-blue-800">
-                문의 페이지
-              </Link>
-              를 통해 요청해 주시기 바랍니다. 법정대리인 등 대리인을 통한 요청 시 위임장 등 확인 절차를 둘 수
-              있습니다. 또한 「개인정보 보호법」 제35조의4에 따른 정보주체의 권리 제한 사유가 있는 경우 요청이
-              거절될 수 있습니다.
+              권리 행사는 로그인 후 제공되는 계정·마이페이지의 안내에 따르거나, 서비스 하단 등에 표시된 고객지원
+              메뉴의 절차에 따라 요청해 주시기 바랍니다. 법정대리인 등 대리인을 통한 요청 시 위임장 등 확인 절차를
+              둘 수 있습니다. 또한 「개인정보 보호법」 제35조의4에 따른 정보주체의 권리 제한 사유가 있는 경우
+              요청이 거절될 수 있습니다.
             </p>
           </section>
 
@@ -172,16 +168,10 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-gray-900 mb-3">11. 개인정보 보호책임자 및 고충처리</h2>
             <p className="mb-2">
-              개인정보 처리에 관한 문의, 불만, 피해 구제 신청은 아래 경로로 접수할 수 있습니다. 서비스는
-              정보주체의 신속한 처리를 위해 노력합니다.
+              개인정보 처리에 관한 문의, 불만, 피해 구제 신청은 서비스에 표시된 고객지원 절차에 따라 접수할 수
+              있습니다. 서비스는 정보주체의 신속한 처리를 위해 노력합니다.
             </p>
-            <ul className="list-none pl-0 space-y-1">
-              <li>
-                <span className="font-medium">문의:</span>{' '}
-                <Link href="/contact" className="text-blue-600 underline hover:text-blue-800">
-                  /contact
-                </Link>
-              </li>
+            <ul className="list-disc pl-6 space-y-1">
               <li>
                 <span className="font-medium">기타:</span> 개인정보침해 신고·상담은 한국인터넷진흥원
                 privacy.kisa.or.kr(국번 없이 118) 등에 문의하실 수 있습니다.

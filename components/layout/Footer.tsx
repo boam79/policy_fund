@@ -13,11 +13,11 @@ const footerSections = [
     ],
   },
   {
-    title: '정책/고지',
+    title: '약관·고지',
     links: [
       { href: '/terms', label: '이용약관' },
       { href: '/privacy', label: '개인정보처리방침' },
-      { href: '/disclaimer', label: '법적 고지' },
+      { href: '/disclaimer', label: '면책 및 법적 고지' },
       { href: '/refund-policy', label: '환불정책' },
     ],
   },

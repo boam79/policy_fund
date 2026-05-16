@@ -28,7 +28,7 @@ export default function GeoSourceSummary({
       </ul>
       <p className="mt-2">
         <Link href="/disclaimer" className="text-blue-700 underline underline-offset-2 hover:text-blue-900">
-          법적 고지
+          면책 및 법적 고지
         </Link>
         {' · '}
         <Link href="/faq" className="text-blue-700 underline underline-offset-2 hover:text-blue-900">
