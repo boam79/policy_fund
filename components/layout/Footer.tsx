@@ -43,11 +43,11 @@ export default function Footer() {
               <Image
                 src="/jiwondungji-logo-mark.png"
                 alt={`${SITE_NAME} 로고`}
-                width={40}
-                height={40}
-                className="h-10 w-10 shrink-0 rounded-lg object-contain"
+                width={52}
+                height={52}
+                className="h-[52px] w-[52px] shrink-0 rounded-xl object-contain shadow-md ring-1 ring-black/[0.06] dark:ring-white/10"
               />
-              <span className="text-lg font-bold text-foreground">{SITE_NAME}</span>
+              <span className="text-lg font-bold leading-tight text-foreground">{SITE_NAME}</span>
             </Link>
             <p className="mt-2 text-sm text-muted-foreground">
               정부지원사업 공고 검색·매칭과 참고용 자격 확인·문서 초안을 돕는 서비스

@@ -76,7 +76,7 @@ export default function RootLayout({
       <body className={notoSansKR.className}>
         <SiteWideJsonLd />
         <Header />
-        <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+        <main className="min-h-[calc(100vh-4.5rem)]">{children}</main>
         <Footer />
         <Toaster richColors position="top-right" />
       </body>
