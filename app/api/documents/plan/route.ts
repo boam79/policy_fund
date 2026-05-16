@@ -3,7 +3,12 @@ import { handleDraftBusinessPlan } from '@/lib/gov-support/tools/draftTools'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
-import { getSessionUserId, guardMonthlyUsage, recordUsageIfUser } from '@/lib/billing/usageGate'
+import {
+  getSessionUserId,
+  guardMonthlyUsage,
+  recordUsageIfUser,
+  requireSessionUser,
+} from '@/lib/billing/usageGate'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -23,6 +28,9 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = await getSessionUserId()
+    const authDenied = requireSessionUser(traceId, 'documents.plan.auth', userId)
+    if (authDenied) return authDenied
+
     const blocked = await guardMonthlyUsage(
       traceId,
       'documents.plan.usage',
@@ -53,6 +61,7 @@ export async function POST(request: NextRequest) {
           { auth: { autoRefreshToken: false, persistSession: false } }
         )
         await supabase.from('generated_documents').insert({
+          user_id: userId,
           doc_type: 'business_plan',
           template: body.template ?? 'gov',
           program_id: body.program_id,

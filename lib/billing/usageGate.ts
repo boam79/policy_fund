@@ -10,6 +10,26 @@ export async function getSessionUserId(): Promise<string | null> {
   return user?.id ?? null
 }
 
+/**
+ * 유료·과금 API: 세션 필수. 미로그인 시 401 (문서·심사 등 LLM 호출 엔드포인트에서 사용)
+ */
+export function requireSessionUser(
+  traceId: string,
+  step: string,
+  userId: string | null
+): Response | null {
+  if (!userId) {
+    return apiError({
+      status: 401,
+      errorCode: 'AUTH_REQUIRED',
+      message: '로그인이 필요합니다.',
+      step,
+      traceId,
+    })
+  }
+  return null
+}
+
 /** 로그인 사용자에 대해 월 한도 검사. 미로그인이면 통과(스크립트·레거시 호환). */
 export async function guardMonthlyUsage(
   traceId: string,

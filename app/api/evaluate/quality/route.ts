@@ -1,7 +1,12 @@
 import type { NextRequest } from 'next/server'
 import { handleAssessQuality } from '@/lib/gov-support/tools/assessQuality'
+import {
+  getSessionUserId,
+  guardMonthlyUsage,
+  recordUsageIfUser,
+  requireSessionUser,
+} from '@/lib/billing/usageGate'
 import { createTraceId } from '@/lib/errors/apiError'
-import { getSessionUserId, guardMonthlyUsage, recordUsageIfUser } from '@/lib/billing/usageGate'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 20
@@ -15,6 +20,9 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = await getSessionUserId()
+    const authDenied = requireSessionUser(traceId, 'evaluate.quality.auth', userId)
+    if (authDenied) return authDenied
+
     const blocked = await guardMonthlyUsage(
       traceId,
       'evaluate.quality.usage',

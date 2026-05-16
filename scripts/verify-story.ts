@@ -3,9 +3,18 @@ export {}
 type Json = Record<string, unknown>
 
 const BASE_URL = process.env.STORY_BASE_URL ?? 'http://localhost:3000'
+/** 브라우저에서 복사한 Supabase 세션 쿠키(전체 Cookie 헤더 값). 없으면 문서·심사 API 성공 경로는 건너뜀 */
+const STORY_SESSION_COOKIE = process.env.STORY_SESSION_COOKIE?.trim()
+
+function withAuth(init?: RequestInit): RequestInit {
+  if (!STORY_SESSION_COOKIE) return init ?? {}
+  const h = new Headers(init?.headers)
+  h.set('Cookie', STORY_SESSION_COOKIE)
+  return { ...init, headers: h }
+}
 
 async function requestJson(path: string, init?: RequestInit): Promise<{ status: number; json: Json; traceId?: string }> {
-  const res = await fetch(`${BASE_URL}${path}`, init)
+  const res = await fetch(`${BASE_URL}${path}`, withAuth(init))
   const text = await res.text()
   let json: Json = {}
   try {
@@ -111,7 +120,44 @@ async function run() {
   assert(typeof eligibilityValid.json.status === 'string', 'US-06b expected status')
   assert(typeof eligibilityValid.json.score === 'number', 'US-06b expected score')
 
-  // US-08/09/10/11: documents flow
+  // US-08: 미인증 시 문서 API는 401 (인증 우회 방지)
+  const planUnauth = await requestJson('/api/documents/plan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      announcementTitle: '보안 검증용 제목',
+      announcementText: 'a'.repeat(120),
+    }),
+  })
+  assert(planUnauth.status === 401, 'US-08 expected 401 for unauthenticated document plan')
+  assert(planUnauth.json.error_code === 'AUTH_REQUIRED', 'US-08 expected AUTH_REQUIRED')
+
+  const timelineUnauth = await requestJson('/api/documents/timeline', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ announcementTitle: '제목', deadline: '2026-12-31' }),
+  })
+  assert(timelineUnauth.status === 401, 'US-08b expected 401 for unauthenticated timeline')
+
+  // US-10 negative: timeline missing deadline (본 검증은 입력 오류로 400, 인증 전에 처리)
+  const timelineInvalid = await requestJson('/api/documents/timeline', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ announcementTitle: '테스트 공고' }),
+  })
+  assert(timelineInvalid.status === 400, 'US-10 expected 400 when deadline missing')
+  assert(isStandardErrorShape(timelineInvalid.json), 'US-10 missing standardized error payload')
+  assert(
+    timelineInvalid.json.error_code === 'DOC_TIMELINE_INPUT_REQUIRED',
+    'US-10 missing DOC_TIMELINE_INPUT_REQUIRED'
+  )
+
+  if (!STORY_SESSION_COOKIE) {
+    console.warn(
+      '[verify-story] STORY_SESSION_COOKIE 없음 — US-09·US-10b~US-11·US-18·US-19 문서/심사 API 성공 경로 생략'
+    )
+  } else {
+  // US-09/10b/11: documents flow (로그인 세션 필요)
   const announcementTitle = String(firstProgram.title ?? '테스트 공고')
   const announcementText = String(firstProgram.support_type ?? announcementTitle)
 
@@ -128,19 +174,6 @@ async function run() {
   })
   assert(checklistValid.status === 200, 'US-09 expected 200 checklist generation')
   assert(typeof checklistValid.json.totalDocuments === 'number', 'US-09 expected totalDocuments')
-
-  // US-10 negative: timeline missing deadline
-  const timelineInvalid = await requestJson('/api/documents/timeline', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ announcementTitle: '테스트 공고' }),
-  })
-  assert(timelineInvalid.status === 400, 'US-10 expected 400 when deadline missing')
-  assert(isStandardErrorShape(timelineInvalid.json), 'US-10 missing standardized error payload')
-  assert(
-    timelineInvalid.json.error_code === 'DOC_TIMELINE_INPUT_REQUIRED',
-    'US-10 missing DOC_TIMELINE_INPUT_REQUIRED'
-  )
 
   const timelineValid = await requestJson('/api/documents/timeline', {
     method: 'POST',
@@ -171,6 +204,7 @@ async function run() {
   })
   assert(planValid.status === 200, 'US-11 expected 200 plan generation')
   assert(Array.isArray(planValid.json.sections), 'US-11 expected sections array')
+  }
 
   // US-12/13: admin and export should be forbidden without admin session
   const adminUsers = await requestJson('/api/admin/users')
@@ -220,6 +254,18 @@ async function run() {
     assert(typeof firstRec.recommendReason === 'string', 'US-17 recommendReason must be a string')
   }
 
+  const evalQualityUnauth = await requestJson('/api/evaluate/quality', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      planText: 'a'.repeat(120),
+      template: 'psst',
+      programType: '테스트',
+    }),
+  })
+  assert(evalQualityUnauth.status === 401, 'US-17b expected 401 unauthenticated evaluate quality')
+
+  if (STORY_SESSION_COOKIE) {
   // US-18: quality evaluation must return PSST scores
   const qualityRes = await requestJson('/api/evaluate/quality', {
     method: 'POST',
@@ -251,6 +297,7 @@ async function run() {
   })
   assert(startupRes.status === 200, 'US-19 expected 200 from /api/evaluate/startup')
   assert(startupRes.json.ok === true, 'US-19 expected ok=true')
+  }
 
   // Edge case: 아무말 입력 → 우아하게 에러 처리 또는 최소 조건 추출
   const gibberishRes = await requestJson('/api/query/parse', {

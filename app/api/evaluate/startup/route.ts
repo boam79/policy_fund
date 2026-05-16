@@ -1,7 +1,12 @@
 import type { NextRequest } from 'next/server'
 import { handleEvaluateStartup } from '@/lib/gov-support/tools/evaluateStartup'
 import { createTraceId } from '@/lib/errors/apiError'
-import { getSessionUserId, guardMonthlyUsage, recordUsageIfUser } from '@/lib/billing/usageGate'
+import {
+  getSessionUserId,
+  guardMonthlyUsage,
+  recordUsageIfUser,
+  requireSessionUser,
+} from '@/lib/billing/usageGate'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 20
@@ -12,6 +17,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     const userId = await getSessionUserId()
+    const authDenied = requireSessionUser(traceId, 'evaluate.startup.auth', userId)
+    if (authDenied) return authDenied
+
     const blocked = await guardMonthlyUsage(
       traceId,
       'evaluate.startup.usage',

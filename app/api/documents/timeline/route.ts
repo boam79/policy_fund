@@ -1,7 +1,12 @@
 import type { NextRequest } from 'next/server'
 import { handleBuildApplicationTimeline } from '@/lib/gov-support/tools/timeline'
 import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
-import { getSessionUserId, guardMonthlyUsage, recordUsageIfUser } from '@/lib/billing/usageGate'
+import {
+  getSessionUserId,
+  guardMonthlyUsage,
+  recordUsageIfUser,
+  requireSessionUser,
+} from '@/lib/billing/usageGate'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +25,9 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = await getSessionUserId()
+    const authDenied = requireSessionUser(traceId, 'documents.timeline.auth', userId)
+    if (authDenied) return authDenied
+
     const blocked = await guardMonthlyUsage(
       traceId,
       'documents.timeline.usage',

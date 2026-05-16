@@ -9,13 +9,21 @@ export {}
 type Json = Record<string, unknown>
 
 const BASE = process.env.STORY_BASE_URL ?? 'http://localhost:3000'
+const STORY_SESSION_COOKIE = process.env.STORY_SESSION_COOKIE?.trim()
+
+function withAuth(init?: RequestInit): RequestInit {
+  if (!STORY_SESSION_COOKIE) return init ?? {}
+  const h = new Headers(init?.headers)
+  h.set('Cookie', STORY_SESSION_COOKIE)
+  return { ...init, headers: h }
+}
 
 function assert(cond: boolean, msg: string) {
   if (!cond) throw new Error(msg)
 }
 
 async function fetchJson(path: string, init?: RequestInit) {
-  const res = await fetch(`${BASE}${path}`, init)
+  const res = await fetch(`${BASE}${path}`, withAuth(init))
   const text = await res.text()
   let json: Json = {}
   try {
@@ -96,6 +104,10 @@ async function run() {
     assert(!docPage.text.includes('공고 ID로 저장된 정보를 찾지 못했습니다'), `Program ${programId} not found for tab ${tab}`)
   }
 
+  // 6–8) 문서 API (로그인 세션 필요)
+  if (!STORY_SESSION_COOKIE) {
+    console.warn('[verify-journey] STORY_SESSION_COOKIE 없음 — checklist/timeline/plan API 검증 생략')
+  } else {
   const announcementText = [
     String(programs[0].organization ?? ''),
     String(programs[0].support_type ?? ''),
@@ -155,6 +167,7 @@ async function run() {
   })
   assert(plan.status === 200, `Plan API failed: ${plan.status}`)
   assert(Array.isArray(plan.json.sections), 'Plan missing sections')
+  }
 
   console.log('[verify-journey] PASS', { programId, title: title.slice(0, 40) })
 }
