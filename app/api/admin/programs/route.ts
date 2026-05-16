@@ -1,16 +1,16 @@
 import type { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { isAdminUser } from '@/lib/auth/admin'
+import { createServiceRoleClient } from '@/lib/supabase/service-role-client'
 
 export const dynamic = 'force-dynamic'
 
-function adminDb() {
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+const SERVICE_ROLE_MSG =
+  '관리자 공고 API는 SUPABASE_SERVICE_ROLE_KEY가 서버에 설정되어 있어야 합니다.'
+
+function adminDb(): SupabaseClient<Database> | null {
+  return createServiceRoleClient()
 }
 
 const SELECT_COLS =
@@ -25,13 +25,18 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
   }
 
+  const db = adminDb()
+  if (!db) {
+    return Response.json({ error: SERVICE_ROLE_MSG }, { status: 503 })
+  }
+
   const sp = request.nextUrl.searchParams
   const page = Math.max(1, Number(sp.get('page') ?? 1))
   const limit = Math.min(100, Math.max(1, Number(sp.get('limit') ?? 20)))
   const q = (sp.get('q') ?? sp.get('search') ?? '').trim()
   const status = (sp.get('status') ?? 'all').trim()
 
-  let query = adminDb()
+  let query = db
     .from('support_programs')
     .select(SELECT_COLS, { count: 'exact' })
     .order('created_at', { ascending: false })
@@ -63,6 +68,11 @@ export async function PATCH(request: NextRequest) {
     return Response.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
   }
 
+  const db = adminDb()
+  if (!db) {
+    return Response.json({ error: SERVICE_ROLE_MSG }, { status: 503 })
+  }
+
   const body = await request.json().catch(() => ({}))
   const id = typeof body.id === 'string' ? body.id : ''
   if (!id) {
@@ -74,7 +84,7 @@ export async function PATCH(request: NextRequest) {
     return Response.json({ error: 'visibility_status는 visible 또는 hidden 이어야 합니다.' }, { status: 400 })
   }
 
-  const { data, error } = await adminDb()
+  const { data, error } = await db
     .from('support_programs')
     .update({ visibility_status: visibility })
     .eq('id', id)

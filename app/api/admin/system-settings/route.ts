@@ -1,18 +1,18 @@
-import { createClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { isAdminUser } from '@/lib/auth/admin'
+import { createServiceRoleClient } from '@/lib/supabase/service-role-client'
 
 export const dynamic = 'force-dynamic'
 
 const DATA_MODE_KEY = 'data_mode'
 const ALLOWED_MODES = ['api_minimal_cache', 'db_centric'] as const
 
-function adminDb() {
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+const SERVICE_ROLE_MSG =
+  '시스템 설정 API는 SUPABASE_SERVICE_ROLE_KEY가 서버에 설정되어 있어야 합니다.'
+
+function adminDb(): SupabaseClient<Database> | null {
+  return createServiceRoleClient()
 }
 
 /** GET — data_mode 조회 */
@@ -21,7 +21,12 @@ export async function GET() {
     return Response.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
   }
 
-  const { data, error } = await adminDb()
+  const db = adminDb()
+  if (!db) {
+    return Response.json({ error: SERVICE_ROLE_MSG }, { status: 503 })
+  }
+
+  const { data, error } = await db
     .from('system_settings')
     .select('setting_value')
     .eq('setting_key', DATA_MODE_KEY)
@@ -45,6 +50,11 @@ export async function PUT(request: Request) {
     return Response.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
   }
 
+  const db = adminDb()
+  if (!db) {
+    return Response.json({ error: SERVICE_ROLE_MSG }, { status: 503 })
+  }
+
   const body = await request.json().catch(() => ({}))
   const dataMode = typeof body.data_mode === 'string' ? body.data_mode.trim() : ''
 
@@ -52,7 +62,7 @@ export async function PUT(request: Request) {
     return Response.json({ error: '허용되지 않은 data_mode입니다.' }, { status: 400 })
   }
 
-  const { error } = await adminDb()
+  const { error } = await db
     .from('system_settings')
     .upsert(
       {

@@ -1,21 +1,26 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { isAdminUser } from '@/lib/auth/admin'
+import { createServiceRoleClient } from '@/lib/supabase/service-role-client'
 
-const admin = () =>
-  createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+const SERVICE_ROLE_MSG =
+  '홈 슬롯 API는 SUPABASE_SERVICE_ROLE_KEY가 서버에 설정되어 있어야 합니다.'
+
+function admin(): SupabaseClient<Database> | null {
+  return createServiceRoleClient()
+}
 
 export async function GET() {
   if (!(await isAdminUser())) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
   }
+  const db = admin()
+  if (!db) {
+    return NextResponse.json({ error: SERVICE_ROLE_MSG }, { status: 503 })
+  }
 
-  const { data } = await admin()
+  const { data } = await db
     .from('home_recommendation_slots')
     .select('*, program:support_programs(title,organization,application_end_date)')
     .order('priority', { ascending: true })
@@ -26,10 +31,14 @@ export async function PATCH(request: NextRequest) {
   if (!(await isAdminUser())) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
   }
+  const db = admin()
+  if (!db) {
+    return NextResponse.json({ error: SERVICE_ROLE_MSG }, { status: 503 })
+  }
 
   const { id, ...updates } = await request.json()
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
-  const { data, error } = await admin()
+  const { data, error } = await db
     .from('home_recommendation_slots')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -42,6 +51,10 @@ export async function PATCH(request: NextRequest) {
 export async function POST(request: NextRequest) {
   if (!(await isAdminUser())) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
+  }
+  const db = admin()
+  if (!db) {
+    return NextResponse.json({ error: SERVICE_ROLE_MSG }, { status: 503 })
   }
 
   const body = await request.json().catch(() => ({}))
@@ -57,7 +70,7 @@ export async function POST(request: NextRequest) {
   const is_active = typeof body.is_active === 'boolean' ? body.is_active : true
 
   const now = new Date().toISOString()
-  const { data: existing } = await admin()
+  const { data: existing } = await db
     .from('home_recommendation_slots')
     .select('priority')
     .order('priority', { ascending: false })
@@ -67,7 +80,7 @@ export async function POST(request: NextRequest) {
   const resolvedPriority =
     priority ?? ((existing?.priority != null ? Number(existing.priority) : 0) + 1)
 
-  const { data, error } = await admin()
+  const { data, error } = await db
     .from('home_recommendation_slots')
     .insert({
       program_id,
@@ -88,11 +101,15 @@ export async function DELETE(request: NextRequest) {
   if (!(await isAdminUser())) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
   }
+  const db = admin()
+  if (!db) {
+    return NextResponse.json({ error: SERVICE_ROLE_MSG }, { status: 503 })
+  }
 
   const id = request.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id 쿼리가 필요합니다.' }, { status: 400 })
 
-  const { error } = await admin().from('home_recommendation_slots').delete().eq('id', id)
+  const { error } = await db.from('home_recommendation_slots').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ ok: true })
 }

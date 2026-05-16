@@ -13,9 +13,11 @@ import type { Database } from '@/types/database.types'
 import { createClient as createServerSupabase } from '@/lib/supabase/server'
 
 function createSyncClient() {
-  // service_role 키가 있으면 admin으로, 없으면 anon으로 동작
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!key) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY_REQUIRED')
+  }
   return createClient<Database>(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
@@ -69,7 +71,17 @@ export async function GET(request: NextRequest) {
   if (!(await checkAuth(request))) {
     return Response.json({ error: '인증 실패' }, { status: 401 })
   }
-  return runSync()
+  try {
+    return await runSync()
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === 'SUPABASE_SERVICE_ROLE_KEY_REQUIRED') {
+      return Response.json(
+        { error: '동기화에는 서버에 SUPABASE_SERVICE_ROLE_KEY가 설정되어 있어야 합니다.' },
+        { status: 503 }
+      )
+    }
+    throw e
+  }
 }
 
 /** 재시도 포함 fetch 래퍼 */
@@ -89,7 +101,17 @@ export async function POST(request: NextRequest) {
   if (!(await checkAuth(request))) {
     return Response.json({ error: '인증 실패' }, { status: 401 })
   }
-  return runSync()
+  try {
+    return await runSync()
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === 'SUPABASE_SERVICE_ROLE_KEY_REQUIRED') {
+      return Response.json(
+        { error: '동기화에는 서버에 SUPABASE_SERVICE_ROLE_KEY가 설정되어 있어야 합니다.' },
+        { status: 503 }
+      )
+    }
+    throw e
+  }
 }
 
 async function runSync() {

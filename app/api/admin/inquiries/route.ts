@@ -1,24 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { createClient as createServerClient } from '@/lib/supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
+import { isAdminUser } from '@/lib/auth/admin'
+import { createServiceRoleClient } from '@/lib/supabase/service-role-client'
 
-const ADMIN_ONLY_EMAIL = 'pjm7908@hanmail.net'
+const SERVICE_ROLE_MSG =
+  '문의 관리 API는 SUPABASE_SERVICE_ROLE_KEY가 서버에 설정되어 있어야 합니다.'
 
-async function isAdminUser() {
-  const server = await createServerClient()
-  const {
-    data: { user },
-  } = await server.auth.getUser()
-  return user?.email?.toLowerCase().trim() === ADMIN_ONLY_EMAIL
-}
-
-function getAdminDb() {
-  return createAdminClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+function getAdminDb(): SupabaseClient<Database> | null {
+  return createServiceRoleClient()
 }
 
 export async function GET() {
@@ -28,6 +18,10 @@ export async function GET() {
     }
 
     const db = getAdminDb()
+    if (!db) {
+      return NextResponse.json({ error: SERVICE_ROLE_MSG }, { status: 503 })
+    }
+
     const { data, error } = await db
       .from('customer_inquiries')
       .select('*')
@@ -51,6 +45,11 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
     }
 
+    const db = getAdminDb()
+    if (!db) {
+      return NextResponse.json({ error: SERVICE_ROLE_MSG }, { status: 503 })
+    }
+
     const { id, status } = await request.json()
     if (!id || !status) {
       return NextResponse.json({ error: '필수 파라미터 누락' }, { status: 400 })
@@ -59,7 +58,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: '유효하지 않은 상태값' }, { status: 400 })
     }
 
-    const db = getAdminDb()
     const { error } = await db.from('customer_inquiries').update({ status }).eq('id', id)
     if (error) {
       return NextResponse.json({ error: '문의 상태를 변경하지 못했습니다.' }, { status: 500 })

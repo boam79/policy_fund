@@ -1,6 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
 import { isAdminUser } from '@/lib/auth/admin'
+import { createServiceRoleClient } from '@/lib/supabase/service-role-client'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,11 +9,13 @@ export async function GET() {
       return Response.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
     }
 
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    const supabase = createServiceRoleClient()
+    if (!supabase) {
+      return Response.json(
+        { error: '관리자 대시보드를 위해 SUPABASE_SERVICE_ROLE_KEY가 서버에 필요합니다.' },
+        { status: 503 }
+      )
+    }
 
     const [totalPrograms, activePrograms, closingSoon, syncLogs, searches, eligibility, inquiries] =
       await Promise.all([

@@ -1,19 +1,10 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
 import { isAdminUser } from '@/lib/auth/admin'
 import { normalizePlanId, type PlanId } from '@/lib/billing/plans'
+import { createServiceRoleClient } from '@/lib/supabase/service-role-client'
 
 export const dynamic = 'force-dynamic'
-
-function adminSupabase() {
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,7 +17,13 @@ export async function GET(request: NextRequest) {
     const q = (searchParams.get('q') ?? '').trim()
     const limit = Math.min(Math.max(Number(searchParams.get('limit')) || 100, 1), 500)
 
-    const supabase = adminSupabase()
+    const supabase = createServiceRoleClient()
+    if (!supabase) {
+      return NextResponse.json(
+        { error: '관리자 결제 조회를 위해 SUPABASE_SERVICE_ROLE_KEY가 서버에 필요합니다.' },
+        { status: 503 }
+      )
+    }
 
     const [
       { count: totalCount },
