@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { buildContentSecurityPolicy } from "./lib/security/contentSecurityPolicy";
 
 // VERCEL_PROJECT_PRODUCTION_URL: stable production URL (no protocol prefix)
 // VERCEL_URL: per-deployment URL (no protocol prefix)
@@ -17,6 +18,7 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
   },
+  { key: "Content-Security-Policy", value: buildContentSecurityPolicy() },
 ];
 
 const nextConfig: NextConfig = {

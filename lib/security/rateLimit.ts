@@ -29,6 +29,7 @@ function getStore(): Map<string, Bucket> {
 }
 
 export function getClientIp(request: NextRequest): string {
+  /** Vercel 등 신뢰 프록시 뒤에서만 의미 있음; 클라이언트 직결 시 XFF 스푸핑 가능 */
   const xff = request.headers.get('x-forwarded-for')
   if (xff) {
     const first = xff.split(',')[0]?.trim()
