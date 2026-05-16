@@ -14,6 +14,7 @@ import { AlertCircle, CheckCircle2, HelpCircle, Pencil, Zap, Search } from 'luci
 import ConditionEditInput from '@/components/diagnosis/ConditionEditInput'
 import { mergeSavedProfileIntoParsed } from '@/lib/profile/business-profile-defaults'
 import { fetchMyBusinessProfileDefaults } from '@/lib/profile/fetch-my-business-profile'
+import { toCanonicalIndustry } from '@/lib/industry/canonical'
 
 // ─── 조건 표시 라벨 매핑 ───────────────────────────────────
 const CONDITION_LABELS: Record<string, string> = {
@@ -238,6 +239,14 @@ function DiagnosisContent() {
     [parsed, editValues]
   )
 
+  /** API/캐시 불일치 시에도 이미 추출·편집된 항목은 "추가 입력" 배지에서 제외 */
+  const stillMissingImportant = useMemo(() => {
+    if (!parsed) return []
+    return parsed.missing_important.filter(
+      (k) => !conditionHasDisplayValue(parsed, editValues, k)
+    )
+  }, [parsed, editValues])
+
   if (error) {
     const q = searchParams.get('q') ?? ''
     const searchHref = q ? `/search?keyword=${encodeURIComponent(q)}` : '/search'
@@ -362,24 +371,24 @@ function DiagnosisContent() {
       </Card>
 
       {/* 누락 조건 알림 */}
-      {parsed.missing_important.length > 0 && (
+      {stillMissingImportant.length > 0 && (
         <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
           <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-yellow-700">
             <HelpCircle className="h-4 w-4" /> 추가 입력 시 더 정확한 결과
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {parsed.missing_important.map((item) => (
+            {stillMissingImportant.map((item) => (
               <Badge key={item} variant="outline" className="border-yellow-300 bg-white text-xs text-yellow-700">
                 {MISSING_LABELS[item] ?? item}
               </Badge>
             ))}
           </div>
-          {parsed.missing_important.some(
+          {stillMissingImportant.some(
             (k) => !conditionHasDisplayValue(parsed, editValues, k) && missingNeedsYellowAddRow(parsed, k)
           ) && (
             <div className="mt-3 space-y-2 border-t border-yellow-200/80 pt-3">
               <p className="text-xs text-yellow-800">아래에서 직접 입력할 수 있습니다.</p>
-              {parsed.missing_important
+              {stillMissingImportant
                 .filter(
                   (k) => !conditionHasDisplayValue(parsed, editValues, k) && missingNeedsYellowAddRow(parsed, k)
                 )
@@ -489,7 +498,7 @@ function DiagnosisContent() {
             const normalizedRegion = normalizeRegionForFilter(region)
             if (normalizedRegion) params.set('region', normalizedRegion)
             if (city) params.set('city', String(city))
-            if (industry) params.set('industry', String(industry))
+            if (industry) params.set('industry', toCanonicalIndustry(String(industry)))
             if (businessAge != null) params.set('business_age_years', String(businessAge))
             if (employeeCount != null) params.set('employee_count', String(employeeCount))
             if (annualRevenue != null) params.set('annual_revenue_krw', String(annualRevenue))
@@ -503,7 +512,7 @@ function DiagnosisContent() {
               const profileDraft = {
                 region: normalizedRegion ?? undefined,
                 city: city ? String(city) : undefined,
-                industry: industry ? String(industry) : undefined,
+                industry: industry ? toCanonicalIndustry(String(industry)) : undefined,
                 business_age_years: businessAge != null ? Number(businessAge) : undefined,
                 employee_count: employeeCount != null ? Number(employeeCount) : undefined,
                 tax_arrears: typeof taxArrears === 'boolean' ? taxArrears : undefined,

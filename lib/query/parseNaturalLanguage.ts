@@ -10,6 +10,7 @@
 import { geminiJSON, Type } from '@/lib/llm/gemini'
 import type { Schema } from '@google/genai'
 import type { BusinessConditions } from '@/types'
+import { toCanonicalIndustry } from '@/lib/industry/canonical'
 
 export interface ExtractedCondition<T = unknown> {
   value: T
@@ -38,34 +39,6 @@ export interface ParseNLResult {
   summary: string             // 1~2문장 요약 (한국어)
   missing_important: string[] // 중요하지만 누락된 조건 목록
   raw_query: string
-}
-
-const INDUSTRY_NORMALIZE_MAP: Record<string, string> = {
-  manufacturing: '제조업',
-  manufacturer: '제조업',
-  service: '서비스업',
-  services: '서비스업',
-  'it': 'IT/소프트웨어',
-  software: 'IT/소프트웨어',
-  tech: 'IT/소프트웨어',
-  technology: 'IT/소프트웨어',
-  '응용소프트웨어': 'IT/소프트웨어',
-  '응용소프트웨어업': 'IT/소프트웨어',
-  retail: '유통/도소매',
-  distribution: '유통/도소매',
-  food: '음식/외식',
-  restaurant: '음식/외식',
-  construction: '건설업',
-  agriculture: '농업',
-  fishery: '수산업',
-}
-
-function normalizeIndustryValue(value: string): string {
-  const raw = value.trim()
-  if (!raw) return raw
-  if (raw.includes('응용소프트웨어')) return 'IT/소프트웨어'
-  const lower = raw.toLowerCase()
-  return INDUSTRY_NORMALIZE_MAP[lower] ?? raw
 }
 
 const REGION_ALIASES: Record<string, string[]> = {
@@ -111,7 +84,23 @@ const NUMERIC_FIELD_RANGES: Record<string, { min: number; max: number }> = {
  * - region: 17개 시도 목록에 없으면 null → missing_important 이동
  * - 숫자 필드: 비현실적 범위이면 null → missing_important 이동
  * - KRW 금액: 정수로 강제 변환 (PRD §16.3)
+ * - 검증 후 conditions 에 값이 있으면 해당 키는 missing_important 에서 제거 (LLM 불일치 보정)
  */
+function pruneMissingImportant(
+  conditions: ParsedConditions,
+  missing: string[]
+): string[] {
+  return missing.filter((key) => {
+    const k = key as keyof ParsedConditions
+    const cond = conditions[k] as ExtractedCondition<unknown> | undefined
+    if (!cond) return true
+    const v = cond.value
+    if (v === undefined || v === null) return true
+    if (typeof v === 'string' && v.trim() === '') return true
+    return false
+  })
+}
+
 function domainValidateConditions(
   conditions: ParsedConditions,
   missingImportant: string[]
@@ -135,24 +124,37 @@ function domainValidateConditions(
     }
   }
 
-  // 숫자 필드 범위 검증 + KRW 정수 변환
+  // 숫자 필드 범위 검증 + KRW 정수 변환 (LLM이 문자열 숫자를 줄 때 대비)
   for (const [key, range] of Object.entries(NUMERIC_FIELD_RANGES)) {
     const k = key as keyof ParsedConditions
-    const cond = validated[k] as ExtractedCondition<number> | undefined
+    let cond = validated[k] as ExtractedCondition<number> | undefined
     if (!cond) continue
-    const val = Number(cond.value)
+
+    let val: number
+    if (typeof cond.value === 'string') {
+      val = Number(String(cond.value).replace(/,/g, ''))
+      if (!Number.isFinite(val)) {
+        delete validated[k]
+        if (!missingImportant.includes(key)) extraMissing.push(key)
+        continue
+      }
+      const coerced: ExtractedCondition<number> = { ...cond, value: val }
+      ;(validated as Record<string, ExtractedCondition<unknown> | undefined>)[key] = coerced
+      cond = coerced
+    }
+    val = Number((validated[k] as ExtractedCondition<number>).value)
     if (!Number.isFinite(val) || val < range.min || val > range.max) {
       delete validated[k]
       if (!missingImportant.includes(key)) extraMissing.push(key)
     } else if (key === 'annual_revenue_krw' || key === 'desired_amount_krw') {
-      // KRW 원 단위 정수 강제 변환
       ;(validated[k] as ExtractedCondition<number>) = { ...cond, value: Math.round(val) }
     }
   }
 
+  const mergedMissing = [...missingImportant, ...extraMissing]
   return {
     conditions: validated,
-    missing_important: [...missingImportant, ...extraMissing],
+    missing_important: pruneMissingImportant(validated, mergedMissing),
   }
 }
 
@@ -252,10 +254,10 @@ const SYSTEM_INSTRUCTION = `당신은 정책자금 전문 AI 컨설턴트입니�
 중요 규칙:
 1. 언급되지 않은 항목은 conditions 객체에서 생략하세요.
 2. 금액은 항상 원(KRW) 단위 정수로 변환하세요. (예: "1억" → 100000000, "3천만원" → 30000000)
-3. 업력은 연 단위 숫자로 변환하세요. (예: "3년차" → 3, "창업 18개월" → 1.5)
+3. 업력은 연 단위 숫자로 변환하세요. "3년"·"업력 3년"·"3년차"·"창업 18개월" 등은 모두 business_age_years 로 넣고, 그런 경우 missing_important 에 업력을 넣지 마세요.
 4. confidence는 0~1 사이 값입니다. 명확히 언급 → 0.9+, 추론 → 0.5~0.8, 불확실 → 0.3 미만.
-5. missing_important에는 공고 검색에 중요하지만 언급되지 않은 항목만 포함하세요.
-   (지역·업종·업력 중 누락 항목 우선)
+5. missing_important에는 conditions에 이미 채워진 항목을 절대 넣지 마세요.
+   공고 검색에 중요하지만 언급·추출되지 않은 항목만 넣습니다 (지역·업종·업력 우선).
 6. summary는 추출된 내용을 1~2문장으로 한국어로 요약하세요.
 7. source_text는 반드시 짧게(최대 20자) 작성하세요.`
 
@@ -275,7 +277,7 @@ export async function parseNaturalLanguage(query: string): Promise<ParseNLResult
   if (normalizedConditions.industry?.value) {
     normalizedConditions.industry = {
       ...normalizedConditions.industry,
-      value: normalizeIndustryValue(String(normalizedConditions.industry.value)),
+      value: toCanonicalIndustry(String(normalizedConditions.industry.value)),
     }
   }
 
@@ -312,7 +314,7 @@ export function parseNaturalLanguageFallback(query: string): ParseNLResult {
 
   const industry = INDUSTRY_KEYWORDS.find((k) => query.includes(k))
   if (industry) {
-    conditions.industry = { value: normalizeIndustryValue(industry), confidence: 0.7, source_text: industry }
+    conditions.industry = { value: toCanonicalIndustry(industry), confidence: 0.7, source_text: industry }
   }
 
   const ageUnderMatch = query.match(/(\d+(?:\.\d+)?)\s*년\s*미만/u)
@@ -339,6 +341,30 @@ export function parseNaturalLanguageFallback(query: string): ParseNLResult {
           value: Math.round((Number(monthMatch[1]) / 12) * 10) / 10,
           confidence: 0.6,
           source_text: monthMatch[0].slice(0, 20),
+        }
+      } else {
+        const keywordYear = query.match(
+          /(?:업력|창업|운영|경력|사업\s*기간|경과)\s*[:：]?\s*(\d+(?:\.\d+)?)\s*년/u
+        )
+        if (keywordYear) {
+          conditions.business_age_years = {
+            value: Number(keywordYear[1]),
+            confidence: 0.68,
+            source_text: keywordYear[0].slice(0, 20),
+          }
+        } else {
+          // "3년"만 말한 경우 (년차·개월·년 미만 아님) — 2025년 같은 연도는 제외
+          const plain = query.match(/(?<![0-9])(\d{1,3}(?:\.\d+)?)\s*년(?!\s*미만)(?!\s*전)(?!\s*도)(?!\s*월)/u)
+          if (plain) {
+            const n = Number(plain[1])
+            if (Number.isFinite(n) && n >= 0 && n <= 100 && n < 1900) {
+              conditions.business_age_years = {
+                value: n,
+                confidence: 0.55,
+                source_text: plain[0].slice(0, 20),
+              }
+            }
+          }
         }
       }
     }

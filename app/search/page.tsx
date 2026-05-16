@@ -10,6 +10,7 @@ import type { SupportProgram } from '@/lib/gov-support/tools/unifiedSearch'
 import { readApiError } from '@/lib/api/readApiError'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
+import { toCanonicalIndustry } from '@/lib/industry/canonical'
 
 interface EligibilityResult {
   status: EligibilityStatus
@@ -106,7 +107,9 @@ function SearchContent() {
 
   const [region, setRegion] = useState(() => normalizeRegionForFilter(searchParams.get('region')))
   const [city] = useState(() => searchParams.get('city') ?? '')
-  const [industry, setIndustry] = useState(() => searchParams.get('industry') ?? '')
+  const [industry, setIndustry] = useState(() =>
+    toCanonicalIndustry(searchParams.get('industry') ?? '')
+  )
   const [keyword, setKeyword] = useState(() => searchParams.get('keyword') ?? searchParams.get('q') ?? '')
   const [supportPurpose] = useState(() => searchParams.get('support_purpose') ?? '')
   const [businessAge, setBusinessAge] = useState(() => searchParams.get('business_age_years') ?? '')
