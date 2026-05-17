@@ -17,16 +17,40 @@ export async function GET() {
       )
     }
 
-    const [totalPrograms, activePrograms, closingSoon, syncLogs, searches, eligibility, inquiries] =
-      await Promise.all([
-        supabase.from('support_programs').select('*', { count: 'exact', head: true }),
-        supabase.from('support_programs').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('support_programs').select('*', { count: 'exact', head: true }).eq('status', 'closing_soon'),
-        supabase.from('api_sync_logs').select('*').order('created_at', { ascending: false }).limit(5),
-        supabase.from('search_sessions').select('id', { count: 'exact', head: true }),
-        supabase.from('eligibility_checks').select('id', { count: 'exact', head: true }),
-        supabase.from('customer_inquiries').select('id', { count: 'exact', head: true }).eq('status', 'open'),
-      ])
+    const [
+      totalPrograms,
+      activePrograms,
+      closingSoon,
+      syncLogs,
+      searches,
+      eligibility,
+      pendingInquiries,
+      processingInquiries,
+      paidSubscribers,
+      negativeFeedback7d,
+    ] = await Promise.all([
+      supabase.from('support_programs').select('*', { count: 'exact', head: true }),
+      supabase.from('support_programs').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('support_programs').select('*', { count: 'exact', head: true }).eq('status', 'closing_soon'),
+      supabase.from('api_sync_logs').select('*').order('created_at', { ascending: false }).limit(5),
+      supabase.from('search_sessions').select('id', { count: 'exact', head: true }),
+      supabase.from('eligibility_checks').select('id', { count: 'exact', head: true }),
+      supabase.from('customer_inquiries').select('id', { count: 'exact', head: true }).eq('status', 'received'),
+      supabase.from('customer_inquiries').select('id', { count: 'exact', head: true }).eq('status', 'in_progress'),
+      supabase
+        .from('subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'active')
+        .in('plan_code', ['starter', 'pro']),
+      supabase
+        .from('feedback')
+        .select('id', { count: 'exact', head: true })
+        .eq('rating', -1)
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+    ])
+
+    const pending = pendingInquiries.count ?? 0
+    const processing = processingInquiries.count ?? 0
 
     return Response.json({
       ok: true,
@@ -36,7 +60,11 @@ export async function GET() {
         closingSoon: closingSoon.count ?? 0,
         totalSearches: searches.count ?? 0,
         totalEligibility: eligibility.count ?? 0,
-        openInquiries: inquiries.count ?? 0,
+        openInquiries: pending + processing,
+        pendingInquiries: pending,
+        processingInquiries: processing,
+        paidSubscribers: paidSubscribers.count ?? 0,
+        negativeFeedback7d: negativeFeedback7d.count ?? 0,
       },
       recentSyncs: syncLogs.data ?? [],
     })
