@@ -1,6 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
+import { userBypassesPlanLimits } from '@/lib/auth/admin'
 import { getPlan, normalizePlanId, type PlanId } from './plans'
+
+const UNLIMITED_USAGE_GATE = {
+  allowed: true,
+  used: 0,
+  limit: null as number | null,
+  plan: 'pro' as PlanId,
+}
 
 export type UsageEventType =
   | 'eligibility_check'
@@ -40,6 +48,8 @@ function serviceSupabase() {
  * 구독 행에서 결제 플랜 ID (plan_code 우선, 레거시 plan 폴백)
  */
 export async function getPlanIdForUser(userId: string): Promise<PlanId> {
+  if (await userBypassesPlanLimits(userId)) return 'pro'
+
   const supabase = serviceSupabase()
   const { data: sub } = await supabase
     .from('subscriptions')
@@ -71,6 +81,8 @@ export async function checkUsageLimit(
   userId: string,
   eventType: Exclude<UsageEventType, DailyUsageEventType>
 ): Promise<{ allowed: boolean; used: number; limit: number | null; plan: PlanId }> {
+  if (await userBypassesPlanLimits(userId)) return UNLIMITED_USAGE_GATE
+
   const supabase = serviceSupabase()
 
   const planId = await getPlanIdForUser(userId)
@@ -96,6 +108,8 @@ export async function checkDailyUsageLimit(
   userId: string,
   eventType: DailyUsageEventType
 ): Promise<{ allowed: boolean; used: number; limit: number | null; plan: PlanId }> {
+  if (await userBypassesPlanLimits(userId)) return UNLIMITED_USAGE_GATE
+
   const supabase = serviceSupabase()
   const planId = await getPlanIdForUser(userId)
   const plan = getPlan(planId)

@@ -27,12 +27,26 @@ async function main() {
   console.log('[verify-wave4]')
 
   const free = getPlan('free')
+  const starter = getPlan('starter')
+  const pro = getPlan('pro')
   assert(free.limits.parse_queries_per_day === 20, 'free parse daily limit')
   assert(free.limits.search_requests_per_day === 50, 'free search daily limit')
   assert(!planAllowsStrictSearch('free'), 'free no strict')
   assert(planAllowsStrictSearch('starter'), 'starter strict')
   assert(!planAllowsTabularExport('free'), 'free no export')
   assert(planAllowsTabularExport('pro'), 'pro export')
+  assert(
+    (starter.limits.documents_per_month ?? 0) > (free.limits.documents_per_month ?? 0),
+    'starter docs > free'
+  )
+  assert(
+    (pro.limits.documents_per_month ?? 0) > (starter.limits.documents_per_month ?? 0),
+    'pro docs > starter'
+  )
+  assert(
+    (pro.limits.diagnoses_per_month ?? 0) > (starter.limits.diagnoses_per_month ?? 0),
+    'pro diagnoses > starter'
+  )
 
   const url = buildSearchUrlFromProfile({
     region: '서울',

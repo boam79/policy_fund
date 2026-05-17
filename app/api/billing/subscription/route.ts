@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { normalizePlanId, type PlanId } from '@/lib/billing/plans'
+import { userBypassesPlanLimits } from '@/lib/auth/admin'
+import { getPlanIdForUser } from '@/lib/billing/usage'
+import type { PlanId } from '@/lib/billing/plans'
 
 export async function GET() {
   const supabase = await createClient()
@@ -46,7 +48,8 @@ export async function GET() {
     .eq('event_type', 'evaluation')
     .gte('created_at', startOfMonth.toISOString())
 
-  const plan: PlanId = normalizePlanId(String(sub?.plan_code ?? sub?.plan ?? 'free'))
+  const adminBypass = await userBypassesPlanLimits(user.id)
+  const plan: PlanId = await getPlanIdForUser(user.id)
 
   return NextResponse.json({
     subscription: sub
@@ -56,7 +59,8 @@ export async function GET() {
           current_period_end: sub.current_period_end,
           cancel_at_period_end: sub.cancel_at_period_end,
         }
-      : { plan: 'free' as PlanId, status: 'active' },
+      : { plan, status: 'active' },
+    admin_plan_bypass: adminBypass,
     payments: payments ?? [],
     usage: {
       eligibility_check: diagCount ?? 0,

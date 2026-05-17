@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 
 interface BillingData {
   subscription: { plan: PlanId; status: string; current_period_end?: string; cancel_at_period_end?: boolean }
+  admin_plan_bypass?: boolean
   payments: { id: string; order_name: string; amount_krw: number; status: string; paid_at: string; order_id: string }[]
   usage: { eligibility_check: number; document_generate: number; evaluation: number }
 }
@@ -45,8 +46,11 @@ export default function BillingPage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
 
   const sub = data?.subscription
+  const adminBypass = Boolean(data?.admin_plan_bypass)
   const currentPlan = getPlan(sub?.plan ?? 'free')
   const planLimits = currentPlan.limits
+  const usageLimit = (key: keyof typeof planLimits) =>
+    adminBypass ? null : (planLimits[key] as number | null)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -63,7 +67,14 @@ export default function BillingPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs text-gray-400 mb-1">현재 플랜</p>
-              <h2 className="text-2xl font-black text-gray-900">{currentPlan.name}</h2>
+              <h2 className="text-2xl font-black text-gray-900">
+                {currentPlan.name}
+                {adminBypass && (
+                  <span className="ml-2 text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full align-middle">
+                    관리자 · 한도 없음
+                  </span>
+                )}
+              </h2>
               <p className="text-sm text-gray-500 mt-1">{currentPlan.priceLabel} · {currentPlan.description}</p>
               {sub?.current_period_end && (
                 <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
@@ -79,12 +90,12 @@ export default function BillingPage() {
               )}
             </div>
             <div className="flex flex-col gap-2">
-              {currentPlan.id !== 'pro' && (
+              {!adminBypass && currentPlan.id !== 'pro' && (
                 <Link href="/pricing" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors text-center">
                   플랜 업그레이드
                 </Link>
               )}
-              {currentPlan.id !== 'free' && !sub?.cancel_at_period_end && (
+              {!adminBypass && currentPlan.id !== 'free' && !sub?.cancel_at_period_end && (
                 <button onClick={handleCancel} disabled={canceling}
                   className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition-colors">
                   {canceling ? '처리 중...' : '구독 해지'}
@@ -103,17 +114,17 @@ export default function BillingPage() {
             <UsageBar
               label="자격판정"
               used={data?.usage.eligibility_check ?? 0}
-              limit={planLimits.diagnoses_per_month}
+              limit={usageLimit('diagnoses_per_month')}
             />
             <UsageBar
               label="문서 생성"
               used={data?.usage.document_generate ?? 0}
-              limit={planLimits.documents_per_month}
+              limit={usageLimit('documents_per_month')}
             />
             <UsageBar
               label="심사 예측"
               used={data?.usage.evaluation ?? 0}
-              limit={planLimits.evaluations_per_month}
+              limit={usageLimit('evaluations_per_month')}
             />
           </div>
           {currentPlan.id === 'free' && (

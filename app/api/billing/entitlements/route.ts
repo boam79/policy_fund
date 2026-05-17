@@ -5,6 +5,7 @@ import {
   getPlan,
   type PlanId,
 } from '@/lib/billing/plans'
+import { userBypassesPlanLimits } from '@/lib/auth/admin'
 import { checkDailyUsageLimit, getPlanIdForUser } from '@/lib/billing/usage'
 import { getSessionUserId } from '@/lib/billing/usageGate'
 
@@ -15,6 +16,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET() {
   const userId = await getSessionUserId()
+  const adminBypass = userId ? await userBypassesPlanLimits(userId) : false
   const planId: PlanId = userId ? await getPlanIdForUser(userId) : 'free'
   const plan = getPlan(planId)
 
@@ -29,8 +31,9 @@ export async function GET() {
     ok: true,
     logged_in: Boolean(userId),
     plan: planId,
-    allows_strict_search: planAllowsStrictSearch(planId),
-    allows_tabular_export: planAllowsTabularExport(planId),
+    admin_plan_bypass: adminBypass,
+    allows_strict_search: adminBypass || planAllowsStrictSearch(planId),
+    allows_tabular_export: adminBypass || planAllowsTabularExport(planId),
     parse_daily: {
       used: parseDaily.used,
       limit: parseDaily.limit,

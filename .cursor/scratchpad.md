@@ -505,7 +505,7 @@ PAYMENT_SECRET_KEY=
 
 - **현재 모드**: **Executor** — Phase 12 **전체 완료**(Wave 1~5 + US-12-UX 자동 검증·관리자 대시보드 품질 카드). **다음**: 프로덕션 배포 후 US-12-UX 3건 스모크(선택) 또는 Phase 5~11 잔여 정리
 - **저장소**: `https://github.com/boam79/policy_fund` · 로컬 `/Users/parkjaemin/Dev/policy_fund`
-- **최신 커밋**: `578535f` · **릴리스 태그**: `v0.2.1` (Phase 12, `v0.2.0`은 Phase 1+2 구버전)
+- **최신 커밋**: `7a7f2d4` (유저 여정 exhaustive 검증·버그 수정) · **릴리스 태그**: `v0.2.1` (Phase 12, `v0.2.0`은 Phase 1+2 구버전)
 - **Supabase 프로젝트**: `hwqsxarzgodpsvwahzae` (policyfund-ai-v2, ap-northeast-2, Free Plan)
 - **데이터 운영 모드**: `api_minimal_cache`
 - **Gemini API Key**: ✅ `.env.local`에 등록 완료
@@ -546,7 +546,8 @@ PAYMENT_SECRET_KEY=
 - **2026-05-17 (Executor)**: **Phase 12 Wave 5 완료** — parse 24h 메모리 캐시·`cached` 플래그, 검색 `source` 배지, `include_closed`·마감 풀, `verify:wave5`·README(`verify:parse-rate` 분리), `verify:strict` PASS.
 - **2026-05-17 (Executor)**: **Phase 12 마무리** — `verify:story`에 UX-02(strict 완화 없음)·UX-03(업종 한 줄 사유) 추가, `/admin/dashboard` 데이터 품질 카드(quality API 연동).
 - **2026-05-17 (Executor)**: **v0.2.1 태그·푸시** + 프로덕션 스모크 PASS (`policyfund-zeta.vercel.app`, verify:story·wave2~5·journey·wave4).
-- **2026-05-17 (Executor)**: 유저 여정 전수 시뮬레이션 — `verify:journey-exhaustive` 추가·`verify:strict` 포함. 수정: 진단 세션 잘못된 UUID→400, 검색 limit 최대 50, 「N년 미만」 업력 표시/URL, Header auth hydration, 검색 `include_closed` URL 동기화.
+- **2026-05-17 (Executor)**: 유저 여정 전수 시뮬레이션 — `verify:journey-exhaustive` 추가·`verify:strict` 포함. 수정: 진단 세션 잘못된 UUID→400, 검색 limit 최대 50, 「N년 미만」 업력 표시/URL, Header auth hydration, 검색 `include_closed` URL 동기화. 커밋·푸시 `7a7f2d4` 완료.
+- **2026-05-17 (Executor)**: 사용자 요청 재검증 — 워킹 트리 clean, `npm run build` + `npm run verify:strict` 전부 PASS (journey-exhaustive 39/39).
 - **2026-05-09**: 초기 커밋 `ef7f9bf`를 `origin/main`에 푸시 완료(SSH).
 - **2026-05-11**: Scratchpad 최초 재작성 (PRD v2.0 기반).
 - **2026-05-15**: Planner 재분석 — 저장소 상태 확인, README.md 삭제 이슈 발견, 계획 전면 갱신.
