@@ -546,6 +546,7 @@ PAYMENT_SECRET_KEY=
 - **2026-05-17 (Executor)**: **Phase 12 Wave 5 완료** — parse 24h 메모리 캐시·`cached` 플래그, 검색 `source` 배지, `include_closed`·마감 풀, `verify:wave5`·README(`verify:parse-rate` 분리), `verify:strict` PASS.
 - **2026-05-17 (Executor)**: **Phase 12 마무리** — `verify:story`에 UX-02(strict 완화 없음)·UX-03(업종 한 줄 사유) 추가, `/admin/dashboard` 데이터 품질 카드(quality API 연동).
 - **2026-05-17 (Executor)**: **v0.2.1 태그·푸시** + 프로덕션 스모크 PASS (`policyfund-zeta.vercel.app`, verify:story·wave2~5·journey·wave4).
+- **2026-05-17 (Executor)**: 유저 여정 전수 시뮬레이션 — `verify:journey-exhaustive` 추가·`verify:strict` 포함. 수정: 진단 세션 잘못된 UUID→400, 검색 limit 최대 50, 「N년 미만」 업력 표시/URL, Header auth hydration, 검색 `include_closed` URL 동기화.
 - **2026-05-09**: 초기 커밋 `ef7f9bf`를 `origin/main`에 푸시 완료(SSH).
 - **2026-05-11**: Scratchpad 최초 재작성 (PRD v2.0 기반).
 - **2026-05-15**: Planner 재분석 — 저장소 상태 확인, README.md 삭제 이슈 발견, 계획 전면 갱신.
@@ -585,6 +586,8 @@ PAYMENT_SECRET_KEY=
 - **중소벤처24**: 서버 IP 등록 전 타임아웃 — Phase 4에서 bizinfo+kstartup 우선 활성화, SMES24는 Phase 후반 플래그로 관리.
 - **SMES24 환경변수**: `.env.example`에 `SMES24_API_BASE`, `SMES24_DEFAULT_STRDT`, `SMES24_DEFAULT_ENDDT` 이미 추가됨 — 코드 구현 시 그대로 사용.
 - **README.md 삭제 주의**: 로컬에서 삭제됨, Phase 1 완료 시 PRD v2.0 기준으로 재작성 필요. ✅ 해소됨.
+- **진단 세션 UUID**: Supabase에 잘못된 UUID 형식을 넣으면 DB 503 — API에서 `isUuid()` 검증 후 400 반환.
+- **「N년 미만」 업력**: 검색용 숫자는 `upper-1`이어도 UI·요약에는 `source_text`(예: 1년 미만)를 보여주고, `business_age_years=0`만인 경우 검색 URL에서 업력 파라미터 생략.
 - **create-next-app 충돌**: 기존 파일이 있으면 `--yes`로도 실패. 임시 폴더에서 생성 후 rsync로 병합하는 방식 사용.
 - **shadcn/ui v4 + base-ui**: `asChild` prop을 지원하지 않음. `buttonVariants()` + `cn()`을 Link에 직접 적용해야 함.
 - **toast deprecated**: shadcn v4에서 toast 대신 sonner 사용.

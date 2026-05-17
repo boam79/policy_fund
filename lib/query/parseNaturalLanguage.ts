@@ -397,7 +397,14 @@ export function parseNaturalLanguageFallback(query: string): ParseNLResult {
   if (conditions.region?.value) summaryParts.push(`지역은 ${conditions.region.value}`)
   if (conditions.city?.value) summaryParts.push(`시군구는 ${conditions.city.value}`)
   if (conditions.industry?.value) summaryParts.push(`업종은 ${conditions.industry.value}`)
-  if (conditions.business_age_years?.value != null) summaryParts.push(`업력은 ${conditions.business_age_years.value}년`)
+  if (conditions.business_age_years?.value != null) {
+    const ageSrc = conditions.business_age_years.source_text
+    if (ageSrc?.includes('미만')) {
+      summaryParts.push(`업력은 ${ageSrc}`)
+    } else {
+      summaryParts.push(`업력은 ${conditions.business_age_years.value}년`)
+    }
+  }
   if (conditions.support_purpose?.value) summaryParts.push(`지원 목적은 ${conditions.support_purpose.value}`)
 
   const summary =

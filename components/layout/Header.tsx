@@ -21,12 +21,17 @@ export default function Header() {
   const router = useRouter()
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user)
+      setAuthReady(true)
+    })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null)
+      setAuthReady(true)
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -65,7 +70,9 @@ export default function Header() {
         </nav>
 
         <div className="flex h-full flex-shrink-0 items-center gap-2">
-          {user ? (
+          {!authReady ? (
+            <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" aria-hidden />
+          ) : user ? (
             <div className="relative">
               <button onClick={() => setMenuOpen(o => !o)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 transition-colors">

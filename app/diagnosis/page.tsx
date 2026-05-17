@@ -50,11 +50,14 @@ const MISSING_LABELS: Record<string, string> = {
   tax_arrears: '세금 체납',
 }
 
-function formatConditionValue(key: string, value: unknown): string {
+function formatConditionValue(key: string, value: unknown, sourceText?: string): string {
   if (key === 'annual_revenue_krw' || key === 'desired_amount_krw') {
     return formatKRW(Number(value))
   }
-  if (key === 'business_age_years') return `${value}년`
+  if (key === 'business_age_years') {
+    if (sourceText?.includes('미만')) return sourceText.trim()
+    return `${value}년`
+  }
   if (key === 'employee_count') return `${value}명`
   if (key === 'credit_score') return `${value}점`
   if (key === 'tax_arrears') return value ? '있음' : '없음'
@@ -295,7 +298,11 @@ function DiagnosisContent() {
               {effectiveEntries.map(([key, cond]) => {
                 const c = cond as { value: unknown; confidence: number; source_text?: string }
                 const label = CONDITION_LABELS[key] ?? key
-                const displayValue = formatConditionValue(key, editValues[key] ?? c.value)
+                const displayValue = formatConditionValue(
+                  key,
+                  editValues[key] ?? c.value,
+                  c.source_text
+                )
                 const useStepper =
                   NUMERIC_STEPPER_KEYS.has(key) && c.confidence < 0.4 && editMode !== key
                 const numericRaw = editValues[key] ?? String(c.value ?? '0')

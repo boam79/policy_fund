@@ -34,6 +34,17 @@ export const dynamic = 'force-dynamic'
 const STRICT_NO_RESULTS_HINT =
   '입력한 지역·업종·검색어 조건을 모두 만족하는 공고가 없습니다. 지역·업종을 넓히거나, 검색 화면에서 조건 완화 검색을 이용해 보세요.'
 
+const SEARCH_MAX_LIMIT = 50
+
+function clampSearchPagination(pageRaw: unknown, limitRaw: unknown): { page: number; limit: number } {
+  const page = Math.max(1, Math.floor(Number(pageRaw) || 1))
+  const limit = Math.min(
+    SEARCH_MAX_LIMIT,
+    Math.max(1, Math.floor(Number(limitRaw) || 20))
+  )
+  return { page, limit }
+}
+
 export async function POST(request: NextRequest) {
   const traceId = createTraceId()
   try {
@@ -60,8 +71,8 @@ export async function POST(request: NextRequest) {
       tax_arrears,
       support_purpose,
       keyword,
-      page = 1,
-      limit = 20,
+      page: pageRaw = 1,
+      limit: limitRaw = 20,
       search_mode: searchModeRaw,
       include_closed: includeClosedRaw,
     } = body as CompanyProfile & {
@@ -72,6 +83,7 @@ export async function POST(request: NextRequest) {
       include_closed?: boolean
     }
 
+    const { page, limit } = clampSearchPagination(pageRaw, limitRaw)
     const include_closed = includeClosedRaw === true
 
     const search_mode = normalizeProgramSearchMode(searchModeRaw)

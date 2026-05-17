@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
+import { isUuid } from '@/lib/validation/uuid'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +29,16 @@ export async function GET(request: NextRequest) {
       status: 400,
       errorCode: 'DIAGNOSIS_SESSION_ID_REQUIRED',
       message: '세션 ID가 필요합니다.',
+      step: 'diagnosis.session.get.validate',
+      traceId,
+    })
+  }
+
+  if (!isUuid(id)) {
+    return apiError({
+      status: 400,
+      errorCode: 'DIAGNOSIS_SESSION_INVALID_ID',
+      message: '진단 세션 ID 형식이 올바르지 않습니다.',
       step: 'diagnosis.session.get.validate',
       traceId,
     })

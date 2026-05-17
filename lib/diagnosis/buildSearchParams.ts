@@ -23,7 +23,14 @@ export function buildSearchQueryFromDiagnosis(
   if (normalizedRegion) params.set('region', normalizedRegion)
   if (city) params.set('city', String(city))
   if (industry) params.set('industry', toCanonicalIndustry(String(industry)))
-  if (businessAge != null) params.set('business_age_years', String(businessAge))
+  if (businessAge != null) {
+    const ageMeta = parsed.conditions.business_age_years
+    const isUnderOnly =
+      ageMeta?.source_text?.includes('미만') && Number(businessAge) === 0
+    if (!isUnderOnly) {
+      params.set('business_age_years', String(businessAge))
+    }
+  }
   if (employeeCount != null) params.set('employee_count', String(employeeCount))
   if (annualRevenue != null) params.set('annual_revenue_krw', String(annualRevenue))
   if (creditScore != null) params.set('credit_score', String(creditScore))

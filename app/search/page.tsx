@@ -398,8 +398,12 @@ function SearchContent() {
       searchParams.get('business_age_years') ||
       searchParams.get('employee_count') ||
       searchParams.get('tax_arrears') ||
-      searchParams.get('search_mode')
+      searchParams.get('search_mode') ||
+      searchParams.get('include_closed')
     if (!hasParams || autoSearchKeyRef.current === key) return
+    if (searchParams.get('include_closed') === '1') {
+      setIncludeClosed(true)
+    }
     if (searchParams.get('search_mode') === 'strict') {
       setSearchMode('strict')
     }
