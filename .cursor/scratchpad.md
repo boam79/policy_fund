@@ -476,7 +476,7 @@ PAYMENT_SECRET_KEY=
 ### Phase 13 — Project Status Board (Planner, 우선순위순)
 
 **P0 — 즉시 (유입·신뢰 게이트)**
-- [x] 13-P0-1 SEO 코드 (`getSiteUrl`, dynamic robots/sitemap, llms/ai) — **배포·GSC·verify:seo는 사용자 협업**
+- [x] 13-P0-1 SEO 코드 (`getSiteUrl`, dynamic robots/sitemap, llms/ai) — **프로덕션 배포·`verify:seo` PASS (2026-05-17)** · GSC 사이트맵 제출은 사용자 협업
 - [ ] 13-P0-2 US-12-UX 프로덕션 수동 3건 (UX-01·02·03) — 자동 `verify:story` PASS
 - [x] 13-P0-3 검색 UI·API `industry_match`: match / similar / any
 
@@ -542,9 +542,9 @@ PAYMENT_SECRET_KEY=
 
 ## Current Status / Progress Tracking
 
-- **현재 모드**: **Executor** — Phase 13 **P0·P1 코드 완료**(2026-05-17). 남음: 프로덕션 배포, `verify:seo`, US-12-UX 수동 3건, GSC.
+- **현재 모드**: **Executor** — Phase 13 P0·P1 + **보안 패치 배포 완료**(2026-05-17). 남음: US-12-UX 수동 3건, GSC 사이트맵, Supabase Auth 유출 비밀번호 보호(대시보드).
 - **저장소**: `https://github.com/boam79/policy_fund` · 로컬 `/Users/parkjaemin/Dev/policy_fund`
-- **최신 커밋**: `7a7f2d4` (유저 여정 exhaustive 검증·버그 수정) · **릴리스 태그**: `v0.2.1` (Phase 12, `v0.2.0`은 Phase 1+2 구버전)
+- **최신 커밋**: `a3ca07c` (보안: RLS·CSRF·ADMIN_ONLY_EMAIL·exceljs) · 이전 `0d4c804` (Phase 13 P0–P1) · **릴리스 태그**: `v0.2.1` (Phase 12)
 - **Supabase 프로젝트**: `hwqsxarzgodpsvwahzae` (policyfund-ai-v2, ap-northeast-2, Free Plan)
 - **데이터 운영 모드**: `api_minimal_cache`
 - **Gemini API Key**: ✅ `.env.local`에 등록 완료
@@ -576,6 +576,8 @@ PAYMENT_SECRET_KEY=
 
 ## Executor's Feedback or Assistance Requests
 
+- **2026-05-17 (Executor)**: **Supabase MCP 전수 점검** — `get_advisors` security 1건(유출 비밀번호 보호, **Free 플랜이라 Pro 이상에서만 활성화 가능**), performance 다수(INFO/WARN, 당장 차단 아님). `execute_sql`: public 25테이블 RLS ON, 위험 anon INSERT/UPDATE 정책 없음, `handle_new_user` anon/auth EXECUTE 없음, `update_updated_at_column` search_path=public. anon REST INSERT `support_programs`·`customer_inquiries` → RLS 42501 차단 확인. 마이그레이션 `010_security_hardening` 원격 적용됨.
+- **2026-05-17 (Executor)**: **보안 패치 배포** — 커밋·푸시 `a3ca07c`, Vercel Production env `ADMIN_ONLY_EMAIL`·`NEXT_PUBLIC_SITE_URL` 추가, `vercel deploy --prod` 완료. 프로덕션 `verify:seo`·`verify:security` PASS. **남음**: Auth 유출 비밀번호(Pro 플랜), US-12-UX 수동 3건, GSC, performance RLS initplan(선택).
 - **2026-05-17 (Executor)**: Phase 13 **P0·P1 구현** — `industry_match`, 검색 정렬, 자격 사유, eligibility 프로필 동기화, diagnosis `data=`→`sid`, SEO·ops 문서. `npm run build` PASS, `verify:story`~`verify:security` PASS. `verify:journey-exhaustive` 1건(업력 N년 미만 summary) 기존 플레이크 가능 — 재실행 권장.
 - **2026-05-17 (Planner)**: **Phase 13** 고도화 우선순위(P0~P3, 태스크 18개)를 scratchpad에 반영. Phase 12는 완료로 간주. **Executor는 13-P0-1(SEO 배포)** 부터 1개씩. SEO 코드는 로컬에 있을 수 있으나 **프로덕션 미반영** — 배포·`NEXT_PUBLIC_SITE_URL`·GSC는 사용자 협업 필요.
 - **2026-05-17 (Planner)**: Phase 12 전체 고도화 계획을 scratchpad에 반영함(Wave 1~5, 태스크 24개, US-12-UX 3건). **Executor는 12-1-1부터 1개씩** 진행할 것. Wave 3 DB 마이그레이션(`industry_tags`) 전 사용자 승인 필요. Wave 1 완료 후 프로덕션에서 UX-01~03 수동 검증 요청.
