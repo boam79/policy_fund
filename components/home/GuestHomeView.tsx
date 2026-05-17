@@ -3,11 +3,12 @@ import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import SearchBar from '@/components/home/SearchBar'
-import ProgramBannerCard from '@/components/home/ProgramBannerCard'
+import HomeProgramRichCard from '@/components/home/HomeProgramRichCard'
 import HomeStatsBar from '@/components/home/HomeStatsBar'
+import HeroIllustration from '@/components/home/HeroIllustration'
 import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
 import type { HomeStats } from '@/lib/home/stats'
-import type { RecommendedProgram } from '@/app/api/home/recommendations/route'
+import type { RecommendedProgram } from '@/lib/home/recommendations'
 import { RefreshCw } from 'lucide-react'
 
 export default function GuestHomeView({
@@ -19,26 +20,32 @@ export default function GuestHomeView({
 }) {
   return (
     <div className="flex flex-col">
-      <section className="bg-gradient-to-b from-blue-50 to-white px-4 pb-14 pt-16 md:pt-20">
-        <div className="container mx-auto max-w-5xl text-center">
-          <Badge variant="secondary" className="mb-4">
-            실제 공공 데이터 기반 · LLM 생성 공고 없음
-          </Badge>
-          <h1 className="mb-3 text-3xl font-black tracking-tight text-gray-900 md:text-5xl">
-            정책자금, AI에게 물어보세요
-          </h1>
-          <p className="mb-8 text-base text-muted-foreground md:text-lg">
-            전국 중앙·지자체·공공기관 지원사업을 쉽고 빠르게 찾아보세요.
-          </p>
+      <section className="bg-gradient-to-b from-blue-50 via-blue-50/40 to-white px-4 pb-12 pt-12 md:pb-16 md:pt-16">
+        <div className="container mx-auto max-w-6xl">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
+            <div className="text-center lg:text-left">
+              <Badge variant="secondary" className="mb-4">
+                실제 공공 데이터 기반 · LLM 생성 공고 없음
+              </Badge>
+              <h1 className="mb-3 text-3xl font-black tracking-tight text-gray-900 md:text-5xl">
+                정책자금,
+                <br className="hidden sm:block" />
+                AI에게 물어보세요
+              </h1>
+              <p className="mb-6 text-base text-muted-foreground md:text-lg">
+                전국 중앙·지자체·공공기관 지원사업을 쉽고 빠르게 찾아보세요.
+              </p>
 
-          <div className="mx-auto max-w-2xl">
-            <SearchBar size="large" useSavedProfileDefaults={false} />
-          </div>
+              <div className="mx-auto max-w-2xl lg:mx-0">
+                <SearchBar size="large" useSavedProfileDefaults={false} />
+              </div>
 
-          <HomeStatsBar stats={stats} />
+              <HomeStatsBar stats={stats} />
+            </div>
 
-          <div className="mx-auto mt-6 max-w-2xl text-left">
-            <GeoSourceSummary variant="compact" />
+            <div className="hidden lg:block">
+              <HeroIllustration />
+            </div>
           </div>
         </div>
       </section>
@@ -63,14 +70,18 @@ export default function GuestHomeView({
               <p className="text-sm font-medium text-muted-foreground">공고 데이터를 동기화 중입니다</p>
             </div>
           ) : (
-            <div className="-mx-1 flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory md:grid md:grid-cols-2 md:overflow-visible lg:grid-cols-4 md:pb-0">
-              {programs.slice(0, 4).map((prog) => (
-                <div key={prog.id} className="min-w-[260px] shrink-0 snap-start md:min-w-0">
-                  <ProgramBannerCard program={prog} />
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {programs.slice(0, 4).map((prog, i) => (
+                <HomeProgramRichCard key={prog.id} program={prog} variant="guest" rankIndex={i} />
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="border-t bg-slate-50 px-4 py-8">
+        <div className="container mx-auto max-w-3xl">
+          <GeoSourceSummary variant="compact" />
         </div>
       </section>
 

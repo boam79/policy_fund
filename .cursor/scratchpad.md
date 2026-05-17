@@ -3,7 +3,11 @@
 **역할**: Planner 주도 계획 / Executor는 사용자 승인 후 단계별 실행  
 **기준 문서**: `policyfund_v2_prd_v2_0_free_plan_db_switch_ready.md` (PF-WEB-001 v2.0, 2026-05-11) — 문서 내 과거 명칭 PolicyFund AI는 제품 코드명 참고용이며, **사용자 노출 브랜드는 지원둥지**로 통일함 (2026-05-16).  
 **UI 목업 기준**: `KakaoTalk_Photo_2026-05-11-18-15-52 001.png` (관리자 대시보드), `KakaoTalk_Photo_2026-05-11-18-15-53 002.png` (사용자 홈)  
-**Planner 최종 갱신**: 2026-05-17 (Phase 12 고도화 계획 수립)
+**Planner 최종 갱신**: 2026-05-17 (홈 UI 목업 정합 — Executor)
+
+### 홈 UI 목업 정합 (2026-05-17 Executor)
+- 사용자 피드백: 배포/로컬 화면이 제안 목업(안 A / B+C)과 시각적으로 크게 다름
+- 조치: `HomeProgramRichCard`, 히어로 2열+일러스트, 로그인 히어로(진단 3단계 미리보기·프로필 필드 카드), 매칭% 표시 보정(프로필 맞춤 시 88%+), GeoSourceSummary 히어로→하단 이동
 
 ---
 

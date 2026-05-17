@@ -1,6 +1,22 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
-import type { RecommendedProgram } from '@/app/api/home/recommendations/route'
+export interface RecommendedProgram {
+  id: string
+  source: string
+  title: string
+  organization: string | null
+  region: string | null
+  support_type: string | null
+  support_amount: string | null
+  support_amount_min_krw: number | null
+  support_amount_max_krw: number | null
+  application_end_date: string | null
+  application_url: string | null
+  status: string
+  days_left: number | null
+  matchScore: number
+  recommendReason: string
+}
 
 type ProgramRow = Pick<
   Database['public']['Tables']['support_programs']['Row'],
@@ -10,11 +26,17 @@ type ProgramRow = Pick<
   | 'organization'
   | 'region'
   | 'support_type'
+  | 'support_amount'
+  | 'support_amount_min_krw'
+  | 'support_amount_max_krw'
   | 'application_end_date'
   | 'application_url'
   | 'status'
   | 'recommendation_score'
 >
+
+const PROGRAM_SELECT =
+  'id, source, title, organization, region, support_type, support_amount, support_amount_min_krw, support_amount_max_krw, application_end_date, application_url, status, recommendation_score' as const
 
 export function mapRowsToRecommendedPrograms(rows: ProgramRow[]): RecommendedProgram[] {
   const now = Date.now()
@@ -44,6 +66,9 @@ export function mapRowsToRecommendedPrograms(rows: ProgramRow[]): RecommendedPro
       organization: p.organization,
       region: p.region,
       support_type: p.support_type,
+      support_amount: p.support_amount,
+      support_amount_min_krw: p.support_amount_min_krw,
+      support_amount_max_krw: p.support_amount_max_krw,
       application_end_date: p.application_end_date,
       application_url: p.application_url,
       status: p.status ?? 'active',
@@ -61,9 +86,7 @@ export async function fetchRecommendedPrograms(
   const today = new Date().toISOString().slice(0, 10)
   const { data, error } = await supabase
     .from('support_programs')
-    .select(
-      'id, source, title, organization, region, support_type, application_end_date, application_url, status, recommendation_score'
-    )
+    .select(PROGRAM_SELECT)
     .eq('visibility_status', 'visible')
     .in('status', ['active', 'closing_soon'])
     .gte('application_end_date', today)

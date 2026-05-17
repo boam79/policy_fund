@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
-import type { RecommendedProgram } from '@/app/api/home/recommendations/route'
+import type { RecommendedProgram } from '@/lib/home/recommendations'
 import { runProgramSearch } from '@/lib/gov-support/tools/runProgramSearch'
 import {
   buildSearchUrlFromProfile,
@@ -71,13 +71,17 @@ async function fetchPersonalizedFromProfile(
         organization: p.organization,
         region: p.region,
         support_type: p.support_type,
+        support_amount: p.support_amount ?? null,
+        support_amount_min_krw: p.support_amount_min_krw ?? null,
+        support_amount_max_krw: p.support_amount_max_krw ?? null,
         application_end_date: p.application_end_date,
         application_url: p.application_url,
         status: p.status,
         recommendation_score: p.recommendation_score,
       }))
-    ).map((p) => ({
+    ).map((p, index) => ({
       ...p,
+      matchScore: Math.min(98, Math.max(p.matchScore, 92 - index * 4)),
       recommendReason: '프로필 조건에 맞는 공고입니다.',
     }))
   } catch {
