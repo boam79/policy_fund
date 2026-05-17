@@ -113,22 +113,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/mypage/:path*',
-    '/manage/:path*',
-    '/admin/:path*',
-    '/billing/:path*',
-    '/api/admin/:path*',
-    '/api/home/recommendations',
-    '/api/programs/trending',
-    '/api/query/parse',
-    '/api/search',
-    '/api/eligibility',
-    '/api/diagnosis/session',
-    '/api/contact',
-    '/api/feedback',
-    '/api/documents/:path*',
-    '/api/evaluate/:path*',
-    '/api/export/:path*',
-    '/api/billing/:path*',
+    /*
+     * 보호 API·페이지 + 홈 등 전역 세션 갱신(PKCE 쿠키 동기화).
+     * @see https://supabase.com/docs/guides/auth/server-side/nextjs
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

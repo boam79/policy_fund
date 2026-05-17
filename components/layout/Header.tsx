@@ -29,12 +29,15 @@ export default function Header() {
       setUser(data.user)
       setAuthReady(true)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
       setAuthReady(true)
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        router.refresh()
+      }
     })
     return () => subscription.unsubscribe()
-  }, [])
+  }, [router])
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -79,7 +82,12 @@ export default function Header() {
                 <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center">
                   <User className="h-4 w-4 text-blue-600" />
                 </div>
-                <span className="hidden sm:block text-gray-700 max-w-[120px] truncate">{user.email}</span>
+                <span className="hidden sm:block text-gray-700 max-w-[120px] truncate">
+                  {user.email ??
+                    (user.user_metadata?.full_name as string | undefined) ??
+                    (user.user_metadata?.name as string | undefined) ??
+                    '내 계정'}
+                </span>
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-lg border py-1 z-50">
