@@ -3,9 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { buildOAuthCallbackUrl } from '@/lib/auth/oauth-callback-url'
-import { Loader2, MessageCircle } from 'lucide-react'
-
-type Provider = 'google' | 'kakao'
+import { Loader2 } from 'lucide-react'
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -30,71 +28,61 @@ function GoogleIcon({ className }: { className?: string }) {
   )
 }
 
+/**
+ * 소셜 로그인 (Google만). Supabase signInWithOAuth + redirectTo /auth/callback.
+ * @see https://supabase.com/docs/guides/auth/social-login
+ */
 export default function SocialAuthButtons({
   nextPath = '/',
   variant = 'login',
 }: {
-  /** OAuth 완료 후 이동할 경로 (항상 / 로 시작) */
   nextPath?: string
   variant?: 'login' | 'signup'
 }) {
-  const [loading, setLoading] = useState<Provider | null>(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const label = variant === 'signup' ? '로 시작하기' : '로 계속하기'
 
-  const handleOAuth = async (provider: Provider) => {
+  const handleGoogleOAuth = async () => {
     setError('')
-    setLoading(provider)
+    setLoading(true)
     try {
       const redirectTo = buildOAuthCallbackUrl(nextPath)
       const supabase = createClient()
       const { error: err } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: 'google',
         options: { redirectTo },
       })
       if (err) {
         setError(err.message)
-        setLoading(null)
+        setLoading(false)
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : '소셜 로그인을 시작할 수 없습니다.')
-      setLoading(null)
+      setLoading(false)
     }
   }
 
   return (
     <div className="space-y-3">
-      {error && (
-        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">
+      {error ? (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
           {error}
         </p>
-      )}
+      ) : null}
       <button
         type="button"
-        disabled={loading !== null}
-        onClick={() => void handleOAuth('google')}
+        disabled={loading}
+        onClick={() => void handleGoogleOAuth()}
         className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white py-3 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-gray-50 disabled:opacity-50"
       >
-        {loading === 'google' ? (
+        {loading ? (
           <Loader2 className="h-5 w-5 animate-spin text-gray-600" />
         ) : (
           <GoogleIcon className="h-5 w-5" />
         )}
         Google{label}
-      </button>
-      <button
-        type="button"
-        disabled={loading !== null}
-        onClick={() => void handleOAuth('kakao')}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FEE500] py-3 text-sm font-semibold text-[#191919] transition-opacity hover:opacity-90 disabled:opacity-50"
-      >
-        {loading === 'kakao' ? (
-          <Loader2 className="h-5 w-5 animate-spin text-[#191919]" />
-        ) : (
-          <MessageCircle className="h-5 w-5 shrink-0" aria-hidden />
-        )}
-        카카오{label}
       </button>
     </div>
   )
