@@ -16,6 +16,7 @@ export interface RecommendedProgram {
   days_left: number | null
   matchScore: number
   recommendReason: string
+  summary_text: string | null
 }
 
 type ProgramRow = Pick<
@@ -33,10 +34,11 @@ type ProgramRow = Pick<
   | 'application_url'
   | 'status'
   | 'recommendation_score'
+  | 'summary_text'
 >
 
 const PROGRAM_SELECT =
-  'id, source, title, organization, region, support_type, support_amount, support_amount_min_krw, support_amount_max_krw, application_end_date, application_url, status, recommendation_score' as const
+  'id, source, title, organization, region, support_type, support_amount, support_amount_min_krw, support_amount_max_krw, application_end_date, application_url, status, recommendation_score, summary_text' as const
 
 export function mapRowsToRecommendedPrograms(rows: ProgramRow[]): RecommendedProgram[] {
   const now = Date.now()
@@ -75,6 +77,7 @@ export function mapRowsToRecommendedPrograms(rows: ProgramRow[]): RecommendedPro
       days_left: daysLeft,
       matchScore,
       recommendReason,
+      summary_text: p.summary_text,
     }
   })
 }

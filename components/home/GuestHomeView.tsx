@@ -1,16 +1,12 @@
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { buttonVariants } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { CheckCircle2, Info, RefreshCw } from 'lucide-react'
 import SearchBar from '@/components/home/SearchBar'
-import HomeProgramRichCard from '@/components/home/HomeProgramRichCard'
+import GuestProgramCard from '@/components/home/GuestProgramCard'
 import HomeStatsBar from '@/components/home/HomeStatsBar'
 import HeroIllustration from '@/components/home/HeroIllustration'
-import HeroRobot from '@/components/home/HeroRobot'
-import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
+import GuestHeroScene from '@/components/home/GuestHeroScene'
 import type { HomeStats } from '@/lib/home/stats'
 import type { RecommendedProgram } from '@/lib/home/recommendations'
-import { RefreshCw } from 'lucide-react'
 
 export default function GuestHomeView({
   stats,
@@ -20,31 +16,35 @@ export default function GuestHomeView({
   programs: RecommendedProgram[]
 }) {
   return (
-    <div className="flex flex-col">
-      <section className="bg-gradient-to-b from-blue-50 via-blue-50/40 to-white px-4 pb-12 pt-12 md:pb-16 md:pt-16">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
-            <div className="text-center lg:text-left">
-              <Badge variant="secondary" className="mb-4">
-                실제 공공 데이터 기반 · LLM 생성 공고 없음
-              </Badge>
-              <h1 className="mb-3 text-3xl font-black tracking-tight text-gray-900 md:text-5xl">
-                정책자금,
-                <br className="hidden sm:block" />
-                AI에게 물어보세요
+    <div className="flex flex-col bg-white">
+      {/* 히어로 — 목업 안 A */}
+      <section className="bg-gradient-to-b from-sky-50 via-blue-50/30 to-white px-4 pb-10 pt-10 md:pb-14 md:pt-12">
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid items-center gap-8 lg:grid-cols-[1fr_minmax(280px,400px)] lg:gap-10">
+            <div>
+              <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-800">
+                <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
+                실제 공공 데이터 기반
+              </span>
+
+              <h1 className="mb-3 text-3xl font-black leading-tight tracking-tight text-gray-900 md:text-[2.75rem]">
+                정책자금, AI에게 물어보세요
               </h1>
-              <p className="mb-6 text-base text-muted-foreground md:text-lg">
-                전국 중앙·지자체·공공기관 지원사업을 쉽고 빠르게 찾아보세요.
+              <p className="mb-6 max-w-xl text-base text-muted-foreground md:text-lg">
+                전국의 정부·지자체·공공기관 지원사업을 쉽고 빠르게 찾아드립니다.
               </p>
 
-              <div className="mx-auto max-w-2xl lg:mx-0">
-                <SearchBar size="large" useSavedProfileDefaults={false} />
-              </div>
+              <SearchBar
+                layout="hero"
+                hideExamples
+                useSavedProfileDefaults={false}
+                placeholder="사업명, 키워드, 지원내용, 기관명 등을 검색해보세요"
+              />
 
-              <HomeStatsBar stats={stats} />
+              <HomeStatsBar stats={stats} variant="guest" />
 
               <div className="mt-6 flex justify-center md:hidden">
-                <HeroRobot className="h-36 w-32 opacity-95" />
+                <GuestHeroScene className="h-44 w-full max-w-xs" />
               </div>
             </div>
 
@@ -55,17 +55,19 @@ export default function GuestHomeView({
         </div>
       </section>
 
-      <section className="bg-white px-4 py-12">
+      {/* AI 추천 공고 */}
+      <section className="px-4 py-10 md:py-12">
         <div className="container mx-auto max-w-7xl">
-          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-xl font-bold md:text-2xl">AI가 추천하는 맞춤 지원사업</h2>
-              <p className="text-sm text-muted-foreground">
-                기업마당 · K-Startup · 중소벤처24 실제 공공 데이터
-              </p>
-            </div>
-            <Link href="/search" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
-              전체 보기 →
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 md:text-2xl">
+              AI가 추천하는 맞춤 지원사업
+              <Info className="h-4 w-4 text-muted-foreground" aria-hidden />
+            </h2>
+            <Link
+              href="/search"
+              className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              더보기 &gt;
             </Link>
           </div>
 
@@ -77,35 +79,15 @@ export default function GuestHomeView({
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {programs.slice(0, 4).map((prog, i) => (
-                <HomeProgramRichCard key={prog.id} program={prog} variant="guest" rankIndex={i} />
+                <GuestProgramCard key={prog.id} program={prog} rankIndex={i} />
               ))}
             </div>
           )}
-        </div>
-      </section>
 
-      <section className="border-t bg-slate-50 px-4 py-8">
-        <div className="container mx-auto max-w-3xl">
-          <GeoSourceSummary variant="compact" />
-        </div>
-      </section>
-
-      <section className="bg-blue-700 px-4 py-12 text-white">
-        <div className="container mx-auto max-w-2xl text-center">
-          <h2 className="mb-3 text-2xl font-bold">3분 진단으로 맞춤 공고 받기</h2>
-          <p className="mb-6 text-blue-100">회원가입 후 진단·검색·서류 생성까지 한 번에 이용하세요.</p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link href="/signup" className={cn(buttonVariants({ variant: 'secondary', size: 'lg' }))}>
-              무료로 시작하기
-            </Link>
-            <Link
-              href="/diagnosis"
-              className={cn(
-                buttonVariants({ variant: 'outline', size: 'lg' }),
-                'border-2 border-white bg-transparent text-white hover:bg-white/15 hover:text-white'
-              )}
-            >
-              3분 진단 체험
+          <div className="mt-6 flex flex-col gap-2 border-t border-slate-100 pt-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <p>AI 매칭 점수는 회원님의 관심사 및 기업정보를 기반으로 산출됩니다.</p>
+            <Link href="/faq" className="shrink-0 font-medium text-blue-600 hover:underline">
+              매칭 기준 자세히 보기 &gt;
             </Link>
           </div>
         </div>

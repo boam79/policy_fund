@@ -71,6 +71,7 @@ async function fetchPersonalizedFromProfile(
         organization: p.organization,
         region: p.region,
         support_type: p.support_type,
+        summary_text: p.summary_text ?? null,
         support_amount: p.support_amount ?? null,
         support_amount_min_krw: p.support_amount_min_krw ?? null,
         support_amount_max_krw: p.support_amount_max_krw ?? null,

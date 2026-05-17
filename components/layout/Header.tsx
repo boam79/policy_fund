@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { User, LogOut, Star, CreditCard } from 'lucide-react'
+import { User, LogOut, Star, CreditCard, Bookmark } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { SITE_NAME } from '@/lib/site-config'
 
@@ -15,6 +15,14 @@ const navLinks = [
   { href: '/search', label: '지원사업 찾기' },
   { href: '/documents/plan', label: '사업계획서' },
   { href: '/guide', label: '이용안내' },
+]
+
+const guestNavLinks = [
+  { href: '/search', label: '사업 검색' },
+  { href: '/diagnosis', label: 'AI 추천' },
+  { href: '/diagnosis', label: '맞춤 컨설팅' },
+  { href: '/guide', label: '지원 가이드' },
+  { href: '/faq', label: '알림·소식' },
 ]
 
 export default function Header() {
@@ -63,10 +71,13 @@ export default function Header() {
           <span className="text-xl font-bold text-primary">{SITE_NAME}</span>
         </Link>
 
-        <nav className="hidden h-full items-center gap-6 md:flex">
-          {navLinks.map((link) => (
-            <Link key={link.href} href={link.href}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+        <nav className="hidden h-full items-center gap-5 lg:flex">
+          {(user ? navLinks : guestNavLinks).map((link, i) => (
+            <Link
+              key={`${link.href}-${link.label}-${i}`}
+              href={link.href}
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
               {link.label}
             </Link>
           ))}
@@ -113,11 +124,22 @@ export default function Header() {
             </div>
           ) : (
             <>
-              <Link href="/login" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
-                로그인
+              <Link
+                href="/login"
+                className={cn(
+                  buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'hidden gap-1.5 sm:inline-flex'
+                )}
+              >
+                <Bookmark className="h-4 w-4" />
+                찜한 공고
               </Link>
-              <Link href="/signup" className={cn(buttonVariants({ size: 'sm' }))}>
-                회원가입
+              <Link
+                href="/login"
+                className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}
+              >
+                <User className="h-4 w-4" />
+                로그인
               </Link>
             </>
           )}
