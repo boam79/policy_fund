@@ -460,7 +460,7 @@ PAYMENT_SECRET_KEY=
 - [ ] Phase 9 — 인증·마이페이지
 - [ ] Phase 10 — 결제·구독 (후순위)
 - [ ] Phase 11 — 엄격 유저스토리 + 오류 재발 방지 체계
-- [ ] **Phase 12 — 서비스 고도화** (Planner 계획 완료 2026-05-17, Executor 미착수)
+- [x] **Phase 12 — 서비스 고도화** (Wave 1~5 Executor 완료 2026-05-17, 프로덕션 US-12-UX 스모크 권장)
 
 ### Phase 12 — Project Status Board (Planner)
 
@@ -503,9 +503,9 @@ PAYMENT_SECRET_KEY=
 
 ## Current Status / Progress Tracking
 
-- **현재 모드**: **Executor** — Phase 12 **Wave 5 완료** (`verify:wave5`·`verify:strict` PASS). Planner 최종 확인 대기
+- **현재 모드**: **Executor** — Phase 12 **전체 완료**(Wave 1~5 + US-12-UX 자동 검증·관리자 대시보드 품질 카드). **다음**: 프로덕션 배포 후 US-12-UX 3건 스모크(선택) 또는 Phase 5~11 잔여 정리
 - **저장소**: `https://github.com/boam79/policy_fund` · 로컬 `/Users/parkjaemin/Dev/policy_fund`
-- **최신 커밋**: `c4691c3` (fix: 업종 표준화·업력 누락 알림 정합) — scratchpad 로컬 갱신은 미커밋
+- **최신 커밋**: `a580587` (feat: Phase 12 Wave 5)
 - **Supabase 프로젝트**: `hwqsxarzgodpsvwahzae` (policyfund-ai-v2, ap-northeast-2, Free Plan)
 - **데이터 운영 모드**: `api_minimal_cache`
 - **Gemini API Key**: ✅ `.env.local`에 등록 완료
@@ -514,7 +514,7 @@ PAYMENT_SECRET_KEY=
   - `BIZINFO_API_KEY` — 기업마당 API 키 (bizinfo.go.kr 발급)
   - `PUBLIC_DATA_SERVICE_KEY` — K-Startup / 공공데이터포털 키 (data.go.kr 발급)
 - **동기화 실행 방법**: `POST /api/admin/sync` (Authorization: Bearer dev-secret-2026)
-- **다음 마일스톤**: Phase 12 Wave 1 — 검색 신뢰(엄격/완화 모드·사유 노출·verify UX-01)
+- **다음 마일스톤**: 프로덕션 `verify:strict`·US-12-UX 스모크 / v0.2.0 태그
 - **Phase 12 Planner 완료일**: 2026-05-17
 - **2026-05-15 추가**: 공공 API 연동 보강 진행
   - K-Startup 엔드포인트를 `B552735/kisedKstartupService01/getAnnouncementInformation01`로 수정
@@ -544,6 +544,7 @@ PAYMENT_SECRET_KEY=
 - **2026-05-17 (Executor)**: **Phase 12 Wave 3 완료** — `industry_tags` 컬럼·GIN 인덱스, `inferIndustryTags`+동기화 upsert, `buildIndustrySearchPredicateOr`, 업력 정규식 확장, admin quality/duplicates API, `verify:wave3`·`tag:industry` 스크립트. strict IT·서울 검색 total 4건 확인.
 - **2026-05-17 (Executor)**: **Phase 12 Wave 4 완료** — 일일 parse/search 한도, strict=Starter+·로그인, entitlements API, 검색·마이페이지 프로필 연동, `verify:wave4`.
 - **2026-05-17 (Executor)**: **Phase 12 Wave 5 완료** — parse 24h 메모리 캐시·`cached` 플래그, 검색 `source` 배지, `include_closed`·마감 풀, `verify:wave5`·README(`verify:parse-rate` 분리), `verify:strict` PASS.
+- **2026-05-17 (Executor)**: **Phase 12 마무리** — `verify:story`에 UX-02(strict 완화 없음)·UX-03(업종 한 줄 사유) 추가, `/admin/dashboard` 데이터 품질 카드(quality API 연동).
 - **2026-05-09**: 초기 커밋 `ef7f9bf`를 `origin/main`에 푸시 완료(SSH).
 - **2026-05-11**: Scratchpad 최초 재작성 (PRD v2.0 기반).
 - **2026-05-15**: Planner 재분석 — 저장소 상태 확인, README.md 삭제 이슈 발견, 계획 전면 갱신.

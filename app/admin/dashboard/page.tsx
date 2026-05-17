@@ -6,9 +6,15 @@ import Link from 'next/link'
 
 interface KPI { totalPrograms: number; activePrograms: number; closingSoon: number; totalSearches: number; totalEligibility: number; openInquiries: number }
 interface SyncLog { id: string; source: string; status: string; requested_count: number; inserted_count: number; started_at: string; ended_at: string | null }
+interface QualitySummary {
+  region_null_pct: number
+  industry_tags_empty_pct: number
+  html_residual_pct: number
+}
 
 export default function AdminDashboard() {
   const [kpi, setKpi] = useState<KPI | null>(null)
+  const [quality, setQuality] = useState<QualitySummary | null>(null)
   const [syncs, setSyncs] = useState<SyncLog[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -19,15 +25,29 @@ export default function AdminDashboard() {
     try {
       setLoading(true)
       setError('')
-      const res = await fetch('/api/admin/dashboard')
+      const [res, qualityRes] = await Promise.all([
+        fetch('/api/admin/dashboard'),
+        fetch('/api/admin/programs/quality'),
+      ])
       const data = await res.json()
       if (!res.ok) {
         throw new Error(readApiError(data, '대시보드 데이터를 불러오지 못했습니다.'))
       }
       setKpi(data.kpi)
       setSyncs(data.recentSyncs ?? [])
+      if (qualityRes.ok) {
+        const q = await qualityRes.json()
+        setQuality({
+          region_null_pct: q.region_null_pct ?? 0,
+          industry_tags_empty_pct: q.industry_tags_empty_pct ?? 0,
+          html_residual_pct: q.html_residual_pct ?? 0,
+        })
+      } else {
+        setQuality(null)
+      }
     } catch (err) {
       setKpi(null)
+      setQuality(null)
       setSyncs([])
       setError(err instanceof Error ? err.message : '대시보드 데이터를 불러오지 못했습니다.')
     } finally {
@@ -102,6 +122,31 @@ export default function AdminDashboard() {
               </div>
             ))}
           </div>
+
+          {quality && (
+            <div className="mb-6 rounded-xl border bg-white p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-semibold text-gray-900">데이터 품질</h2>
+                <Link href="/admin/programs" className="text-xs text-blue-500 hover:underline">
+                  공고 관리에서 상세 보기
+                </Link>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3">
+                  <p className="text-xs text-gray-500">지역 미기재</p>
+                  <p className="text-lg font-semibold text-gray-900">{quality.region_null_pct}%</p>
+                </div>
+                <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3">
+                  <p className="text-xs text-gray-500">업종 태그 없음</p>
+                  <p className="text-lg font-semibold text-gray-900">{quality.industry_tags_empty_pct}%</p>
+                </div>
+                <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3">
+                  <p className="text-xs text-gray-500">HTML 잔여(샘플)</p>
+                  <p className="text-lg font-semibold text-gray-900">{quality.html_residual_pct}%</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 최근 동기화 로그 */}
           <div className="bg-white rounded-xl border p-5 mb-6">

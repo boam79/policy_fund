@@ -1,5 +1,12 @@
- 
-export {}
+import { config } from 'dotenv'
+import { runProgramSearch } from '../lib/gov-support/tools/runProgramSearch'
+
+config({ path: '.env.local' })
+import {
+  checkEligibility,
+  eligibilityPrimaryReason,
+} from '../lib/gov-support/tools/eligibility'
+
 type Json = Record<string, unknown>
 
 const BASE_URL = process.env.STORY_BASE_URL ?? 'http://localhost:3000'
@@ -194,6 +201,40 @@ async function run() {
       }
     }
   }
+
+  // UX-02: strict 모드에서는 조건 완화(drop_*) 미적용
+  const ux02Strict = await runProgramSearch(
+    {
+      region: '서울',
+      industry: '__verify_no_match_industry_xyz__',
+      page: 1,
+      limit: 5,
+    },
+    'strict'
+  )
+  assert(ux02Strict.fallbackApplied.length === 0, 'UX-02 strict must not apply fallback widening')
+
+  // UX-03: 업종 불일치 시 한 줄 사유
+  const ux03Elig = checkEligibility(
+    { region: '서울', industry: 'IT/소프트웨어', business_age_years: 3 },
+    {
+      title: 'UX-03 verify program',
+      industry: '뷰티·화장품',
+      industry_tags: ['제조/화학'],
+      eligibility_text: null,
+    }
+  )
+  assert(
+    ux03Elig.failed.some((f) => f.startsWith('업종 매칭:')),
+    'UX-03 industry rule should fail'
+  )
+  const ux03Reason = eligibilityPrimaryReason(ux03Elig)
+  assert(typeof ux03Reason === 'string' && ux03Reason.length > 0, 'UX-03 one-line primary reason')
+  const ux03Line = ux03Reason as string
+  assert(
+    ux03Line.includes('업종') || ux03Line.includes('불일치'),
+    'UX-03 reason should describe industry mismatch'
+  )
 
   // US-06 negative: eligibility missing program_id
   const eligibilityInvalid = await requestJson('/api/eligibility', {
