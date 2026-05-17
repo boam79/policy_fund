@@ -6,6 +6,7 @@ import SearchBar from '@/components/home/SearchBar'
 import HomeProgramRichCard from '@/components/home/HomeProgramRichCard'
 import HomeStatsBar from '@/components/home/HomeStatsBar'
 import HeroIllustration from '@/components/home/HeroIllustration'
+import HeroRobot from '@/components/home/HeroRobot'
 import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
 import type { HomeStats } from '@/lib/home/stats'
 import type { RecommendedProgram } from '@/lib/home/recommendations'
@@ -41,9 +42,13 @@ export default function GuestHomeView({
               </div>
 
               <HomeStatsBar stats={stats} />
+
+              <div className="mt-6 flex justify-center md:hidden">
+                <HeroRobot className="h-36 w-32 opacity-95" />
+              </div>
             </div>
 
-            <div className="hidden lg:block">
+            <div className="hidden md:block">
               <HeroIllustration />
             </div>
           </div>
