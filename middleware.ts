@@ -9,7 +9,7 @@ import {
   csrfBlocked,
   requiresApiLogin,
 } from '@/lib/security/middlewarePolicy'
-import { buildOAuthCallbackRedirect } from '@/lib/auth/oauthCallbackRedirect'
+import { exchangeOAuthCodeIfPresent } from '@/lib/auth/oauthCodeExchange'
 
 const PROTECTED = ['/mypage', '/manage', '/admin', '/billing']
 
@@ -17,10 +17,8 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
   const method = request.method
 
-  const oauthCallback = buildOAuthCallbackRedirect(request)
-  if (oauthCallback) {
-    return NextResponse.redirect(oauthCallback)
-  }
+  const oauthExchange = await exchangeOAuthCodeIfPresent(request)
+  if (oauthExchange) return oauthExchange
 
   /** 공개 GET API — IP별 남용 방지 */
   if (method === 'GET' && path === '/api/home/recommendations') {
