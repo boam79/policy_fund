@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
   if (oauthError && !code) {
     const fail = redirectTarget(request, '/login')
-    fail.searchParams.set('error', 'auth_callback_failed')
+    fail.searchParams.set('auth_error', 'oauth_denied')
     return NextResponse.redirect(fail)
   }
 
@@ -59,6 +59,6 @@ export async function GET(request: NextRequest) {
   }
 
   const fail = redirectTarget(request, '/login')
-  fail.searchParams.set('error', 'auth_callback_failed')
+  fail.searchParams.set('auth_error', 'auth_callback_failed')
   return NextResponse.redirect(fail)
 }

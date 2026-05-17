@@ -34,6 +34,16 @@ function main() {
   assert(withNext?.pathname === '/auth/callback', 'diagnosis code → callback')
   assert(withNext?.searchParams.get('next') === '/manage', 'existing next preserved')
 
+  const loginFail = buildOAuthCallbackRedirect(
+    req('http://localhost:3000/login?error=auth_callback_failed')
+  )
+  assert(loginFail === null, 'login app error param → no redirect (loop guard)')
+
+  const loginAuthError = buildOAuthCallbackRedirect(
+    req('http://localhost:3000/login?auth_error=auth_callback_failed')
+  )
+  assert(loginAuthError === null, 'login auth_error → no redirect')
+
   console.log('[verify-oauth-callback-redirect] PASS')
 }
 

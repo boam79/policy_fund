@@ -1,5 +1,5 @@
 'use client'
-import { useState, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -7,6 +7,12 @@ import { safeInternalNextPath } from '@/lib/auth/safeNextPath'
 import { Loader2, LogIn } from 'lucide-react'
 import { SITE_NAME } from '@/lib/site-config'
 import SocialAuthButtons, { SocialAuthDivider } from '@/components/auth/SocialAuthButtons'
+
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  auth_callback_failed:
+    '소셜 로그인 처리에 실패했습니다. 잠시 후 다시 시도하거나, Supabase에 /auth/callback URL이 등록되어 있는지 확인해 주세요.',
+  oauth_denied: '소셜 로그인이 취소되었거나 거부되었습니다.',
+}
 
 function LoginForm() {
   const router = useRouter()
@@ -16,6 +22,13 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const authError = searchParams.get('auth_error')
+    if (authError && AUTH_ERROR_MESSAGES[authError]) {
+      setError(AUTH_ERROR_MESSAGES[authError])
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
