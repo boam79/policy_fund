@@ -12,6 +12,11 @@ import {
   type EligibilityStatus,
 } from '@/lib/gov-support/tools/eligibility'
 import type { ProgramSearchMode } from '@/lib/gov-support/tools/runProgramSearch'
+import {
+  INDUSTRY_MATCH_LABELS,
+  type IndustryMatchMode,
+  normalizeIndustryMatchMode,
+} from '@/lib/gov-support/tools/industryMatch'
 import type { SupportProgram } from '@/lib/gov-support/tools/unifiedSearch'
 import { readApiError } from '@/lib/api/readApiError'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
@@ -51,6 +56,7 @@ interface AppliedFilters {
   region: string | null
   city: string | null
   industry: string | null
+  industry_match?: IndustryMatchMode | null
   keyword: string | null
   support_purpose: string | null
   business_age_years?: number | null
@@ -99,12 +105,16 @@ function buildSearchQueryString(input: {
   employeeCount: string
   taxArrears: string
   searchMode?: ProgramSearchMode
+  industryMatch?: IndustryMatchMode
   includeClosed?: boolean
 }): string {
   const params = new URLSearchParams()
   if (input.region) params.set('region', input.region)
   if (input.city) params.set('city', input.city)
   if (input.industry) params.set('industry', input.industry)
+  if (input.industryMatch && input.industryMatch !== 'match') {
+    params.set('industry_match', input.industryMatch)
+  }
   if (input.supportPurpose) params.set('support_purpose', input.supportPurpose)
   if (input.keyword.trim()) params.set('keyword', input.keyword.trim())
   if (input.businessAge) params.set('business_age_years', input.businessAge)
@@ -157,6 +167,9 @@ function SearchContent() {
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters | null>(null)
   const [searchMode, setSearchMode] = useState<ProgramSearchMode>(() =>
     searchParams.get('search_mode') === 'strict' ? 'strict' : 'relaxed'
+  )
+  const [industryMatch, setIndustryMatch] = useState<IndustryMatchMode>(() =>
+    normalizeIndustryMatchMode(searchParams.get('industry_match'))
   )
   const [responseSearchMode, setResponseSearchMode] = useState<ProgramSearchMode | null>(null)
   const [strictEmptyHint, setStrictEmptyHint] = useState<string | null>(null)
@@ -283,6 +296,7 @@ function SearchContent() {
         employeeCount,
         taxArrears,
         searchMode: mode,
+        industryMatch,
         includeClosed,
       })
       const searchPath = qs ? `/search?${qs}` : '/search'
@@ -317,6 +331,7 @@ function SearchContent() {
           tax_arrears: taxArrears === 'yes' ? true : taxArrears === 'no' ? false : undefined,
           support_purpose: supportPurpose || undefined,
           search_mode: mode,
+          industry_match: industryMatch,
           include_closed: includeClosed,
           page: p,
           limit: LIMIT,
@@ -369,7 +384,7 @@ function SearchContent() {
     } finally {
       setLoading(false)
     }
-  }, [region, city, industry, keyword, supportPurpose, businessAge, employeeCount, annualRevenue, creditScore, taxArrears, searchMode, router])
+  }, [region, city, industry, keyword, supportPurpose, businessAge, employeeCount, annualRevenue, creditScore, taxArrears, searchMode, industryMatch, includeClosed, router])
 
   const listQueryString = buildSearchQueryString({
     region,
@@ -381,6 +396,7 @@ function SearchContent() {
     employeeCount,
     taxArrears,
     searchMode,
+    industryMatch,
     includeClosed,
   })
 
@@ -407,6 +423,8 @@ function SearchContent() {
     if (searchParams.get('search_mode') === 'strict') {
       setSearchMode('strict')
     }
+    const im = searchParams.get('industry_match')
+    if (im) setIndustryMatch(normalizeIndustryMatchMode(im))
     autoSearchKeyRef.current = key
     void handleSearch(1)
   }, [searchParams, handleSearch])
@@ -511,6 +529,28 @@ function SearchContent() {
                   <option value="yes">있음</option>
                 </select>
               </div>
+              <div className="col-span-2 md:col-span-3">
+                <label className="text-xs font-medium text-gray-600 mb-1 block">업종 매칭 범위</label>
+                <div className="flex flex-wrap gap-2" role="group" aria-label="업종 매칭 범위">
+                  {(['match', 'similar', 'any'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setIndustryMatch(mode)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                        industryMatch === mode
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {INDUSTRY_MATCH_LABELS[mode]}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  일치: 표준 태그·공고문 · 유사: 제목·지원유형 · 전체: 업종 조건 없음
+                </p>
+              </div>
               <div className="col-span-2 md:col-span-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
                 <input
                   id="include-closed"
@@ -601,6 +641,12 @@ function SearchContent() {
                 {appliedFilters?.region && <FilterChip label="지역" value={appliedFilters.region} />}
                 {appliedFilters?.city && <FilterChip label="시·군" value={appliedFilters.city} />}
                 {appliedFilters?.industry && <FilterChip label="업종" value={appliedFilters.industry} />}
+                {appliedFilters?.industry_match && appliedFilters.industry_match !== 'match' && (
+                  <FilterChip
+                    label="업종범위"
+                    value={INDUSTRY_MATCH_LABELS[appliedFilters.industry_match]}
+                  />
+                )}
                 {appliedFilters?.support_purpose && (
                   <FilterChip label="지원목적" value={appliedFilters.support_purpose} />
                 )}
@@ -772,7 +818,17 @@ function ProgramCard({
   const status = p.eligibility?.status ?? 'unknown'
   const colorClass = eligibilityColor(status)
   const label = eligibilityLabel(status)
-  const primaryReason = p.eligibility ? eligibilityPrimaryReason(p.eligibility) : null
+  const primaryReason = p.eligibility
+    ? eligibilityPrimaryReason(p.eligibility, {
+        title: p.title,
+        region: p.region,
+        industry: p.industry,
+        industry_tags: p.industry_tags,
+        eligibility_text: p.eligibility_text,
+        exclusion_text: p.exclusion_text,
+        support_type: p.support_type,
+      })
+    : null
 
   const isClosingSoon = p.days_left !== null && p.days_left !== undefined && p.days_left <= 7 && p.days_left >= 0
   const isClosed = p.days_left !== null && p.days_left !== undefined && p.days_left < 0

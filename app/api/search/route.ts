@@ -6,11 +6,13 @@
 import type { NextRequest } from 'next/server'
 import type { CompanyProfile } from '@/lib/gov-support/tools/eligibility'
 import { checkEligibility } from '@/lib/gov-support/tools/eligibility'
+import { normalizeIndustryMatchMode } from '@/lib/gov-support/tools/industryMatch'
 import {
   collectSearchTextTerms,
   normalizeProgramSearchMode,
   runProgramSearch,
 } from '@/lib/gov-support/tools/runProgramSearch'
+import { sortSearchResultPrograms } from '@/lib/search/sortSearchResults'
 import { getServiceRoleClient } from '@/lib/supabase/serviceRole'
 import { takeRateLimit } from '@/lib/security/rateLimit'
 import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
@@ -73,12 +75,14 @@ export async function POST(request: NextRequest) {
       page: pageRaw = 1,
       limit: limitRaw = 20,
       search_mode: searchModeRaw,
+      industry_match: industryMatchRaw,
       include_closed: includeClosedRaw,
     } = body as CompanyProfile & {
       keyword?: string
       page?: number
       limit?: number
       search_mode?: string
+      industry_match?: string
       include_closed?: boolean
     }
 
@@ -86,6 +90,7 @@ export async function POST(request: NextRequest) {
     const include_closed = includeClosedRaw === true
 
     const search_mode = normalizeProgramSearchMode(searchModeRaw)
+    const industry_match = normalizeIndustryMatchMode(industryMatchRaw)
     const userId = await getSessionUserId()
 
     if (search_mode === 'strict') {
@@ -151,6 +156,7 @@ export async function POST(request: NextRequest) {
       region: effectiveSearch.region ?? null,
       city: effectiveSearch.city ?? null,
       industry: effectiveSearch.industry ?? null,
+      industry_match: effectiveSearch.industry_match ?? industry_match,
       keyword: effectiveSearch.keyword ?? null,
       support_purpose: effectiveSearch.support_purpose ?? null,
       business_age_years: business_age_years ?? null,
@@ -212,19 +218,16 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    programsWithEligibility.sort((a, b) => {
-      const recA = a.recommendation_score ?? 0
-      const recB = b.recommendation_score ?? 0
-      if (recB !== recA) return recB - recA
-      return (b.eligibility?.score ?? 0) - (a.eligibility?.score ?? 0)
-    })
+    sortSearchResultPrograms(programsWithEligibility, profile)
 
     try {
       const supabase = getServiceRoleClient()
       if (!supabase) throw new Error('no service role')
       await supabase.from('search_sessions').insert({
         natural_language_query: keyword ?? null,
-        extracted_conditions: JSON.parse(JSON.stringify({ ...profile, search_mode })),
+        extracted_conditions: JSON.parse(
+          JSON.stringify({ ...profile, search_mode, industry_match })
+        ),
         result_count: result.total,
         sort: 'recommendation_score',
       })
@@ -242,6 +245,7 @@ export async function POST(request: NextRequest) {
       limit,
       source: result.source,
       search_mode,
+      industry_match: effectiveSearch.industry_match ?? industry_match,
       fallback_applied: fallbackApplied.length > 0 ? fallbackApplied : null,
       applied_filters: { ...applied_filters, include_closed },
       trace_id: traceId,

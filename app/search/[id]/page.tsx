@@ -5,6 +5,7 @@ import { Building2, MapPin, Calendar, ExternalLink, ArrowLeft, Clock } from 'luc
 import Link from 'next/link'
 import AlertButton from '@/components/AlertButton'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
+import { buildEligibilityHref } from '@/lib/search/buildEligibilityHref'
 
 const LEGAL_DISCLAIMER = '본 자격판정 결과는 AI 기반 참고 정보이며 법적 효력이 없습니다. 실제 신청 가능 여부는 해당 지원기관의 공식 공고문과 담당자에게 반드시 확인하세요. 폴리시펀드는 판정 결과의 정확성을 보장하지 않습니다.'
 
@@ -51,6 +52,7 @@ export default async function ProgramDetailPage({
   const { return: returnQuery } = await searchParams
   const backHref = returnQuery?.startsWith('?') ? `/search${returnQuery}` : '/search'
   const journeyQuery = returnQuery ? `${returnQuery.startsWith('?') ? returnQuery : `?${returnQuery}`}` : ''
+  const eligibilityHref = buildEligibilityHref(id, returnQuery ?? null)
   const program = await getProgram(id)
   if (!program) notFound()
 
@@ -175,10 +177,10 @@ export default async function ProgramDetailPage({
           </p>
           <div className="flex flex-wrap gap-2">
             <Link
-              href={`/eligibility?program_id=${program.id}${journeyQuery ? `&return=${encodeURIComponent(journeyQuery)}` : ''}`}
+              href={eligibilityHref}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
             >
-              자격판정 시작하기
+              내 조건으로 자격판정
             </Link>
             <Link
               href={`/documents/plan?program_id=${program.id}&tab=checklist${journeyQuery ? `&return=${encodeURIComponent(journeyQuery)}` : ''}`}

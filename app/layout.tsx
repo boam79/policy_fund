@@ -22,6 +22,7 @@ const geistMono = Geist_Mono({
 })
 
 const siteUrl = getSiteUrl()
+const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim()
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -30,8 +31,10 @@ export const metadata: Metadata = {
     template: `%s | ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
+  alternates: { canonical: siteUrl },
   keywords: [
     '지원둥지',
+    '지원둥지 검색',
     '정부지원사업',
     '정부지원사업 검색',
     '중소기업 지원',
@@ -45,6 +48,9 @@ export const metadata: Metadata = {
     '자주묻는질문',
   ],
   applicationName: SITE_NAME,
+  ...(googleVerification
+    ? { verification: { google: googleVerification } }
+    : {}),
   openGraph: {
     type: 'website',
     locale: 'ko_KR',
@@ -52,13 +58,22 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: SITE_NAME_FULL,
     description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: '/jiwondungji-logo-mark.png',
+        width: 512,
+        height: 512,
+        alt: SITE_NAME,
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: SITE_NAME_FULL,
     description: SITE_DESCRIPTION,
+    images: ['/jiwondungji-logo-mark.png'],
   },
-  robots: { index: true, follow: true },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
   icons: {
     icon: [{ url: '/jiwondungji-logo-mark.png', type: 'image/png' }],
     apple: '/jiwondungji-logo-mark.png',

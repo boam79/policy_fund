@@ -7,6 +7,11 @@ import type { Database } from '@/types/database.types'
 import { requireServiceRoleClient } from '@/lib/supabase/serviceRole'
 import { toCanonicalIndustry } from '@/lib/industry/canonical'
 import {
+  buildIndustrySimilarPredicateOr,
+  type IndustryMatchMode,
+  normalizeIndustryMatchMode,
+} from './industryMatch'
+import {
   programSearchPoolEndDateOr,
   searchPoolStatuses,
   todayISODate,
@@ -25,6 +30,8 @@ export interface SearchParams {
   limit?: number
   /** true 시 status=closed 포함, 마감일 필터 완화 */
   include_closed?: boolean
+  /** 업종 필터 범위: match(기본) | similar | any */
+  industry_match?: IndustryMatchMode
 }
 
 export type SupportProgram = Database['public']['Tables']['support_programs']['Row']
@@ -221,8 +228,13 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
     query = query.or(cityOrRegionFilters)
   }
 
-  if (industry?.trim()) {
-    query = query.or(buildIndustrySearchPredicateOr(industry.trim()))
+  const industryMatch = normalizeIndustryMatchMode(params.industry_match)
+  if (industry?.trim() && industryMatch !== 'any') {
+    const predicate =
+      industryMatch === 'similar'
+        ? buildIndustrySimilarPredicateOr(industry.trim())
+        : buildIndustrySearchPredicateOr(industry.trim())
+    query = query.or(predicate)
   }
 
   const textTerms = collectSearchTextTerms({ support_purpose, keyword })

@@ -3,7 +3,7 @@
 **역할**: Planner 주도 계획 / Executor는 사용자 승인 후 단계별 실행  
 **기준 문서**: `policyfund_v2_prd_v2_0_free_plan_db_switch_ready.md` (PF-WEB-001 v2.0, 2026-05-11) — 문서 내 과거 명칭 PolicyFund AI는 제품 코드명 참고용이며, **사용자 노출 브랜드는 지원둥지**로 통일함 (2026-05-16).  
 **UI 목업 기준**: `KakaoTalk_Photo_2026-05-11-18-15-52 001.png` (관리자 대시보드), `KakaoTalk_Photo_2026-05-11-18-15-53 002.png` (사용자 홈)  
-**Planner 최종 갱신**: 2026-05-17 (홈 UI 목업 정합 — Executor)
+**Planner 최종 갱신**: 2026-05-17 (Phase 13 고도화 우선순위 계획 — Planner)
 
 ### 홈 UI 목업 정합 (2026-05-17 Executor)
 - 사용자 피드백: 배포/로컬 화면이 제안 목업(안 A / B+C)과 시각적으로 크게 다름
@@ -36,7 +36,13 @@ PolicyFund AI v2는 기존 GitHub Pages 단일페이지 MVP(`policyfundapp`)의 
 
 - 프로덕션(`policyfund-zeta.vercel.app`)에서 **진단 조건(서울·소프트웨어·3년)** 과 **검색 결과(업종 완화·뷰티 공고·업종 불일치 배지)** 가 어긋나 신뢰 이슈가 보고됨.
 - 1차 수정 완료: 업종 `toCanonicalIndustry`, 업력 `3년` 파싱·`missing_important` 정합, `verify:strict` 안정화 (`c4691c3` 등).
-- **다음 목표**: “0건 방지용 자동 완화”를 **사용자가 이해·선택**할 수 있게 하고, 데이터·랭킹·프로필로 **맞는 공고가 위로** 오게 고도화.
+- **다음 목표**: “0건 방지용 자동 완화”를 **사용자가 이해·선택**할 수 있게 하고, 데이터·랭킹·프로필로 **맞는 공고가 위로** 오게 고도화. → **Phase 12로 달성(2026-05-17)**
+
+### Phase 13 배경 (2026-05-17 — 고도화 제안 정리·우선순위 확정)
+
+- Phase 12 완료 후 남은 과제: **유입(SEO)·검색 신뢰 잔여(업종 탭)·재방문(찜·알림)·모바일·운영 루틴·장기 인프라**.
+- 사용자 요청: 구글 「지원둥지」 검색 미노출 → **canonical/sitemap이 배포별 URL**을 가리키던 문제 확인. Executor가 `getSiteUrl`·dynamic robots/sitemap·llms/ai 라우트 수정(**미배포·미커밋 가능** — Executor 피드백 참고).
+- 원칙 유지: 기능 폭 확대보다 **신뢰·설명 가능성·유입** 우선. Executor는 **태스크 1개씩**, 완료 후 사용자 검증.
 
 ---
 
@@ -465,8 +471,37 @@ PAYMENT_SECRET_KEY=
 - [ ] Phase 10 — 결제·구독 (후순위)
 - [ ] Phase 11 — 엄격 유저스토리 + 오류 재발 방지 체계
 - [x] **Phase 12 — 서비스 고도화** (Wave 1~5 Executor 완료 2026-05-17, 프로덕션 US-12-UX 스모크 권장)
+- [ ] **Phase 13 — 성장·신뢰·운영** (Planner 계획 완료 2026-05-17, Executor **13-P0-1**부터)
 
-### Phase 12 — Project Status Board (Planner)
+### Phase 13 — Project Status Board (Planner, 우선순위순)
+
+**P0 — 즉시 (유입·신뢰 게이트)**
+- [x] 13-P0-1 SEO 코드 (`getSiteUrl`, dynamic robots/sitemap, llms/ai) — **배포·GSC·verify:seo는 사용자 협업**
+- [ ] 13-P0-2 US-12-UX 프로덕션 수동 3건 (UX-01·02·03) — 자동 `verify:story` PASS
+- [x] 13-P0-3 검색 UI·API `industry_match`: match / similar / any
+
+**P1 — 1~4주 (핵심 제품)**
+- [x] 13-P1-1 `sortSearchResultPrograms` — 업력 soft·마감·지역 가중 정렬
+- [x] 13-P1-2 `eligibilityPrimaryReason` unknown/failed·스니펫
+- [x] 13-P1-3 `buildEligibilityHref`·`loadLastSearchProfile`·자격 화면 안내
+- [x] 13-P1-4 `?data=` → `?sid=` 자동 치환 + `docs/diagnosis-url-legacy.md`
+- [x] 13-P1-5 `docs/ops-weekly-quality.md`
+
+**P2 — 1~2개월 (성장)**
+- [ ] 13-P2-1 찜(bookmark) DB·API·`/manage` UI
+- [ ] 13-P2-2 마감 임박 알림(이메일 1차, 푸시 후순위)
+- [ ] 13-P2-3 모바일 하단 탭 네비(검색·진단·찜·마이)
+- [ ] 13-P2-4 요금제 한도·혜택 UI 톤 통일(검색·문서·export)
+- [ ] 13-P2-5 중소벤처24 프로덕션 IP 등록·플래그 ON
+- [ ] 13-P2-6 Playwright E2E 1~2건 + CI 선택 job
+
+**P3 — 이후 (확장·내부)**
+- [ ] 13-P3-1 `unifiedSearch`·`useDiagnosisDraft` 리팩터(회귀 테스트 선행)
+- [ ] 13-P3-2 `db_centric`·벡터 검색 검토(데이터 축적 후)
+- [ ] 13-P3-3 Vercel Pro cron(로컬 launchd 대체)
+- [ ] 13-P3-4 Phase 11 잔여(엄격 US 15·오류 로그 표준)
+
+### Phase 12 — Project Status Board (Planner) — ✅ 완료
 
 **Wave 1 — 검색 신뢰**
 - [x] 12-1-1 검색 API `search_mode` strict/relaxed
@@ -507,7 +542,7 @@ PAYMENT_SECRET_KEY=
 
 ## Current Status / Progress Tracking
 
-- **현재 모드**: **Executor** — Phase 12 **전체 완료**(Wave 1~5 + US-12-UX 자동 검증·관리자 대시보드 품질 카드). **다음**: 프로덕션 배포 후 US-12-UX 3건 스모크(선택) 또는 Phase 5~11 잔여 정리
+- **현재 모드**: **Executor** — Phase 13 **P0·P1 코드 완료**(2026-05-17). 남음: 프로덕션 배포, `verify:seo`, US-12-UX 수동 3건, GSC.
 - **저장소**: `https://github.com/boam79/policy_fund` · 로컬 `/Users/parkjaemin/Dev/policy_fund`
 - **최신 커밋**: `7a7f2d4` (유저 여정 exhaustive 검증·버그 수정) · **릴리스 태그**: `v0.2.1` (Phase 12, `v0.2.0`은 Phase 1+2 구버전)
 - **Supabase 프로젝트**: `hwqsxarzgodpsvwahzae` (policyfund-ai-v2, ap-northeast-2, Free Plan)
@@ -541,6 +576,8 @@ PAYMENT_SECRET_KEY=
 
 ## Executor's Feedback or Assistance Requests
 
+- **2026-05-17 (Executor)**: Phase 13 **P0·P1 구현** — `industry_match`, 검색 정렬, 자격 사유, eligibility 프로필 동기화, diagnosis `data=`→`sid`, SEO·ops 문서. `npm run build` PASS, `verify:story`~`verify:security` PASS. `verify:journey-exhaustive` 1건(업력 N년 미만 summary) 기존 플레이크 가능 — 재실행 권장.
+- **2026-05-17 (Planner)**: **Phase 13** 고도화 우선순위(P0~P3, 태스크 18개)를 scratchpad에 반영. Phase 12는 완료로 간주. **Executor는 13-P0-1(SEO 배포)** 부터 1개씩. SEO 코드는 로컬에 있을 수 있으나 **프로덕션 미반영** — 배포·`NEXT_PUBLIC_SITE_URL`·GSC는 사용자 협업 필요.
 - **2026-05-17 (Planner)**: Phase 12 전체 고도화 계획을 scratchpad에 반영함(Wave 1~5, 태스크 24개, US-12-UX 3건). **Executor는 12-1-1부터 1개씩** 진행할 것. Wave 3 DB 마이그레이션(`industry_tags`) 전 사용자 승인 필요. Wave 1 완료 후 프로덕션에서 UX-01~03 수동 검증 요청.
 - **2026-05-17 (Executor)**: **12-1-1 완료** — `lib/gov-support/tools/runProgramSearch.ts`, `POST /api/search`에 `search_mode: 'strict'|'relaxed'`(기본 relaxed). strict·0건 → 404 `SEARCH_NO_RESULTS_STRICT` + `meta.hint`·`applied_filters`. 성공 응답에 `search_mode` 필드 추가. `verify:story` US-03b·US-03c 추가 PASS. **다음**: 12-1-2(UI). 사용자 로컬/프로덕션에서 strict 동작 확인 후 승인 요청.
 - **2026-05-17 (Executor)**: **Phase 12 Wave 1 전체 완료** — 검색 UI(완화 배너·엄격/완화 재검색·applied_filters 상시·strict 0건 CTA), `eligibilityPrimaryReason`, API 정렬·`applied_filters`에 업력/직원, `verify:story` UX-01·정렬 검증. `verify:strict` PASS. 커밋·푸시 예정.
@@ -797,3 +834,89 @@ PAYMENT_SECRET_KEY=
 
 **Planner → Executor 인계 문구**  
 「Wave 1의 12-1-1부터 시작. 완료 시 scratchpad Project Status Board에 [x] 표시하고, US-12-UX 수동 체크리스트 결과를 Executor's Feedback에 기록할 것.」
+
+---
+
+## Phase 13 — 성장·신뢰·운영 고도화 (Planner, 2026-05-17)
+
+**전제**: Phase 12(Wave 1~5) 완료. 본 Phase는 **신규 기능 폭**보다 유입·신뢰·재방문·운영 안정에 초점.
+
+**전체 완료 정의 (Planner만 “완료” 선언)**  
+- P0 전 태스크 배포 + `verify:seo` PASS + US-12-UX 수동 3건 PASS  
+- P1 중 13-P1-1·13-P1-2·13-P1-3 완료  
+- P2는 사용자가 선택한 2항목 이상 완료(찜·모바일 등)
+
+### 우선순위 요약 (사용자 공유용)
+
+| 우선순위 | 기간(예상) | 초점 | 대표 태스크 |
+|:---:|---|---|---|
+| **P0** | 즉시~1주 | 유입·신뢰 게이트 | SEO·GSC, US-12-UX, 업종 일치/유사/전체 |
+| **P1** | 1~4주 | 검색·자격 신뢰 | soft 필터, unknown/failed, 재판정 동기화 |
+| **P2** | 1~2개월 | 성장·모바일 | 찜·알림·하단 탭·SMES24·E2E |
+| **P3** | 이후 | 구조·확장 | 리팩터, db_centric, Pro cron, Phase 11 |
+
+---
+
+### P0 — 즉시
+
+| ID | 작업 | 성공 기준 | 의존 |
+|---|---|---|---|
+| 13-P0-1 | SEO: `getSiteUrl`·dynamic robots/sitemap·llms/ai 배포 | 프로덕션 `robots.txt`의 Sitemap이 `https://policyfund-zeta.vercel.app/sitemap.xml`; `npm run verify:seo` PASS; Vercel `NEXT_PUBLIC_SITE_URL` 설정 | 코드 머지·배포 |
+| 13-P0-1b | Google Search Console | 속성 추가·사이트맵 제출·홈 URL 색인 요청(운영, Executor는 env·메타만) | 13-P0-1 |
+| 13-P0-2 | US-12-UX 수동 | UX-01·02·03 체크리스트 통과, 결과를 Executor's Feedback에 기록 | 13-P0-1 권장 |
+| 13-P0-3 | 업종 매칭 모드 UI | 검색에 **일치 / 유사 / 전체** 3탭(또는 라디오); API `industry_match: strict \| similar \| any`; strict=태그+ilike, similar=태그 OR 제목 키워드, any=업종 필터 생략; 완화 배너와 문구 통일 | 12-1-1 존재 |
+
+**P0 게이트**: `npm run build` + `verify:strict` PASS + (가능 시) `verify:seo` PASS
+
+---
+
+### P1 — 핵심 제품 (1~4주)
+
+| ID | 작업 | 성공 기준 | 의존 |
+|---|---|---|---|
+| 13-P1-1 | 검색 랭킹·soft 필터 | `eligibility_text` 업력 제약 파싱 결과를 **가산점**만(하드 0건 최소화); 정렬에 `closing_soon`·지역 일치 가중; 샘플 시나리오 2건 `verify:story` 추가 | 12-3-4 |
+| 13-P1-2 | 자격 설명 강화 | `unknown`은 “공고문에 조건 없음·추정”; `failed`는 규칙+스니펫 1줄; 카드·상세 동일 카피 | 12-1-4 |
+| 13-P1-3 | 재판정 동기화 | `/search/[id]` 재판정이 검색 시 사용한 프로필 draft와 동일; draft 없으면 안내 | 12-4-1 |
+| 13-P1-4 | 진단 레거시 URL | `?data=` 감지 시 `POST /api/diagnosis/session` → `?sid=` 302 또는 클라이언트 1회 변환; README 1문단 | 12-2-4 |
+| 13-P1-5 | 운영 루틴 | `docs/ops-weekly-quality.md`(1페이지): quality API 지표·임계·조치; 관리자 대시보드 링크 | 12-3-5 |
+
+---
+
+### P2 — 성장 (1~2개월)
+
+| ID | 작업 | 성공 기준 | 의존 |
+|---|---|---|---|
+| 13-P2-1 | 찜 | `bookmarks` 테이블·RLS·`POST/DELETE /api/bookmarks`; `/manage` 목록·상세에서 토글 | DB 승인 |
+| 13-P2-2 | 알림 | `alert_profiles` + 마감 D-7/D-3 이메일 cron(또는 수동 배치); 무료 1프로필 | 13-P2-1 권장 |
+| 13-P2-3 | 모바일 네비 | `md` 미만 하단 4탭, 본문 `pb-safe`; 주요 4경로 200 | 없음 |
+| 13-P2-4 | 요금제 UI | 검색 strict 403·export·문서 한도 메시지 동일 컴포넌트(`UpgradeCTA`) | 12-4-3 |
+| 13-P2-5 | SMES24 ON | IP 등록 후 sync에 SMES24 포함·`verify:counts` SMES24>0 | 인프라 |
+| 13-P2-6 | E2E | Playwright: 홈→진단 한글 업종 저장→검색 URL assert; CI workflow `workflow_dispatch` | 없음 |
+
+---
+
+### P3 — 이후
+
+| ID | 작업 | 비고 |
+|---|---|---|
+| 13-P3-1 | 검색·진단 리팩터 | `verify:journey` 선행, 동작 변경 없음 |
+| 13-P3-2 | db_centric / RAG | PRD 전환 시 재기획 |
+| 13-P3-3 | Vercel Pro cron | `docs/upgrade-to-pro.md` 실행 |
+| 13-P3-4 | Phase 11 | US-15·오류 로그 스키마 |
+
+**의도적 비범위 (Phase 13)**  
+- LLM이 자격 상태값 변경  
+- 공고 원문 전문 DB 저장  
+- 푸시 알림 앱 네이티브  
+- 전면 유료화·PG 이외 결제 수단 추가
+
+---
+
+### Phase 13 — Executor 착수 순서 (고정)
+
+1. **13-P0-1** → **13-P0-1b**(사용자 협업) → **13-P0-2** → **13-P0-3**  
+2. P0 게이트 통과 후 **13-P1-1** → **13-P1-2** → **13-P1-3** (P1-4·5 병행 가능)  
+3. P2는 Planner·사용자가 **찜(2-1)·모바일(2-3)** 중 우선 1개 선택 후 착수
+
+**Planner → Executor 인계**  
+「**13-P0-1**부터. SEO 변경 커밋·푸시·Vercel env 확인·`verify:seo` 로그 첨부. 완료 시 [x] 표시 후 사용자에게 US-12-UX 수동 검증 요청.」

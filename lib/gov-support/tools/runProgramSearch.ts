@@ -1,6 +1,7 @@
 /**
  * POST /api/search 공통 실행 — relaxed 시 0건이면 조건 단계 완화, strict 시 완화 없음
  */
+import type { IndustryMatchMode } from './industryMatch'
 import { collectSearchTextTerms, unifiedSearch, type SearchParams } from './unifiedSearch'
 
 export type ProgramSearchMode = 'strict' | 'relaxed'
@@ -48,11 +49,13 @@ export async function runProgramSearch(
     if (result.total > 0) fallbackApplied.push('drop_city')
   }
 
-  if (result.total === 0 && effectiveSearch.industry) {
+  const industryMatch: IndustryMatchMode = effectiveSearch.industry_match ?? 'match'
+  if (result.total === 0 && effectiveSearch.industry && industryMatch !== 'any') {
     effectiveSearch = {
       ...effectiveSearch,
       city: undefined,
       industry: undefined,
+      industry_match: 'any',
       keyword: undefined,
       support_purpose: undefined,
     }

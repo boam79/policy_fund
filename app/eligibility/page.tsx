@@ -6,6 +6,11 @@ import Link from 'next/link'
 import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 import { readApiError } from '@/lib/api/readApiError'
+import {
+  loadLastSearchProfile,
+  profileDraftFromSearchParams,
+  type ProfileDraft,
+} from '@/lib/profile/loadLastSearchProfile'
 
 type EligibilityResponse = {
   ok: boolean
@@ -17,16 +22,6 @@ type EligibilityResponse = {
   failed: string[]
   unknown: string[]
   explanation?: string
-}
-
-type ProfileDraft = {
-  region?: string
-  city?: string
-  industry?: string
-  business_age_years?: number
-  employee_count?: number
-  tax_arrears?: boolean
-  support_purpose?: string
 }
 
 function pickString(searchParams: URLSearchParams, key: string): string {
@@ -59,6 +54,7 @@ function EligibilityContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<EligibilityResponse | null>(null)
+  const [profileSource, setProfileSource] = useState<string | null>(null)
 
   const scoreColor = useMemo(() => {
     if (!result) return 'text-gray-700'
@@ -71,12 +67,12 @@ function EligibilityContent() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
+    const urlDraft = profileDraftFromSearchParams(searchParams)
     const currentHasAnyValue = Boolean(
       region || city || industry || businessAgeYears || employeeCount || taxArrears || supportPurpose
     )
-    if (currentHasAnyValue) return
 
-    const applyDraft = (draft: ProfileDraft) => {
+    const applyDraft = (draft: ProfileDraft, source: string) => {
       if (draft.region) setRegion(draft.region)
       if (draft.city) setCity(draft.city)
       if (draft.industry) setIndustry(draft.industry)
@@ -84,21 +80,26 @@ function EligibilityContent() {
       if (typeof draft.employee_count === 'number') setEmployeeCount(String(draft.employee_count))
       if (typeof draft.tax_arrears === 'boolean') setTaxArrears(draft.tax_arrears ? 'yes' : 'no')
       if (draft.support_purpose) setSupportPurpose(draft.support_purpose)
+      setProfileSource(source)
     }
 
-    // 1) 진단/검색 단계에서 저장한 최신 draft 우선 사용
-    const draftRaw = localStorage.getItem('pf:last_profile_draft')
-    if (draftRaw) {
-      try {
-        const draft = JSON.parse(draftRaw) as ProfileDraft
-        applyDraft(draft)
-        return
-      } catch {
-        // ignore parse error
-      }
+    if (!currentHasAnyValue && Object.keys(urlDraft).length > 0) {
+      applyDraft(urlDraft, '검색 결과에서 전달된 조건')
+      return
     }
 
-    // 2) 홈 검색의 parsed 결과를 fallback으로 사용
+    if (currentHasAnyValue) return
+
+    const loaded = loadLastSearchProfile()
+    if (loaded.draft) {
+      applyDraft(
+        loaded.draft,
+        loaded.source === 'draft' ? '최근 검색·진단 조건' : '최근 검색 URL 조건'
+      )
+      return
+    }
+
+    // 홈 검색의 parsed 결과를 fallback으로 사용
     const parsedRaw = localStorage.getItem('pf:last_parsed')
     if (!parsedRaw) return
     try {
@@ -113,11 +114,11 @@ function EligibilityContent() {
         tax_arrears: typeof c.tax_arrears?.value === 'boolean' ? c.tax_arrears.value : undefined,
         support_purpose: c.support_purpose?.value,
       }
-      applyDraft(draft)
+      applyDraft(draft, '홈 자연어 검색 조건')
     } catch {
       // ignore parse error
     }
-  }, [region, city, industry, businessAgeYears, employeeCount, taxArrears, supportPurpose])
+  }, [searchParams, region, city, industry, businessAgeYears, employeeCount, taxArrears, supportPurpose])
 
   if (!programId) {
     return (
@@ -168,6 +169,12 @@ function EligibilityContent() {
         <p className="mb-6 text-sm text-gray-500">
           기업 정보를 입력하면 선택한 공고에 대한 신청 가능성을 분석합니다.
         </p>
+
+        {profileSource && (
+          <p className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+            {profileSource}이(가) 자동 입력되었습니다. 필요하면 수정한 뒤 자격판정을 실행하세요.
+          </p>
+        )}
 
         <div className="rounded-xl border bg-white p-5">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

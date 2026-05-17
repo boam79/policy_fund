@@ -174,6 +174,19 @@ function DiagnosisContent() {
 
         const data = JSON.parse(decodeURIComponent(dataParam!)) as ParseNLResult
         await applyParsed(data)
+        try {
+          const saveRes = await fetch('/api/diagnosis/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ raw_query: data.raw_query, parsed: data }),
+          })
+          const saveJson = (await saveRes.json()) as { sid?: string }
+          if (saveRes.ok && saveJson.sid) {
+            router.replace(`/diagnosis?sid=${encodeURIComponent(saveJson.sid)}`)
+          }
+        } catch {
+          /* 레거시 ?data= URL 유지 */
+        }
       } catch {
         if (!cancelled) setError('조건 데이터가 유효하지 않습니다.')
       }

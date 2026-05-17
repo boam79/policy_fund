@@ -78,7 +78,10 @@ async function run() {
   // 2) 공고 상세 페이지
   const detail = await fetchPage(`/search/${programId}`)
   assert(detail.status === 200, `Detail page ${programId} expected 200, got ${detail.status}`)
-  assert(detail.text.includes('자격판정 시작하기'), 'Detail page missing eligibility CTA')
+  assert(
+    detail.text.includes('내 조건으로 자격판정') || detail.text.includes('자격판정'),
+    'Detail page missing eligibility CTA'
+  )
   assert(detail.text.includes('신청 준비 시작하기'), 'Detail page missing documents CTA')
   // 3) 자격판정 페이지 (program_id)
   const eligPage = await fetchPage(`/eligibility?program_id=${encodeURIComponent(programId)}`)

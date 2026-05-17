@@ -192,15 +192,40 @@ export function checkEligibility(
   return { status, score, passed, failed, unknown: unknownList }
 }
 
-/** 카드·툴팁용 한 줄 사유 (failed 우선, 없으면 unknown) */
-export function eligibilityPrimaryReason(result: EligibilityResult): string | null {
+function eligibilitySnippet(program: ProgramConditions, ruleName: string): string | null {
+  const text = program.eligibility_text?.replace(/\s+/g, ' ').trim()
+  if (!text || text.length < 12) return null
+  if (ruleName.includes('업종') && program.industry?.trim()) {
+    return `공고 업종: ${program.industry.trim().slice(0, 40)}`
+  }
+  if (ruleName.includes('업력') || ruleName.includes('지역')) {
+    const slice = text.slice(0, 72)
+    return `공고문: ${slice}${text.length > 72 ? '…' : ''}`
+  }
+  return null
+}
+
+/** 카드·툴팁용 한 줄 사유 — failed(명확 불일치) vs unknown(정보 부족) 구분 */
+export function eligibilityPrimaryReason(
+  result: EligibilityResult,
+  program?: ProgramConditions
+): string | null {
   if (result.failed.length > 0) {
     const first = result.failed[0]
     const colon = first.indexOf(': ')
-    return colon >= 0 ? first.slice(colon + 2).trim() : first
+    const ruleName = colon >= 0 ? first.slice(0, colon).trim() : first
+    const reason = colon >= 0 ? first.slice(colon + 2).trim() : first
+    const snippet = program ? eligibilitySnippet(program, ruleName) : null
+    return snippet ? `${reason} (${snippet})` : reason
   }
   if (result.unknown.length > 0) {
-    return `${result.unknown[0]} 항목은 공고·프로필 정보가 부족해 추가 확인이 필요합니다`
+    const names = result.unknown.slice(0, 2).join(', ')
+    const snippet =
+      program && result.unknown.includes('업종 매칭')
+        ? eligibilitySnippet(program, '업종')
+        : null
+    const base = `${names} — 공고·프로필에 조건이 없거나 부족해 추정만 했습니다. 공고 원문 확인이 필요합니다.`
+    return snippet ? `${base} ${snippet}` : base
   }
   return null
 }

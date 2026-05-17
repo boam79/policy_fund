@@ -22,7 +22,8 @@
     "verify:security": "tsx scripts/verify-security.ts",
     "verify:strict": "npm run verify:story && npm run verify:admin && npm run verify:hard && npm run verify:journey && npm run verify:journey-exhaustive && npm run verify:wave2 && npm run verify:wave3 && npm run verify:wave4 && npm run verify:wave5 && npm run verify:security",
     "verify:counts": "tsx scripts/verify-source-counts.ts",
-    "verify:apply": "tsx scripts/verify-apply-available.ts"
+    "verify:apply": "tsx scripts/verify-apply-available.ts",
+    "verify:seo": "tsx scripts/verify-seo.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

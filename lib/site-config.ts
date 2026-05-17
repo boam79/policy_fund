@@ -1,12 +1,29 @@
 /**
- * 배포 도메인 (OG·canonical·llms 등 공통 기준 URL)
+ * 배포 도메인 (OG·canonical·sitemap·JSON-LD 공통 기준 URL)
+ *
+ * 우선순위: NEXT_PUBLIC_SITE_URL > Vercel 프로덕션 도메인 > NEXT_PUBLIC_APP_URL
+ * ※ VERCEL_URL(배포별 임시 URL)은 SEO에 쓰지 않음 — sitemap/robots가 매 배포마다 바뀌는 문제 방지
  */
+function isLocalDevUrl(url: string): boolean {
+  return /localhost|127\.0\.0\.1/i.test(url)
+}
+
 export function getSiteUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim()
-  if (fromEnv) return fromEnv.replace(/\/$/, '')
-  const vercel = process.env.VERCEL_URL?.trim()
-  if (vercel) return `https://${vercel.replace(/^https?:\/\//, '').replace(/\/$/, '')}`
+  if (fromEnv && !isLocalDevUrl(fromEnv)) return normalizeOrigin(fromEnv)
+
+  const prod = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim()
+  if (prod) return normalizeOrigin(`https://${prod}`)
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (appUrl && !isLocalDevUrl(appUrl)) return normalizeOrigin(appUrl)
+
   return 'https://policyfund-zeta.vercel.app'
+}
+
+function normalizeOrigin(url: string): string {
+  const withProto = /^https?:\/\//i.test(url) ? url : `https://${url}`
+  return withProto.replace(/\/$/, '')
 }
 
 export const SITE_NAME = '지원둥지'
@@ -19,5 +36,5 @@ export const SITE_DESCRIPTION =
 /** 공공 API 호출 시 식별용 User-Agent (ASCII) */
 export const SITE_BOT_USER_AGENT = 'JiwondungjiBot/1.0'
 
-/** 내보내기 파일명 접두어 (ASCII) */
+/**보내기 파일명 접두어 (ASCII) */
 export const EXPORT_FILE_PREFIX = 'jiwondungji'

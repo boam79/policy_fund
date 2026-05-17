@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next'
 import { getSiteUrl } from '@/lib/site-config'
 
+export const dynamic = 'force-dynamic'
+
 /** 크롤에 유용한 공개 페이지 (계정·관리자·결제 진입 제외) */
 const PUBLIC_PATHS: {
   path: string
@@ -9,6 +11,7 @@ const PUBLIC_PATHS: {
 }[] = [
   { path: '/', priority: 1, changeFrequency: 'daily' },
   { path: '/search', priority: 0.95, changeFrequency: 'hourly' },
+  { path: '/diagnosis', priority: 0.9, changeFrequency: 'weekly' },
   { path: '/guide', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/about', priority: 0.8, changeFrequency: 'monthly' },
   { path: '/faq', priority: 0.85, changeFrequency: 'weekly' },
