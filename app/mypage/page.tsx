@@ -5,6 +5,10 @@ import { User, Building2, FileText, Search, LogOut, Loader2, Save, CreditCard } 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SITE_NAME } from '@/lib/site-config'
+import {
+  buildSearchUrlFromProfile,
+  type SavedBusinessProfileDefaults,
+} from '@/lib/profile/business-profile-defaults'
 
 interface Profile {
   company_name: string
@@ -91,6 +95,8 @@ export default function MyPage() {
     setTimeout(() => setSaved(false), 3000)
   }
 
+  const profileSearchUrl = buildSearchUrlFromProfile(profile as SavedBusinessProfileDefaults)
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
@@ -137,6 +143,7 @@ export default function MyPage() {
               <p className="font-medium text-blue-950">사업자 기초 정보는 이렇게 쓰입니다</p>
               <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-blue-900/80">
                 <li>홈 검색창에서 <strong>기업정보로 채우기</strong>로 검색 문장을 한 번에 넣을 수 있습니다.</li>
+                <li>저장 후 <strong>공고 검색</strong>으로 지역·업종·업력 필터가 자동 적용됩니다.</li>
                 <li>진단(조건 확인) 단계에서 LLM이 놓친 항목은 저장된 값으로 보강됩니다.</li>
                 <li>사업계획서 초안 등 문서 생성 시 회사 개요·지원 목적에 반영됩니다.</li>
               </ul>
@@ -323,6 +330,15 @@ export default function MyPage() {
                   기초 정보 저장
                 </button>
                 {saved && <span className="text-sm text-green-600">저장되었습니다</span>}
+                {profileSearchUrl && (
+                  <Link
+                    href={profileSearchUrl}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-800 hover:bg-blue-100"
+                  >
+                    <Search className="h-4 w-4" />
+                    저장한 조건으로 공고 검색
+                  </Link>
+                )}
               </div>
               <div className="border-t pt-4">
                 <Link

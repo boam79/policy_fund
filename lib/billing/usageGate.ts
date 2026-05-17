@@ -1,5 +1,11 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { checkUsageLimit, recordUsage, type UsageEventType } from '@/lib/billing/usage'
+import {
+  checkDailyUsageLimit,
+  checkUsageLimit,
+  recordUsage,
+  type DailyUsageEventType,
+  type UsageEventType,
+} from '@/lib/billing/usage'
 import { apiError } from '@/lib/errors/apiError'
 
 export async function getSessionUserId(): Promise<string | null> {
@@ -35,7 +41,7 @@ export async function guardMonthlyUsage(
   traceId: string,
   step: string,
   userId: string | null,
-  eventType: UsageEventType,
+  eventType: Exclude<UsageEventType, DailyUsageEventType>,
   errorCode: string,
   message: (used: number, limit: number) => string
 ): Promise<Response | null> {
@@ -66,4 +72,39 @@ export async function guardMonthlyUsage(
 
 export async function recordUsageIfUser(userId: string | null, eventType: UsageEventType): Promise<void> {
   if (userId) await recordUsage(userId, eventType)
+}
+
+/** 로그인 사용자 일일 parse·search 한도 */
+export async function guardDailyUsage(
+  traceId: string,
+  step: string,
+  userId: string | null,
+  eventType: DailyUsageEventType,
+  errorCode: string,
+  message: (used: number, limit: number) => string
+): Promise<Response | null> {
+  if (!userId) return null
+  try {
+    const gate = await checkDailyUsageLimit(userId, eventType)
+    if (!gate.allowed) {
+      return apiError({
+        status: 403,
+        errorCode,
+        message: message(gate.used, gate.limit ?? 0),
+        step,
+        traceId,
+        meta: { plan: gate.plan, used: gate.used, limit: gate.limit },
+      })
+    }
+  } catch (e) {
+    console.error('[usageGate] daily', step, e)
+    return apiError({
+      status: 503,
+      errorCode: 'USAGE_CHECK_FAILED',
+      message: '이용량 확인에 실패했습니다. 잠시 후 다시 시도해주세요.',
+      step: `${step}_daily_gate`,
+      traceId,
+    })
+  }
+  return null
 }

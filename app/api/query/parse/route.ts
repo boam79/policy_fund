@@ -14,6 +14,11 @@ import {
 import type { ApiResponse } from '@/types'
 import { takeRateLimit } from '@/lib/security/rateLimit'
 import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
+import {
+  getSessionUserId,
+  guardDailyUsage,
+  recordUsageIfUser,
+} from '@/lib/billing/usageGate'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -74,8 +79,22 @@ export async function POST(req: NextRequest): Promise<Response> {
       })
     }
 
+    const userId = await getSessionUserId()
+    const usageBlock = await guardDailyUsage(
+      traceId,
+      'query.parse.usage',
+      userId,
+      'parse_query',
+      'PARSE_QUOTA_EXCEEDED',
+      (used, limit) =>
+        `오늘 AI 조건 분석 횟수(${limit}회)를 모두 사용했습니다. (${used}/${limit}) Starter 플랜에서는 제한 없이 이용할 수 있습니다.`
+    )
+    if (usageBlock) return usageBlock
+
     const parsed = await parseNaturalLanguage(queryText)
     const conditions = toBusinessConditions(parsed.conditions)
+
+    await recordUsageIfUser(userId, 'parse_query')
 
     return NextResponse.json<ApiResponse>({
       success: true,
@@ -100,8 +119,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     // LLM 혼잡·키 미설정 등일 때 규칙 기반 추출로 진단·검색은 계속된다
     if ((isTemporaryLlmIssue || isGeminiMisconfigured) && queryText.length > 0) {
+      const userId = await getSessionUserId()
       const parsed = parseNaturalLanguageFallback(queryText)
       const conditions = toBusinessConditions(parsed.conditions, 0.3)
+      await recordUsageIfUser(userId, 'parse_query')
       return NextResponse.json<ApiResponse>({
         success: true,
         data: {

@@ -17,6 +17,8 @@ import { readApiError } from '@/lib/api/readApiError'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
 import { toCanonicalIndustry } from '@/lib/industry/canonical'
+import { fetchMyBusinessProfileDefaults } from '@/lib/profile/fetch-my-business-profile'
+import { buildSearchUrlFromProfile } from '@/lib/profile/business-profile-defaults'
 
 interface EligibilityResult {
   status: EligibilityStatus
@@ -157,6 +159,48 @@ function SearchContent() {
   const [strictEmptyHint, setStrictEmptyHint] = useState<string | null>(null)
   const LIMIT = 20
   const [exporting, setExporting] = useState<'csv' | 'xlsx' | null>(null)
+  const [allowsStrictSearch, setAllowsStrictSearch] = useState(false)
+  const profilePrefillDoneRef = useRef(false)
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/billing/entitlements')
+        const data = (await res.json()) as {
+          plan?: string
+          allows_strict_search?: boolean
+          allows_tabular_export?: boolean
+        }
+        if (res.ok) {
+          setAllowsStrictSearch(Boolean(data.allows_strict_search))
+        }
+      } catch {
+        /* 비로그인 등 */
+      }
+    })()
+  }, [])
+
+  useEffect(() => {
+    const hasParams =
+      searchParams.get('region') ||
+      searchParams.get('industry') ||
+      searchParams.get('keyword') ||
+      searchParams.get('q') ||
+      searchParams.get('support_purpose') ||
+      searchParams.get('business_age_years')
+    if (hasParams || profilePrefillDoneRef.current) return
+    profilePrefillDoneRef.current = true
+    let cancelled = false
+    void (async () => {
+      const prof = await fetchMyBusinessProfileDefaults()
+      if (cancelled || !prof) return
+      const url = buildSearchUrlFromProfile(prof)
+      if (url) router.replace(url, { scroll: false })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [searchParams, router])
 
   const exportSearchResults = useCallback(
     async (format: 'csv' | 'xlsx') => {
@@ -166,14 +210,13 @@ function SearchContent() {
       }
       setExporting(format)
       try {
-        const subRes = await fetch('/api/billing/subscription')
-        if (!subRes.ok) {
+        const entRes = await fetch('/api/billing/entitlements')
+        if (!entRes.ok) {
           alert('로그인이 필요합니다.')
           return
         }
-        const subJson = (await subRes.json()) as { subscription?: { plan?: string } }
-        const plan = subJson.subscription?.plan ?? 'free'
-        if (plan !== 'starter' && plan !== 'pro') {
+        const ent = (await entRes.json()) as { allows_tabular_export?: boolean }
+        if (!ent.allows_tabular_export) {
           alert('CSV·XLSX 보내기는 Starter 이상 플랜에서 이용할 수 있습니다.')
           return
         }
@@ -273,6 +316,22 @@ function SearchContent() {
       const data = await res.json()
       if (!res.ok || data.ok === false) {
         const code = typeof data.error_code === 'string' ? data.error_code : ''
+        if (code === 'SEARCH_STRICT_PLAN_REQUIRED' || code === 'AUTH_REQUIRED_FOR_STRICT') {
+          setSearchError(readApiError(data, '엄격 검색을 사용할 수 없습니다.'))
+          setPrograms([])
+          setTotal(0)
+          setPage(1)
+          setFallbackApplied([])
+          return
+        }
+        if (code === 'SEARCH_QUOTA_EXCEEDED') {
+          setSearchError(readApiError(data, '오늘 검색 횟수를 모두 사용했습니다.'))
+          setPrograms([])
+          setTotal(0)
+          setPage(1)
+          setFallbackApplied([])
+          return
+        }
         if (code === 'SEARCH_NO_RESULTS_STRICT') {
           const meta = data.meta as { hint?: string; applied_filters?: AppliedFilters } | undefined
           setStrictEmptyHint(typeof meta?.hint === 'string' ? meta.hint : null)
@@ -531,13 +590,22 @@ function SearchContent() {
                   <p className="text-xs text-amber-800">
                     {fallbackApplied.map((k) => FALLBACK_LABELS[k] ?? k).join(' ')}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => void handleSearch(1, { mode: 'strict' })}
-                    className="text-xs font-medium text-amber-900 underline underline-offset-2 hover:text-amber-950"
-                  >
-                    입력 조건 그대로 엄격히 다시 검색
-                  </button>
+                  {allowsStrictSearch ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleSearch(1, { mode: 'strict' })}
+                      className="text-xs font-medium text-amber-900 underline underline-offset-2 hover:text-amber-950"
+                    >
+                      입력 조건 그대로 엄격히 다시 검색
+                    </button>
+                  ) : (
+                    <p className="text-xs text-amber-900/90">
+                      엄격 검색은 Starter 이상 플랜에서 이용할 수 있습니다.{' '}
+                      <Link href="/pricing" className="font-medium underline">
+                        요금제 보기
+                      </Link>
+                    </p>
+                  )}
                 </div>
               )}
             </div>

@@ -14,6 +14,10 @@ export interface Plan {
     documents_per_month: number | null
     evaluations_per_month: number | null
     searches_per_month: number | null
+    /** 로그인 사용자 일일 자연어 parse (null = 무제한) */
+    parse_queries_per_day: number | null
+    /** 로그인 사용자 일일 POST /api/search (null = 무제한) */
+    search_requests_per_day: number | null
   }
 }
 
@@ -39,7 +43,14 @@ export const PLANS: Plan[] = [
       { label: '마이페이지에서 월간 이용량·잔여 횟수 확인', included: true },
       { label: '웹(PC·모바일) 전 구간 이용', included: true },
     ],
-    limits: { diagnoses_per_month: 3, documents_per_month: 0, evaluations_per_month: 0, searches_per_month: null },
+    limits: {
+      diagnoses_per_month: 3,
+      documents_per_month: 0,
+      evaluations_per_month: 0,
+      searches_per_month: null,
+      parse_queries_per_day: 20,
+      search_requests_per_day: 50,
+    },
   },
   {
     id: 'starter',
@@ -61,7 +72,14 @@ export const PLANS: Plan[] = [
       { label: '마이페이지에서 월간 이용량·잔여 횟수 확인', included: true },
       { label: '웹(PC·모바일) 전 구간 이용', included: true },
     ],
-    limits: { diagnoses_per_month: 10, documents_per_month: 10, evaluations_per_month: 0, searches_per_month: null },
+    limits: {
+      diagnoses_per_month: 10,
+      documents_per_month: 10,
+      evaluations_per_month: 0,
+      searches_per_month: null,
+      parse_queries_per_day: null,
+      search_requests_per_day: null,
+    },
   },
   {
     id: 'pro',
@@ -83,7 +101,14 @@ export const PLANS: Plan[] = [
       { label: '마이페이지에서 월간 이용량·잔여 횟수 확인', included: true },
       { label: '웹(PC·모바일) 전 구간 이용', included: true },
     ],
-    limits: { diagnoses_per_month: 30, documents_per_month: 3, evaluations_per_month: 30, searches_per_month: null },
+    limits: {
+      diagnoses_per_month: 30,
+      documents_per_month: 3,
+      evaluations_per_month: 30,
+      searches_per_month: null,
+      parse_queries_per_day: null,
+      search_requests_per_day: null,
+    },
   },
 ]
 
@@ -103,3 +128,14 @@ export function getPlan(id: PlanId | string): Plan {
 export function planAllowsTabularExport(planId: PlanId): boolean {
   return planId === 'starter' || planId === 'pro'
 }
+
+/** Starter 이상: 엄격 검색(search_mode=strict, 조건 완화 없음) */
+export function planAllowsStrictSearch(planId: PlanId): boolean {
+  return planId === 'starter' || planId === 'pro'
+}
+
+export const UPGRADE_STRICT_SEARCH_MESSAGE =
+  '엄격 검색은 Starter 이상 플랜에서 이용할 수 있습니다. 요금제 페이지에서 업그레이드해 주세요.'
+
+export const UPGRADE_EXPORT_MESSAGE =
+  'CSV·XLSX 보내기는 Starter 이상 플랜에서 이용할 수 있습니다.'

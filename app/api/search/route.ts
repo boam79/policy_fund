@@ -16,6 +16,18 @@ import type { Database } from '@/types/database.types'
 import { takeRateLimit } from '@/lib/security/rateLimit'
 import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
 import { sanitizeProgramForClient } from '@/lib/utils/stripHtml'
+import {
+  getPlanIdForUser,
+} from '@/lib/billing/usage'
+import {
+  planAllowsStrictSearch,
+  UPGRADE_STRICT_SEARCH_MESSAGE,
+} from '@/lib/billing/plans'
+import {
+  getSessionUserId,
+  guardDailyUsage,
+  recordUsageIfUser,
+} from '@/lib/billing/usageGate'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,6 +71,41 @@ export async function POST(request: NextRequest) {
     }
 
     const search_mode = normalizeProgramSearchMode(searchModeRaw)
+    const userId = await getSessionUserId()
+
+    if (search_mode === 'strict') {
+      if (!userId) {
+        return apiError({
+          status: 401,
+          errorCode: 'AUTH_REQUIRED_FOR_STRICT',
+          message: '엄격 검색은 로그인 후 Starter 이상 플랜에서 이용할 수 있습니다.',
+          step: 'search.strict.auth',
+          traceId,
+        })
+      }
+      const planId = await getPlanIdForUser(userId)
+      if (!planAllowsStrictSearch(planId)) {
+        return apiError({
+          status: 403,
+          errorCode: 'SEARCH_STRICT_PLAN_REQUIRED',
+          message: UPGRADE_STRICT_SEARCH_MESSAGE,
+          step: 'search.strict.plan',
+          traceId,
+          meta: { plan: planId },
+        })
+      }
+    }
+
+    const searchUsageBlock = await guardDailyUsage(
+      traceId,
+      'search.usage',
+      userId,
+      'search_request',
+      'SEARCH_QUOTA_EXCEEDED',
+      (used, limit) =>
+        `오늘 공고 검색 횟수(${limit}회)를 모두 사용했습니다. (${used}/${limit}) Starter 플랜에서는 제한 없이 이용할 수 있습니다.`
+    )
+    if (searchUsageBlock) return searchUsageBlock
 
     const initialSearch = {
       region: region ?? undefined,
@@ -171,6 +218,8 @@ export async function POST(request: NextRequest) {
     } catch {
       // 로그 저장 실패는 무시
     }
+
+    await recordUsageIfUser(userId, 'search_request')
 
     return Response.json({
       ok: true,

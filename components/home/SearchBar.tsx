@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Search, Loader2 } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
@@ -96,6 +97,11 @@ export default function SearchBar({
           ['PARSE_INVALID_INPUT', 'PARSE_QUERY_TOO_LONG'].includes(String(data.error_code ?? ''))
 
         // 비어 있거나 잘못된 입력이 아니면 분석 단계 장애와 관계 없이 공고 검색으로 이어짐
+        if (data.error_code === 'PARSE_QUOTA_EXCEEDED') {
+          setError(message.length > 0 ? message : '오늘 AI 분석 횟수를 모두 사용했습니다.')
+          return
+        }
+
         if (isInputValidationError) {
           setShowParseMiniForm(true)
           setError(message.length > 0 ? message : '검색어를 입력해주세요.')
@@ -194,7 +200,14 @@ export default function SearchBar({
 
       {/* 오류 메시지 */}
       {error && (
-        <p className="mt-2 text-sm text-destructive">{error}</p>
+        <div className="mt-2 space-y-1">
+          <p className="text-sm text-destructive">{error}</p>
+          {error.includes('AI 조건 분석') || error.includes('AI 분석') ? (
+            <Link href="/pricing" className="text-xs font-medium text-blue-600 hover:underline">
+              요금제 보기 →
+            </Link>
+          ) : null}
+        </div>
       )}
 
       {showParseMiniForm && (

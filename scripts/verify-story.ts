@@ -84,7 +84,7 @@ async function run() {
   const programs = (searchStrict.json.programs as Json[] | undefined) ?? []
   assert(programs.length > 0, 'US-03 expected at least one program after fallback')
 
-  // US-03b (12-1-1): strict mode — no fallback, impossible industry → SEARCH_NO_RESULTS_STRICT
+  // US-03b (12-4-3): 비로그인 strict → 401
   const searchStrictMode = await requestJson('/api/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -96,14 +96,39 @@ async function run() {
       limit: 5,
     }),
   })
-  assert(searchStrictMode.status === 404, 'US-03b expected 404 on strict zero results')
+  assert(searchStrictMode.status === 401, 'US-03b expected 401 for anonymous strict search')
   assert(isStandardErrorShape(searchStrictMode.json), 'US-03b missing standardized error payload')
   assert(
-    searchStrictMode.json.error_code === 'SEARCH_NO_RESULTS_STRICT',
-    'US-03b expected SEARCH_NO_RESULTS_STRICT'
+    searchStrictMode.json.error_code === 'AUTH_REQUIRED_FOR_STRICT',
+    'US-03b expected AUTH_REQUIRED_FOR_STRICT'
   )
-  const strictMeta = searchStrictMode.json.meta as Json | undefined
-  assert(typeof strictMeta?.hint === 'string' && strictMeta.hint.length > 0, 'US-03b expected meta.hint')
+
+  if (STORY_SESSION_COOKIE) {
+    const searchStrictAuth = await requestJson('/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        region: '서울',
+        industry: '__verify_no_match_industry_xyz__',
+        search_mode: 'strict',
+        page: 1,
+        limit: 5,
+      }),
+    })
+    if (searchStrictAuth.status === 404) {
+      assert(
+        searchStrictAuth.json.error_code === 'SEARCH_NO_RESULTS_STRICT',
+        'US-03b strict zero results (Starter+ session)'
+      )
+      const strictMeta = searchStrictAuth.json.meta as Json | undefined
+      assert(typeof strictMeta?.hint === 'string' && strictMeta.hint.length > 0, 'US-03b meta.hint')
+    } else {
+      console.log(
+        '[verify-story] US-03b strict 404 skip — session not Starter+ (got %s)',
+        searchStrictAuth.status
+      )
+    }
+  }
 
   const searchRelaxedSame = await requestJson('/api/search', {
     method: 'POST',
