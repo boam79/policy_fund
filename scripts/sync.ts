@@ -23,6 +23,7 @@ import {
   type NormalizedProgram,
 } from '../lib/gov-support/core/normalizer'
 import { deduplicate } from '../lib/gov-support/core/dedup'
+import { inferIndustryTags } from '../lib/industry/inferIndustryTags'
 import type { Database } from '../types/database.types'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -121,13 +122,21 @@ async function main() {
 
   for (let i = 0; i < allItems.length; i += BATCH) {
     const batch = allItems.slice(i, i + BATCH)
-    const rows = batch.map((p) => ({
+    const rows = batch.map((p) => {
+      const industry_tags = inferIndustryTags({
+        title: p.title,
+        industry: p.industry,
+        eligibility_text: p.eligibility_text,
+        support_type: p.support_type,
+      })
+      return {
       source: p.source,
       external_id: p.external_id,
       title: p.title,
       organization: p.organization,
       region: p.region,
       industry: p.industry,
+      industry_tags: industry_tags.length > 0 ? industry_tags : null,
       support_type: p.support_type,
       support_amount_min_krw: p.support_amount_min_krw,
       support_amount_max_krw: p.support_amount_max_krw,
@@ -141,7 +150,8 @@ async function main() {
       status: p.status,
       visibility_status: p.status === 'closed' ? 'hidden' : 'visible',
       synced_at: new Date().toISOString(),
-    }))
+    }
+    })
 
     const { error } = await supabase
       .from('support_programs')

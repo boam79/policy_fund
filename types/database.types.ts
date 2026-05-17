@@ -1067,6 +1067,7 @@ export type Database = {
           external_id: string
           id: string
           industry: string | null
+          industry_tags: string[] | null
           organization: string | null
           parsed_conditions: Json | null
           raw_content: string | null
@@ -1102,6 +1103,7 @@ export type Database = {
           external_id: string
           id?: string
           industry?: string | null
+          industry_tags?: string[] | null
           organization?: string | null
           parsed_conditions?: Json | null
           raw_content?: string | null
@@ -1137,6 +1139,7 @@ export type Database = {
           external_id?: string
           id?: string
           industry?: string | null
+          industry_tags?: string[] | null
           organization?: string | null
           parsed_conditions?: Json | null
           raw_content?: string | null

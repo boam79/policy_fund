@@ -3,7 +3,7 @@
 **역할**: Planner 주도 계획 / Executor는 사용자 승인 후 단계별 실행  
 **기준 문서**: `policyfund_v2_prd_v2_0_free_plan_db_switch_ready.md` (PF-WEB-001 v2.0, 2026-05-11) — 문서 내 과거 명칭 PolicyFund AI는 제품 코드명 참고용이며, **사용자 노출 브랜드는 지원둥지**로 통일함 (2026-05-16).  
 **UI 목업 기준**: `KakaoTalk_Photo_2026-05-11-18-15-52 001.png` (관리자 대시보드), `KakaoTalk_Photo_2026-05-11-18-15-53 002.png` (사용자 홈)  
-**Planner 최종 갱신**: 2026-05-15
+**Planner 최종 갱신**: 2026-05-17 (Phase 12 고도화 계획 수립)
 
 ---
 
@@ -28,6 +28,12 @@ PolicyFund AI v2는 기존 GitHub Pages 단일페이지 MVP(`policyfundapp`)의 
 - **무료 플랜 기반 운영**: Vercel Hobby + Supabase Free (500MB 한도 내 설계)
 - **원클릭 DB 전환 구조**: `api_minimal_cache` → `db_centric` 모드 전환 준비
 
+### Phase 12 배경 (2026-05-17 — 불특정 다수 오픈·실사용 피드백)
+
+- 프로덕션(`policyfund-zeta.vercel.app`)에서 **진단 조건(서울·소프트웨어·3년)** 과 **검색 결과(업종 완화·뷰티 공고·업종 불일치 배지)** 가 어긋나 신뢰 이슈가 보고됨.
+- 1차 수정 완료: 업종 `toCanonicalIndustry`, 업력 `3년` 파싱·`missing_important` 정합, `verify:strict` 안정화 (`c4691c3` 등).
+- **다음 목표**: “0건 방지용 자동 완화”를 **사용자가 이해·선택**할 수 있게 하고, 데이터·랭킹·프로필로 **맞는 공고가 위로** 오게 고도화.
+
 ---
 
 ## Key Challenges and Analysis
@@ -38,6 +44,10 @@ PolicyFund AI v2는 기존 GitHub Pages 단일페이지 MVP(`policyfundapp`)의 
 4. **데이터 운영 이원화**: 현재 `api_minimal_cache` → 향후 유료 전환 시 `db_centric` 원클릭 전환 구조 필수
 5. **표준 필드명 통일**: 자연어 입력·API 요청·DB 간 필드명 혼재 방지 (`bizAge` → `business_age_years` 등)
 6. **반복 오류 재발**: 수동 점검만으로는 동일 결함이 다른 경로에서 재출현하므로, 로그 표준화+회귀 테스트가 필요
+7. **검색 매칭 한계 (Phase 12)**: `unifiedSearch` 업종 필터는 `ilike` 텍스트 매칭 → 공고 `industry` 미기재·오기재 시 0건 → `drop_industry` 완화 → 무관 공고 노출
+8. **진단·검색 단절**: `/diagnosis?data=` URL 인코딩 JSON은 길이·캐시·구버전 파싱 결과가 남을 수 있음
+9. **자격판정 설명 부족**: `failed`/`unknown` 이유가 카드에 한 줄로 안 보이면 “검색이 틀렸다”로 오해
+10. **무료 플랜·다수 이용**: parse/search 레이트리밋·LLM 비용·동기화 품질을 운영 지표로 보지 않으면 장애 시 전원 fallback
 
 ### 반복 오류 방지 전략 (Planner 확정)
 
@@ -450,14 +460,52 @@ PAYMENT_SECRET_KEY=
 - [ ] Phase 9 — 인증·마이페이지
 - [ ] Phase 10 — 결제·구독 (후순위)
 - [ ] Phase 11 — 엄격 유저스토리 + 오류 재발 방지 체계
+- [ ] **Phase 12 — 서비스 고도화** (Planner 계획 완료 2026-05-17, Executor 미착수)
+
+### Phase 12 — Project Status Board (Planner)
+
+**Wave 1 — 검색 신뢰**
+- [x] 12-1-1 검색 API `search_mode` strict/relaxed
+- [x] 12-1-2 검색 UI 완화 배너 + 엄격 재검색
+- [x] 12-1-3 applied_filters 상시 표시
+- [x] 12-1-4 자격 판정 한 줄 사유
+- [x] 12-1-5 verify:story UX-01 시나리오
+- [x] 12-1-6 검색 정렬 eligibility.score 반영
+
+**Wave 2 — 진단·자연어**
+- [x] 12-2-1 확신도 낮은 필드 스테퍼 UI (추출 카드 + 누락 영역 업력·직원)
+- [x] 12-2-2 확인 칩 3종 + 「이대로 실제 공고 검색」
+- [x] 12-2-3 parse 실패 미니 폼 3필드 → `/search`
+- [x] 12-2-4 `?sid=` 세션 API + SearchBar 폴백 `data=`
+- [x] 12-2-5 verify:journey 진단→검색 assert (session은 DB 없으면 skip)
+
+**Wave 3 — 데이터·매칭**
+- [x] 12-3-1 industry_tags 마이그레이션 (Supabase MCP 적용)
+- [x] 12-3-2 동기화·`tag:industry` 배치 태깅
+- [x] 12-3-3 unifiedSearch `industry_tags.cs` + ilike OR
+- [x] 12-3-4 `parseBusinessAgeConstraints` + eligibility 연동
+- [x] 12-3-5 `/api/admin/programs/quality` + 관리자 UI 카드
+- [x] 12-3-6 `/api/admin/programs/duplicates` 읽기 전용
+
+**Wave 4 — 개인화·요금**
+- [ ] 12-4-1 프로필 → 검색 기본값
+- [ ] 12-4-2 무료 일일 쿼터
+- [ ] 12-4-3 Starter+ strict/export 게이트
+- [ ] 12-4-4 마이페이지 프로필 연동
+
+**Wave 5 — 성능·운영**
+- [ ] 12-5-1 parse 캐시
+- [ ] 12-5-2 검색 source UI
+- [ ] 12-5-3 verify:parse-rate CI 문서
+- [ ] 12-5-4 마감 공고 기본 숨김
 
 ---
 
 ## Current Status / Progress Tracking
 
-- **현재 모드**: Executor — Phase 4 완료, 사용자 검증 대기
+- **현재 모드**: **Executor** — Phase 12 **Wave 3 구현 완료** (`verify:wave3` PASS, strict IT 서울 검색 4건). 커밋·푸시 대기. **다음**: Wave 4 또는 Planner UX-02 게이트
 - **저장소**: `https://github.com/boam79/policy_fund` · 로컬 `/Users/parkjaemin/Dev/policy_fund`
-- **최신 커밋**: `558178b` (Phase 4 — 공고 DB 동기화 + 추천 배너)
+- **최신 커밋**: `c4691c3` (fix: 업종 표준화·업력 누락 알림 정합) — scratchpad 로컬 갱신은 미커밋
 - **Supabase 프로젝트**: `hwqsxarzgodpsvwahzae` (policyfund-ai-v2, ap-northeast-2, Free Plan)
 - **데이터 운영 모드**: `api_minimal_cache`
 - **Gemini API Key**: ✅ `.env.local`에 등록 완료
@@ -466,7 +514,8 @@ PAYMENT_SECRET_KEY=
   - `BIZINFO_API_KEY` — 기업마당 API 키 (bizinfo.go.kr 발급)
   - `PUBLIC_DATA_SERVICE_KEY` — K-Startup / 공공데이터포털 키 (data.go.kr 발급)
 - **동기화 실행 방법**: `POST /api/admin/sync` (Authorization: Bearer dev-secret-2026)
-- **다음 마일스톤**: Phase 5 — 실제 공고 검색 + 룰 기반 자격판정
+- **다음 마일스톤**: Phase 12 Wave 1 — 검색 신뢰(엄격/완화 모드·사유 노출·verify UX-01)
+- **Phase 12 Planner 완료일**: 2026-05-17
 - **2026-05-15 추가**: 공공 API 연동 보강 진행
   - K-Startup 엔드포인트를 `B552735/kisedKstartupService01/getAnnouncementInformation01`로 수정
   - 중소벤처24 기본 조회기간을 당월 기준으로 조정 + 타임아웃 시 최근 14일 재시도
@@ -488,6 +537,11 @@ PAYMENT_SECRET_KEY=
 
 ## Executor's Feedback or Assistance Requests
 
+- **2026-05-17 (Planner)**: Phase 12 전체 고도화 계획을 scratchpad에 반영함(Wave 1~5, 태스크 24개, US-12-UX 3건). **Executor는 12-1-1부터 1개씩** 진행할 것. Wave 3 DB 마이그레이션(`industry_tags`) 전 사용자 승인 필요. Wave 1 완료 후 프로덕션에서 UX-01~03 수동 검증 요청.
+- **2026-05-17 (Executor)**: **12-1-1 완료** — `lib/gov-support/tools/runProgramSearch.ts`, `POST /api/search`에 `search_mode: 'strict'|'relaxed'`(기본 relaxed). strict·0건 → 404 `SEARCH_NO_RESULTS_STRICT` + `meta.hint`·`applied_filters`. 성공 응답에 `search_mode` 필드 추가. `verify:story` US-03b·US-03c 추가 PASS. **다음**: 12-1-2(UI). 사용자 로컬/프로덕션에서 strict 동작 확인 후 승인 요청.
+- **2026-05-17 (Executor)**: **Phase 12 Wave 1 전체 완료** — 검색 UI(완화 배너·엄격/완화 재검색·applied_filters 상시·strict 0건 CTA), `eligibilityPrimaryReason`, API 정렬·`applied_filters`에 업력/직원, `verify:story` UX-01·정렬 검증. `verify:strict` PASS. 커밋·푸시 예정.
+- **2026-05-17 (Executor)**: **Phase 12 Wave 2 완료·푸시 `207dc51`** — `verify:wave2`·`verify:strict`·브라우저 E2E(홈→진단→`/search?region=서울&industry=IT/소프트웨어&business_age_years=3`) PASS. Supabase MCP로 `diagnosis_sessions` 마이그레이션 적용 완료 → `?sid=` roundtrip 정상.
+- **2026-05-17 (Executor)**: **Phase 12 Wave 3 완료** — `industry_tags` 컬럼·GIN 인덱스, `inferIndustryTags`+동기화 upsert, `buildIndustrySearchPredicateOr`, 업력 정규식 확장, admin quality/duplicates API, `verify:wave3`·`tag:industry` 스크립트. strict IT·서울 검색 total 4건 확인.
 - **2026-05-09**: 초기 커밋 `ef7f9bf`를 `origin/main`에 푸시 완료(SSH).
 - **2026-05-11**: Scratchpad 최초 재작성 (PRD v2.0 기반).
 - **2026-05-15**: Planner 재분석 — 저장소 상태 확인, README.md 삭제 이슈 발견, 계획 전면 갱신.
@@ -513,6 +567,8 @@ PAYMENT_SECRET_KEY=
   - `app/api/export/user/route.ts`: XLSX 응답 본문을 `new Uint8Array(buf)`로 감싸 TS/Response 타입 통과
   - `npm run build`, `npm run verify:story`, `npm run verify:journey` — 모두 PASS (로컬 `localhost:3000` 기준)
 - **2026-05-16**: 브랜드명 **지원둥지**로 사용자 노출·SEO·GEO(`llms.txt`·`ai.txt`)·메타·약관 등 통일. `SITE_BOT_USER_AGENT`, `EXPORT_FILE_PREFIX`, npm 패키지명 `jiwondungji`. launchd 번들 ID는 기존 설치 호환을 위해 `com.policyfund.sync` 유지. `npm run build` PASS.
+- **2026-05-16 (Executor)**: `app/privacy/page.tsx`, `app/terms/page.tsx` — 개인정보보호법 제30조 등에 맞춘 공개 항목 보강(목적·항목·보유·파기·위탁·국외 이전·쿠키·권리·자동화 결정·안전조치·고충처리·방침 변경). 이용약관에 약관 효력·유료·결제·청약철회·AI 면책·저작권·개인정보 링크·관할 조항 등 추가. Context7(`/websites/supabase`)로 RLS·인증 접근 통제 문서 참고 후 안전조치 문구에 반영. `npm run build` PASS. 법률 자문은 아님 — 사업자 정보·DPO 연락처는 운영 실정에 맞게 `/contact` 등으로 보완 필요.
+- **2026-05-16 (Executor)**: 사용자 여정 점검 — `/api/query/parse`는 본문·빈 query 검증 후 레이트리밋 적용(JSON 파싱 실패는 `PARSE_INVALID_JSON`). `verify-story` 끝 파싱 레이트 회귀 루프 제거(동일 60초 창에서 연속 `verify:strict` 시 US-01b 429 방지). 429 회귀는 `npm run verify:parse-rate` 단독. 커밋 `75ca603`, `main` 푸시 완료.
 
 ---
 
@@ -535,6 +591,9 @@ PAYMENT_SECRET_KEY=
 - **정규화 주의**: K-Startup(`pbanc_sn`, `biz_pbanc_nm`)·SMES24(`pblancSeq`, `pblancDtlUrl`) 신규 필드를 우선 매핑해야 `external_id` null 오류를 피할 수 있다.
 - **Auth 메일 주의**: 같은 이메일로 재가입 시 Supabase가 `user_repeated_signup` 처리하면서 확인 메일 재발송이 자동으로 되지 않을 수 있으므로, UI에 `auth.resend({ type: 'signup' })` 경로를 제공한다.
 - **오류 추적 원칙**: 반복 오류 분석을 위해 API 오류 응답은 `error_code + trace_id + step`을 표준으로 유지한다.
+- **`/api/query/parse` 검증 스크립트**: 프로세스 내 인메모리 레이트리밋(분당 max)이 창 끝까지 유지되므로, 한 스크립트 끝에서 파싱 API를 과다 호출하면 직후 다른 검증의 초기 US-01b가 429로 깨질 수 있다. 레이트 한도 검사는 별도 스크립트(`verify:parse-rate`)로 분리하거나 `verify:strict` 체인 맨 뒤·61초 후에만 돌린다.
+- **검색 완화 정책**: `drop_industry`는 0건 방지용이나 사용자 신뢰를 해칠 수 있음 → Phase 12-1에서 **명시적 선택·배너**로 전환, 자동 완화만으로 “맞춤 검색”이라 부르지 않음.
+- **업종 표준 라벨**: `lib/industry/canonical.ts`와 검색 `INDUSTRIES` 배열은 **동기화 유지** (새 업종 추가 시 둘 다 수정).
 
 ---
 
@@ -607,3 +666,120 @@ PAYMENT_SECRET_KEY=
 3. 회귀 테스트(US-03, US-04, US-08, US-14, US-15) 우선 작성  
 4. `verify:story` 스크립트 추가 후 배포 게이트에 연결  
 5. 프로덕션에서 MCP 기반 E2E 재검증 후 결과 기록
+
+---
+
+## Phase 12 — 서비스 고도화 계획 (Planner, 2026-05-17)
+
+**원칙**: 기능 폭보다 **검색 신뢰·진단 정합·설명 가능성** 우선. 각 태스크는 Executor가 **한 번에 1개만** 수행 후 사용자 검증.
+
+**전체 완료 정의 (Planner만 “완료” 선언)**  
+- Wave 1~3 배포 + `verify:strict` PASS + 프로덕션에서 US-12-UX(아래) 수동 3건 통과  
+- 관리자 대시보드에 데이터 품질 지표 1화면 이상
+
+### US-12-UX (고도화 수동 검증 시나리오)
+
+| ID | 시나리오 | 성공 기준 |
+|---|---|---|
+| UX-01 | 「서울 IT 소프트웨어 3년」 자연어 → 진단 → 맞춤 검색 | 진단에 업력 3년 표시, **추가 입력 배지에 업력 없음**, 검색 필터 업종 `IT/소프트웨어` |
+| UX-02 | 엄격 검색(완화 없음) 시 IT 관련 공고 상위 | `fallback_applied` 없거나 사용자가 완화 **선택 전**에는 `drop_industry` 미적용 |
+| UX-03 | 자격 「업종 불일치」 카드 | **한 줄 사유** 표시(통과/실패 규칙 요약) |
+
+---
+
+### Wave 1 — 검색 신뢰 (예상 1~2주, 최우선)
+
+| 태스크 ID | 작업 | 성공 기준 (Executor 자가 검증) | 의존 |
+|---|---|---|---|
+| 12-1-1 | 검색 API: `search_mode: 'strict' \| 'relaxed'` (기본 `relaxed` 유지) | `strict` 시 `drop_*` fallback 미실행, 0건이면 `SEARCH_NO_RESULTS_STRICT` + `meta.hint` | 없음 |
+| 12-1-2 | 검색 UI: 완화 발생 시 배너 + 「엄격히 다시 검색」버튼 | `fallback_applied` 각 항목 한글 라벨 + 클릭 시 `strict` 재요청 | 12-1-1 |
+| 12-1-3 | `applied_filters`·`fallback_applied`를 결과 상단에 항상 표시(로딩 후) | 사용자가 “지금 어떤 조건으로 찾았는지” URL·UI 일치 | 12-1-2 |
+| 12-1-4 | 자격 카드: `eligibility.failed`/`unknown` 첫 항목을 **한 줄 tooltip/부제**로 노출 | UX-03 수동 통과 | 없음 |
+| 12-1-5 | `verify:story`에 UX-01 시나리오 추가(서울+IT/소프트웨어+업력3, `missing`에 업력 없음) | `npm run verify:story` PASS | 12-1-1 |
+| 12-1-6 | 검색 정렬: `recommendation_score` 유지 + 동점 시 `eligibility.score` 내림차순(서버) | 동일 조건에서 고득점 카드가 상위 샘플 5건 중 3건 이상 | 12-1-4 |
+
+**Wave 1 완료 게이트**: `npm run build` + `verify:strict` PASS + UX-01·UX-03 수동 OK
+
+---
+
+### Wave 2 — 진단·자연어 UX (예상 1~2주)
+
+| 태스크 ID | 작업 | 성공 기준 | 의존 |
+|---|---|---|---|
+| 12-2-1 | 진단: 확신도 &lt; 0.4 필드에 **숫자 스테퍼/셀렉트**(업력·직원) | 업력 불확실 시 연 단위 입력 UI, 저장 시 `editValues` 반영 | 없음 |
+| 12-2-2 | 진단: 중요 필드 3개 **확인 칩** (지역·업종·업력) → 「이대로 검색」 | 칩 클릭만으로 검색 URL 생성 가능 | 12-2-1 |
+| 12-2-3 | parse 실패(400) 시 **미니 폼 3필드**로 `/search` 이동 (키워드-only 대안과 병행) | `PARSE_INVALID_INPUT` 후 3필드 노출 | 없음 |
+| 12-2-4 | `diagnosis_sessions` 테이블(또는 암호화 쿠키): `data=` 대신 `?sid=` 짧은 URL | URL 길이 &lt; 200자, 새로고침 시 조건 유지 | Supabase 마이그레이션 승인 |
+| 12-2-5 | `verify:journey`에 진단→검색 URL 업종·업력 파라미터 assert | PASS | 12-2-2 |
+
+**Wave 2 완료 게이트**: UX-01 재검 + 구형 `?data=` 링크도 동작(하위 호환) 또는 리다이렉트 문서화
+
+---
+
+### Wave 3 — 데이터·매칭 품질 (예상 2~4주)
+
+| 태스크 ID | 작업 | 성공 기준 | 의존 |
+|---|---|---|---|
+| 12-3-1 | `support_programs`에 `industry_tags text[]` (또는 `canonical_industry`) 마이그레이션 | nullable, 기존 행 깨지지 않음 | DB 승인 |
+| 12-3-2 | 동기화 파이프라인: 제목·`eligibility_text` 규칙+LLM 배치로 태그 채움(일 1회 cron) | 샘플 100건 중 IT 공고 80% 이상 `IT/소프트웨어` 태그 | 12-3-1 |
+| 12-3-3 | `unifiedSearch`: `industry` 시 `industry_tags` @> 또는 `ilike` OR | strict 모드에서 12-1-1과 함께 IT 검색 0건율 감소(로그 비교) | 12-3-2, 12-1-1 |
+| 12-3-4 | 업력: `eligibility_text`에서 “N년 미만/이하” 정규식 추출 → 1차 필터(선택적 soft) | 파싱 가능 공고만 `likely_eligible` 가산 | 12-3-3 |
+| 12-3-5 | 관리자 `/admin/programs` 품질 컬럼: region null %, 태그 없음 %, HTML 잔여 | 화면 로드 200, 수치 API 1개 | 12-3-2 |
+| 12-3-6 | 공고 중복 `external_id`+출처 병합 뷰(읽기 전용) | 동일 제목 2건 이하로 리스트 노출 정책 문서화 | 12-3-5 |
+
+**Wave 3 완료 게이트**: UX-02 수동 OK + 관리자 품질 지표 주 1회 확인 루틴
+
+---
+
+### Wave 4 — 개인화·요금제 정합 (예상 1~2주)
+
+| 태스크 ID | 작업 | 성공 기준 | 의존 |
+|---|---|---|---|
+| 12-4-1 | `business_profiles` 저장값 → 홈·진단·검색 기본값(로그인 시) | 로그인 후 홈 검색 시 지역·업종 프리필 | Phase 9 일부 존재 시 확장 |
+| 12-4-2 | 무료: 일 parse N회·search M회(usage 테이블 또는 기존 billing 연동) | 초과 시 `PARSE_QUOTA_EXCEEDED` / UI 업그레이드 CTA | billing API |
+| 12-4-3 | Starter+: **엄격 검색**·CSV export를 플랜 게이트에 통일(검색·evaluate와 동일 메시지) | free에서 strict 403 또는 안내 | 12-1-1, 12-4-2 |
+| 12-4-4 | 마이페이지 「내 기업 프로필」→ 진단·검색 한 번에 반영 | 프로필 수정 후 다음 검색에 반영 | 12-4-1 |
+
+---
+
+### Wave 5 — 성능·안정·운영 (예상 1주, 병행 가능)
+
+| 태스크 ID | 작업 | 성공 기준 | 의존 |
+|---|---|---|---|
+| 12-5-1 | `/api/query/parse` 응답 캐시(질의 hash, 24h, 서버 메모리 또는 Supabase) | 동일 질의 2회째 LLM 미호출(로그) | 없음 |
+| 12-5-2 | 검색 응답에 `source: db \| api_fallback` UI 배지 | 사용자에게 데이터 출처 표시 | 없음 |
+| 12-5-3 | `verify:parse-rate`를 CI 선택 job으로 문서화(README) | main 푸시 후 선택 실행 가이드 | 없음 |
+| 12-5-4 | 마감 공고 기본 숨김 + 필터 「마감 포함」 | 기본 목록에 `closing_soon`/`active`만 | 없음 |
+
+---
+
+### Phase 12 — 아키텍처 스케치 (참고, 과도 구현 금지)
+
+```
+[홈 SearchBar] → POST /api/query/parse → [진단 /diagnosis]
+                      ↓ sid (12-2-4)
+[진단 확인 칩] → GET /search?region&industry&business_age_years&mode=strict|relaxed
+                      ↓
+              POST /api/search { ..., search_mode }
+                      ↓
+         unifiedSearch (tags 12-3-3) → checkEligibility + 사유 12-1-4
+                      ↓
+              카드 → /search/[id] → /eligibility
+```
+
+**의도적 비범위 (Phase 12에서 하지 않음)**  
+- 전면 RAG·벡터 검색 (db_centric 전환 시 재검토)  
+- LLM이 자격 **판정값**을 바꾸는 것 (PRD 금지 유지)  
+- 공고 원문 전문 Supabase 저장
+
+---
+
+### Phase 12 — Executor 착수 순서 (고정)
+
+1. **12-1-1** → **12-1-2** → **12-1-3** → **12-1-4** → **12-1-5** → **12-1-6** (Wave 1)  
+2. 사용자 검증 후 Wave 2 (`12-2-1`부터)  
+3. DB 마이그레이션 승인 후 Wave 3  
+4. Wave 4·5는 Wave 1 안정화 후 병행 가능
+
+**Planner → Executor 인계 문구**  
+「Wave 1의 12-1-1부터 시작. 완료 시 scratchpad Project Status Board에 [x] 표시하고, US-12-UX 수동 체크리스트 결과를 Executor's Feedback에 기록할 것.」

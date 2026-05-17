@@ -141,6 +141,7 @@ export async function POST(request: NextRequest) {
       title: program.title,
       region: program.region,
       industry: program.industry,
+      industry_tags: program.industry_tags ?? null,
       eligibility_text: program.eligibility_text,
       exclusion_text: program.exclusion_text,
       support_type: program.support_type,

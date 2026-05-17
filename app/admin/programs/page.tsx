@@ -18,6 +18,13 @@ interface Program {
   recommendation_score: number | null
 }
 
+interface QualitySummary {
+  total: number
+  region_null_pct: number
+  industry_tags_empty_pct: number
+  html_residual_pct: number
+}
+
 const STATUS_LABEL: Record<string, string> = {
   active: '모집중',
   closing_soon: '마감임박',
@@ -40,7 +47,27 @@ export default function AdminProgramsPage() {
   const [total, setTotal] = useState(0)
   const [listError, setListError] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [quality, setQuality] = useState<QualitySummary | null>(null)
   const PER_PAGE = 20
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/admin/programs/quality')
+        const data = await res.json().catch(() => ({}))
+        if (res.ok && data.ok) {
+          setQuality({
+            total: Number(data.total ?? 0),
+            region_null_pct: Number(data.region_null_pct ?? 0),
+            industry_tags_empty_pct: Number(data.industry_tags_empty_pct ?? 0),
+            html_residual_pct: Number(data.html_residual_pct ?? 0),
+          })
+        }
+      } catch {
+        /* 품질 API 실패 시 목록만 표시 */
+      }
+    })()
+  }, [])
 
   const loadPrograms = async () => {
     setLoading(true)
@@ -131,6 +158,23 @@ export default function AdminProgramsPage() {
           <p className="text-sm text-gray-500">전체 {total.toLocaleString()}건</p>
         </div>
       </div>
+
+      {quality && (
+        <div className="mb-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border bg-white px-4 py-3 text-sm">
+            <p className="text-xs text-gray-500">지역 미기재</p>
+            <p className="text-lg font-semibold text-gray-900">{quality.region_null_pct}%</p>
+          </div>
+          <div className="rounded-xl border bg-white px-4 py-3 text-sm">
+            <p className="text-xs text-gray-500">업종 태그 없음</p>
+            <p className="text-lg font-semibold text-gray-900">{quality.industry_tags_empty_pct}%</p>
+          </div>
+          <div className="rounded-xl border bg-white px-4 py-3 text-sm">
+            <p className="text-xs text-gray-500">HTML 잔여(샘플)</p>
+            <p className="text-lg font-semibold text-gray-900">{quality.html_residual_pct}%</p>
+          </div>
+        </div>
+      )}
 
       {listError && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{listError}</div>

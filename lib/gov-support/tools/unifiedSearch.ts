@@ -5,6 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
+import { toCanonicalIndustry } from '@/lib/industry/canonical'
 import {
   PROGRAM_SEARCH_POOL_STATUSES,
   programSearchPoolEndDateOr,
@@ -133,6 +134,14 @@ export function buildTextSearchPredicateOr(term: string): string {
   ].join(',')
 }
 
+/** 업종 필터 — industry_tags @> 표준 태그 OR 기존 텍스트 ilike (12-3-3) */
+export function buildIndustrySearchPredicateOr(rawIndustry: string): string {
+  const canonical = toCanonicalIndustry(rawIndustry)
+  const t = sanitizeSearchTerm(canonical)
+  const tagFilter = `industry_tags.cs.{${t}}`
+  return [tagFilter, ...buildTextSearchPredicateOr(t).split(',')].join(',')
+}
+
 /** 중복·공백 제거 후 AND로 각각 적용할 검색어 목록 */
 export function collectSearchTextTerms(params: {
   industry?: string
@@ -206,7 +215,11 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
     query = query.or(cityOrRegionFilters)
   }
 
-  const textTerms = collectSearchTextTerms({ industry, support_purpose, keyword })
+  if (industry?.trim()) {
+    query = query.or(buildIndustrySearchPredicateOr(industry.trim()))
+  }
+
+  const textTerms = collectSearchTextTerms({ support_purpose, keyword })
   for (const term of textTerms) {
     query = query.or(buildTextSearchPredicateOr(term))
   }

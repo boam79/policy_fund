@@ -1,3 +1,9 @@
+import { toCanonicalIndustry } from '@/lib/industry/canonical'
+import {
+  parseBusinessAgeConstraints,
+  profileMatchesBusinessAgeConstraints,
+} from '@/lib/eligibility/parseBusinessAge'
+
 /**
  * 룰 기반 자격판정 엔진
  * PRD §21.5 — LLM은 설명 생성만, 판정 결과는 이 룰 엔진이 결정
@@ -34,6 +40,7 @@ export interface ProgramConditions {
   title: string
   region?: string | null
   industry?: string | null
+  industry_tags?: string[] | null
   eligibility_text?: string | null
   exclusion_text?: string | null
   support_type?: string | null
@@ -85,19 +92,26 @@ const RULES: EligibilityRule[] = [
   {
     name: '업종 매칭',
     check: (p, prog) => {
-      if (!prog.industry && !prog.support_type && !prog.eligibility_text) return null
+      if (!prog.industry && !prog.support_type && !prog.eligibility_text && !prog.industry_tags?.length) {
+        return null
+      }
       if (!p.industry) return null
+      const canonical = toCanonicalIndustry(p.industry)
+      if (prog.industry_tags?.length) {
+        if (prog.industry_tags.includes(canonical)) return true
+      }
       const targetText = [prog.industry, prog.support_type, prog.eligibility_text]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
-      const keywords = p.industry.toLowerCase().split(/[\s,]+/)
-      // 제조업, 서비스업 등 대분류 키워드 포함 시 pass
+      const keywords = [canonical, ...p.industry.toLowerCase().split(/[\s,/]+/)].filter(
+        (k) => k.length >= 2
+      )
       const broadMatch = ['전체', '전 업종', '모든 업종', '제한없음'].some((k) =>
         targetText.includes(k)
       )
       if (broadMatch) return true
-      return keywords.some((k) => k.length >= 2 && targetText.includes(k))
+      return keywords.some((k) => targetText.includes(k))
     },
     failStatus: 'review_needed',
     reason: '업종 조건 불일치 또는 확인 필요',
@@ -107,14 +121,8 @@ const RULES: EligibilityRule[] = [
     check: (p, prog) => {
       if (!prog.eligibility_text) return null
       if (p.business_age_years === null || p.business_age_years === undefined) return null
-      const text = prog.eligibility_text.toLowerCase()
-      // "창업 7년 미만" 패턴
-      const match7 = text.match(/창업\s*(\d+)년\s*미만/)
-      if (match7) return p.business_age_years < Number(match7[1])
-      // "업력 3년 이상" 패턴
-      const matchMin = text.match(/업력\s*(\d+)년\s*이상/)
-      if (matchMin) return p.business_age_years >= Number(matchMin[1])
-      return null
+      const constraints = parseBusinessAgeConstraints(prog.eligibility_text)
+      return profileMatchesBusinessAgeConstraints(p.business_age_years, constraints)
     },
     failStatus: 'likely_ineligible',
     reason: '업력 조건 불충족',
