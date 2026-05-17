@@ -1,0 +1,123 @@
+import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database.types'
+import type { RecommendedProgram } from '@/app/api/home/recommendations/route'
+import { runProgramSearch } from '@/lib/gov-support/tools/runProgramSearch'
+import {
+  buildSearchUrlFromProfile,
+  type SavedBusinessProfileDefaults,
+} from '@/lib/profile/business-profile-defaults'
+import { getServiceRoleClient } from '@/lib/supabase/serviceRole'
+import { mapRowsToRecommendedPrograms, fetchRecommendedPrograms } from '@/lib/home/recommendations'
+import { fetchClosingSoonList, type HomeProgramListItem } from '@/lib/home/lists'
+
+const PROFILE_SELECT =
+  'region,city,industry,business_age_years,employee_count,company_name,support_purpose' as const
+
+export type MemberHomeData = {
+  profile: SavedBusinessProfileDefaults | null
+  profileSearchUrl: string | null
+  personalizedPrograms: RecommendedProgram[]
+  personalizedFromProfile: boolean
+  closingSoon: HomeProgramListItem[]
+  spotlightPrograms: RecommendedProgram[]
+}
+
+export async function fetchBusinessProfile(
+  userId: string
+): Promise<SavedBusinessProfileDefaults | null> {
+  const supabase = createClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const { data, error } = await supabase
+    .from('business_profiles')
+    .select(PROFILE_SELECT)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data as SavedBusinessProfileDefaults
+}
+
+async function fetchPersonalizedFromProfile(
+  profile: SavedBusinessProfileDefaults
+): Promise<RecommendedProgram[]> {
+  const service = getServiceRoleClient()
+  if (!service) return []
+
+  try {
+    const { result } = await runProgramSearch(
+      {
+        region: profile.region?.trim() || undefined,
+        city: profile.city?.trim() || undefined,
+        industry: profile.industry?.trim() || undefined,
+        business_age_years: profile.business_age_years ?? undefined,
+        employee_count: profile.employee_count ?? undefined,
+        support_purpose: profile.support_purpose?.trim() || undefined,
+        limit: 4,
+        page: 1,
+      },
+      'relaxed'
+    )
+
+    if (!result.programs.length) return []
+
+    return mapRowsToRecommendedPrograms(
+      result.programs.map((p) => ({
+        id: p.id,
+        source: p.source,
+        title: p.title,
+        organization: p.organization,
+        region: p.region,
+        support_type: p.support_type,
+        application_end_date: p.application_end_date,
+        application_url: p.application_url,
+        status: p.status,
+        recommendation_score: p.recommendation_score,
+      }))
+    ).map((p) => ({
+      ...p,
+      recommendReason: '프로필 조건에 맞는 공고입니다.',
+    }))
+  } catch {
+    return []
+  }
+}
+
+export async function fetchMemberHomeData(userId: string): Promise<MemberHomeData> {
+  const publicClient = createClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const [profile, closingSoon, generic] = await Promise.all([
+    fetchBusinessProfile(userId),
+    fetchClosingSoonList(publicClient, 5),
+    fetchRecommendedPrograms(publicClient, 8),
+  ])
+
+  const profileSearchUrl = profile ? buildSearchUrlFromProfile(profile) : null
+
+  let personalizedPrograms: RecommendedProgram[] = []
+  let personalizedFromProfile = false
+
+  if (profile) {
+    personalizedPrograms = await fetchPersonalizedFromProfile(profile)
+    personalizedFromProfile = personalizedPrograms.length > 0
+  }
+
+  const spotlightPrograms =
+    personalizedPrograms.length > 0
+      ? personalizedPrograms.slice(0, 2)
+      : generic.slice(0, 2)
+
+  return {
+    profile,
+    profileSearchUrl,
+    personalizedPrograms,
+    personalizedFromProfile,
+    closingSoon,
+    spotlightPrograms,
+  }
+}

@@ -10,6 +10,7 @@ import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 import { fetchMyBusinessProfileDefaults } from '@/lib/profile/fetch-my-business-profile'
 import { buildDefaultSearchQueryFromProfile } from '@/lib/profile/business-profile-defaults'
 import ParseFallbackMiniForm from '@/components/home/ParseFallbackMiniForm'
+import { pushRecentSearch } from '@/components/home/RecentSearchChips'
 
 const EXAMPLE_QUERIES = [
   '경기도 제조업 3년차 직원 5명인데 받을 수 있는 지원사업 찾아줘',
@@ -70,6 +71,7 @@ export default function SearchBar({
     if (typeof window !== 'undefined') {
       localStorage.setItem('pf:last_query', q)
       localStorage.setItem('pf:last_query_at', new Date().toISOString())
+      pushRecentSearch(q)
     }
 
     try {
