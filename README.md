@@ -141,6 +141,22 @@ npm run dev
 npm run build
 ```
 
+통합 스모크 테스트 (`npm run dev` 기동 후, `VERIFY_BASE_URL` 기본 `http://localhost:3000`):
+
+```bash
+npm run verify:strict
+```
+
+`verify:strict`에는 Wave 2~5·스토리·관리자·하드·여정 검증이 포함됩니다.
+
+`POST /api/query/parse` **레이트리밋(429)** 전용 검증은 `verify:strict`에 넣지 않습니다. 동일 Node 프로세스에서 60초 창이 꽉 차면 직후 다른 parse 검증이 429로 깨질 수 있기 때문입니다. 필요할 때만 단독 실행하세요:
+
+```bash
+npm run verify:parse-rate
+```
+
+CI에서는 main 푸시 후 **선택 job**으로 `verify:parse-rate`를 두는 것을 권장합니다(필수 gate는 `verify:strict` + `build`).
+
 공공 API 동기화 스크립트:
 
 ```bash

@@ -63,12 +63,16 @@ export async function POST(request: NextRequest) {
       page = 1,
       limit = 20,
       search_mode: searchModeRaw,
+      include_closed: includeClosedRaw,
     } = body as CompanyProfile & {
       keyword?: string
       page?: number
       limit?: number
       search_mode?: string
+      include_closed?: boolean
     }
+
+    const include_closed = includeClosedRaw === true
 
     const search_mode = normalizeProgramSearchMode(searchModeRaw)
     const userId = await getSessionUserId()
@@ -118,6 +122,7 @@ export async function POST(request: NextRequest) {
       keyword,
       page,
       limit,
+      include_closed,
     }
 
     const { result, effectiveSearch, fallbackApplied } = await runProgramSearch(
@@ -230,7 +235,7 @@ export async function POST(request: NextRequest) {
       source: result.source,
       search_mode,
       fallback_applied: fallbackApplied.length > 0 ? fallbackApplied : null,
-      applied_filters,
+      applied_filters: { ...applied_filters, include_closed },
       trace_id: traceId,
     })
   } catch (e: unknown) {

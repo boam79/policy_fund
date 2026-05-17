@@ -7,8 +7,8 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { toCanonicalIndustry } from '@/lib/industry/canonical'
 import {
-  PROGRAM_SEARCH_POOL_STATUSES,
   programSearchPoolEndDateOr,
+  searchPoolStatuses,
   todayISODate,
 } from './programSearchPool'
 
@@ -23,6 +23,8 @@ export interface SearchParams {
   keyword?: string | null
   page?: number
   limit?: number
+  /** true 시 status=closed 포함, 마감일 필터 완화 */
+  include_closed?: boolean
 }
 
 export type SupportProgram = Database['public']['Tables']['support_programs']['Row']
@@ -170,6 +172,7 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
     keyword,
     page = 1,
     limit = 20,
+    include_closed = false,
   } = params
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -181,12 +184,19 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
   const offset = (page - 1) * limit
   const today = todayISODate()
 
+  const poolStatuses = searchPoolStatuses(include_closed)
+
   let query = supabase
     .from('support_programs')
     .select('*', { count: 'exact' })
-    .in('status', [...PROGRAM_SEARCH_POOL_STATUSES])
+    .in('status', poolStatuses)
     .eq('visibility_status', 'visible')
-    .or(programSearchPoolEndDateOr(today))
+
+  if (!include_closed) {
+    query = query.or(programSearchPoolEndDateOr(today))
+  }
+
+  query = query
     .order('recommendation_score', { ascending: false, nullsFirst: false })
     .order('application_end_date', { ascending: true, nullsFirst: false })
     .range(offset, offset + limit - 1)

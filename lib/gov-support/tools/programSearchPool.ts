@@ -6,8 +6,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 
-/** 모집 가능으로 목록에 포함하는 status (unifiedSearch 와 동일) */
+/** 모집 가능으로 목록에 포함하는 status (unifiedSearch 기본) */
 export const PROGRAM_SEARCH_POOL_STATUSES = ['active', 'closing_soon'] as const
+
+/** 「마감 포함」 필터 시 추가 */
+export const PROGRAM_SEARCH_CLOSED_STATUS = 'closed' as const
+
+export function searchPoolStatuses(includeClosed?: boolean): string[] {
+  if (includeClosed) {
+    return [...PROGRAM_SEARCH_POOL_STATUSES, PROGRAM_SEARCH_CLOSED_STATUS]
+  }
+  return [...PROGRAM_SEARCH_POOL_STATUSES]
+}
 
 export function todayISODate(): string {
   return new Date().toISOString().slice(0, 10)

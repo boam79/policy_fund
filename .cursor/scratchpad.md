@@ -494,16 +494,16 @@ PAYMENT_SECRET_KEY=
 - [x] 12-4-4 마이페이지 「저장한 조건으로 공고 검색」
 
 **Wave 5 — 성능·운영**
-- [ ] 12-5-1 parse 캐시
-- [ ] 12-5-2 검색 source UI
-- [ ] 12-5-3 verify:parse-rate CI 문서
-- [ ] 12-5-4 마감 공고 기본 숨김
+- [x] 12-5-1 parse 캐시 (`lib/query/parseCache.ts`, 24h·동일 질의 `cached: true`)
+- [x] 12-5-2 검색 source UI (DB / API 보조 배지)
+- [x] 12-5-3 verify:parse-rate CI 문서 (README·`verify:strict` 분리)
+- [x] 12-5-4 마감 공고 기본 숨김 + 「마감 포함」 (`include_closed`)
 
 ---
 
 ## Current Status / Progress Tracking
 
-- **현재 모드**: **Executor** — Phase 12 **Wave 4 완료** (`verify:wave4`·`verify:strict` PASS). **다음**: Wave 5
+- **현재 모드**: **Executor** — Phase 12 **Wave 5 완료** (`verify:wave5`·`verify:strict` PASS). Planner 최종 확인 대기
 - **저장소**: `https://github.com/boam79/policy_fund` · 로컬 `/Users/parkjaemin/Dev/policy_fund`
 - **최신 커밋**: `c4691c3` (fix: 업종 표준화·업력 누락 알림 정합) — scratchpad 로컬 갱신은 미커밋
 - **Supabase 프로젝트**: `hwqsxarzgodpsvwahzae` (policyfund-ai-v2, ap-northeast-2, Free Plan)
@@ -543,6 +543,7 @@ PAYMENT_SECRET_KEY=
 - **2026-05-17 (Executor)**: **Phase 12 Wave 2 완료·푸시 `207dc51`** — `verify:wave2`·`verify:strict`·브라우저 E2E(홈→진단→`/search?region=서울&industry=IT/소프트웨어&business_age_years=3`) PASS. Supabase MCP로 `diagnosis_sessions` 마이그레이션 적용 완료 → `?sid=` roundtrip 정상.
 - **2026-05-17 (Executor)**: **Phase 12 Wave 3 완료** — `industry_tags` 컬럼·GIN 인덱스, `inferIndustryTags`+동기화 upsert, `buildIndustrySearchPredicateOr`, 업력 정규식 확장, admin quality/duplicates API, `verify:wave3`·`tag:industry` 스크립트. strict IT·서울 검색 total 4건 확인.
 - **2026-05-17 (Executor)**: **Phase 12 Wave 4 완료** — 일일 parse/search 한도, strict=Starter+·로그인, entitlements API, 검색·마이페이지 프로필 연동, `verify:wave4`.
+- **2026-05-17 (Executor)**: **Phase 12 Wave 5 완료** — parse 24h 메모리 캐시·`cached` 플래그, 검색 `source` 배지, `include_closed`·마감 풀, `verify:wave5`·README(`verify:parse-rate` 분리), `verify:strict` PASS.
 - **2026-05-09**: 초기 커밋 `ef7f9bf`를 `origin/main`에 푸시 완료(SSH).
 - **2026-05-11**: Scratchpad 최초 재작성 (PRD v2.0 기반).
 - **2026-05-15**: Planner 재분석 — 저장소 상태 확인, README.md 삭제 이슈 발견, 계획 전면 갱신.

@@ -19,6 +19,7 @@ import {
   guardDailyUsage,
   recordUsageIfUser,
 } from '@/lib/billing/usageGate'
+import { getParseCache, setParseCache } from '@/lib/query/parseCache'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -91,8 +92,21 @@ export async function POST(req: NextRequest): Promise<Response> {
     )
     if (usageBlock) return usageBlock
 
+    const cached = getParseCache(queryText)
+    if (cached) {
+      return NextResponse.json<ApiResponse>({
+        success: true,
+        data: {
+          parsed: cached.parsed,
+          conditions: cached.conditions,
+          cached: true,
+        },
+      })
+    }
+
     const parsed = await parseNaturalLanguage(queryText)
     const conditions = toBusinessConditions(parsed.conditions)
+    setParseCache(queryText, { parsed, conditions })
 
     await recordUsageIfUser(userId, 'parse_query')
 
@@ -101,6 +115,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       data: {
         parsed,
         conditions,
+        cached: false,
       },
     })
   } catch (error) {
@@ -122,6 +137,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       const userId = await getSessionUserId()
       const parsed = parseNaturalLanguageFallback(queryText)
       const conditions = toBusinessConditions(parsed.conditions, 0.3)
+      setParseCache(queryText, { parsed, conditions })
       await recordUsageIfUser(userId, 'parse_query')
       return NextResponse.json<ApiResponse>({
         success: true,
@@ -129,6 +145,7 @@ export async function POST(req: NextRequest): Promise<Response> {
           parsed,
           conditions,
           fallback: 'rule_based',
+          cached: false,
         },
       })
     }

@@ -56,6 +56,7 @@ interface AppliedFilters {
   business_age_years?: number | null
   employee_count?: number | null
   text_terms: string[]
+  include_closed?: boolean
 }
 
 const REGION_NORMALIZE_MAP: Record<string, string> = {
@@ -98,6 +99,7 @@ function buildSearchQueryString(input: {
   employeeCount: string
   taxArrears: string
   searchMode?: ProgramSearchMode
+  includeClosed?: boolean
 }): string {
   const params = new URLSearchParams()
   if (input.region) params.set('region', input.region)
@@ -109,6 +111,7 @@ function buildSearchQueryString(input: {
   if (input.employeeCount) params.set('employee_count', input.employeeCount)
   if (input.taxArrears) params.set('tax_arrears', input.taxArrears)
   if (input.searchMode === 'strict') params.set('search_mode', 'strict')
+  if (input.includeClosed) params.set('include_closed', '1')
   return params.toString()
 }
 
@@ -160,6 +163,10 @@ function SearchContent() {
   const LIMIT = 20
   const [exporting, setExporting] = useState<'csv' | 'xlsx' | null>(null)
   const [allowsStrictSearch, setAllowsStrictSearch] = useState(false)
+  const [includeClosed, setIncludeClosed] = useState(
+    () => searchParams.get('include_closed') === '1'
+  )
+  const [resultSource, setResultSource] = useState<'db' | 'api_fallback' | null>(null)
   const profilePrefillDoneRef = useRef(false)
 
   useEffect(() => {
@@ -276,6 +283,7 @@ function SearchContent() {
         employeeCount,
         taxArrears,
         searchMode: mode,
+        includeClosed,
       })
       const searchPath = qs ? `/search?${qs}` : '/search'
       router.replace(searchPath, { scroll: false })
@@ -309,6 +317,7 @@ function SearchContent() {
           tax_arrears: taxArrears === 'yes' ? true : taxArrears === 'no' ? false : undefined,
           support_purpose: supportPurpose || undefined,
           search_mode: mode,
+          include_closed: includeClosed,
           page: p,
           limit: LIMIT,
         }),
@@ -348,6 +357,7 @@ function SearchContent() {
       setPrograms(data.programs ?? [])
       setTotal(data.total ?? 0)
       setPage(p)
+      setResultSource(data.source === 'api_fallback' ? 'api_fallback' : 'db')
       setFallbackApplied(Array.isArray(data.fallback_applied) ? data.fallback_applied : [])
       setAppliedFilters(data.applied_filters ?? null)
       setResponseSearchMode(
@@ -371,6 +381,7 @@ function SearchContent() {
     employeeCount,
     taxArrears,
     searchMode,
+    includeClosed,
   })
 
   const activeSearchMode = responseSearchMode ?? searchMode
@@ -496,6 +507,18 @@ function SearchContent() {
                   <option value="yes">있음</option>
                 </select>
               </div>
+              <div className="col-span-2 md:col-span-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+                <input
+                  id="include-closed"
+                  type="checkbox"
+                  checked={includeClosed}
+                  onChange={(e) => setIncludeClosed(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <label htmlFor="include-closed" className="text-xs text-slate-700 cursor-pointer">
+                  마감된 공고 포함 (기본은 모집중·마감임박만 표시)
+                </label>
+              </div>
             </div>
           )}
         </div>
@@ -515,8 +538,24 @@ function SearchContent() {
         {searched && !loading && (
           <div className="mb-4 space-y-2">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 flex items-center gap-2 flex-wrap">
                 총 <span className="font-semibold text-gray-900">{total.toLocaleString()}건</span> 검색됨
+                {resultSource && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      resultSource === 'db'
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-900 border border-amber-200'
+                    }`}
+                    title={
+                      resultSource === 'db'
+                        ? '등록된 공고 DB에서 조회했습니다.'
+                        : 'DB 결과가 적어 외부 API 보조 검색을 포함했습니다.'
+                    }
+                  >
+                    {resultSource === 'db' ? 'DB 검색' : 'API 보조 검색'}
+                  </span>
+                )}
               </p>
               <div className="flex items-center gap-2 flex-wrap justify-end">
                 <p className="text-xs text-gray-400">{page}/{totalPages || 1} 페이지</p>
@@ -562,6 +601,9 @@ function SearchContent() {
                   <FilterChip label="지원목적" value={appliedFilters.support_purpose} />
                 )}
                 {appliedFilters?.keyword && <FilterChip label="검색어" value={appliedFilters.keyword} />}
+                {appliedFilters?.include_closed && (
+                  <FilterChip label="마감" value="포함" />
+                )}
                 {appliedFilters?.business_age_years != null && (
                   <FilterChip label="업력" value={`${appliedFilters.business_age_years}년`} />
                 )}
