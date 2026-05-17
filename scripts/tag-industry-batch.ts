@@ -20,17 +20,26 @@ async function main() {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  const { data, error } = await supabase
-    .from('support_programs')
-    .select('id, title, industry, eligibility_text, support_type, industry_tags')
-    .order('synced_at', { ascending: false, nullsFirst: false })
-    .limit(limit)
-
-  if (error) throw error
-  const rows = data ?? []
+  const pageSize = 500
   let updated = 0
+  let scanned = 0
+  let offset = 0
 
-  for (const row of rows) {
+  while (scanned < limit) {
+    const take = Math.min(pageSize, limit - scanned)
+    const { data, error } = await supabase
+      .from('support_programs')
+      .select('id, title, industry, eligibility_text, support_type, industry_tags')
+      .order('synced_at', { ascending: false, nullsFirst: false })
+      .range(offset, offset + take - 1)
+
+    if (error) throw error
+    const rows = data ?? []
+    if (rows.length === 0) break
+    scanned += rows.length
+    offset += rows.length
+
+    for (const row of rows) {
     const tags = inferIndustryTags({
       title: row.title,
       industry: row.industry,
@@ -51,9 +60,12 @@ async function main() {
       continue
     }
     updated++
+    }
+
+    if (rows.length < take) break
   }
 
-  console.log(`[tag-industry] scanned=${rows.length} updated=${updated}`)
+  console.log(`[tag-industry] scanned=${scanned} updated=${updated}`)
 }
 
 main().catch((e) => {
