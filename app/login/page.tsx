@@ -30,6 +30,14 @@ function LoginForm() {
     }
   }, [searchParams])
 
+  const [devHint, setDevHint] = useState(false)
+  useEffect(() => {
+    setDevHint(
+      typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    )
+  }, [])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -51,6 +59,13 @@ function LoginForm() {
 
         <div className="bg-white rounded-2xl border p-8 shadow-sm">
           <h1 className="text-xl font-bold text-gray-900 mb-6">로그인</h1>
+          {devHint && (
+            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              로컬 개발: Google 로그인 전에 터미널에서{' '}
+              <code className="font-mono">npm run dev</code> 가 실행 중이어야 합니다. 꺼져 있으면
+              Safari가 서버에 연결할 수 없다고 표시됩니다.
+            </p>
+          )}
           <SocialAuthButtons nextPath={next} variant="login" />
           <SocialAuthDivider />
           <form onSubmit={handleLogin} className="space-y-4">

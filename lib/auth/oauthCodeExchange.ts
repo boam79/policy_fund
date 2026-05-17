@@ -24,8 +24,9 @@ export async function exchangeOAuthCodeIfPresent(
 ): Promise<NextResponse | null> {
   if (request.method !== 'GET') return null
 
-  const code = request.nextUrl.searchParams.get('code')
-  if (!code) return null
+  const raw = request.nextUrl.searchParams.get('code')
+  if (!raw) return null
+  const code = raw.replace(/#+$/, '').trim()
 
   const target = getPostOAuthRedirectUrl(request)
   let response = NextResponse.redirect(target)
