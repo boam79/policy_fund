@@ -26,9 +26,19 @@ async function main() {
       'Content-Type': 'application/json',
       Origin: 'https://evil.example',
     },
-    body: JSON.stringify({ paymentKey: 'x', orderId: 'x', amount: 9900, plan: 'starter' }),
+    body: JSON.stringify({ paymentId: 'x', orderId: 'x', amount: 9900, plan: 'starter' }),
   })
   assert(csrf.status === 403, `CSRF expected 403, got ${csrf.status}`)
+
+  const kakaoCsrf = await fetchJson('/api/billing/kakao/confirm', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'https://evil.example',
+    },
+    body: JSON.stringify({ pg_token: 'x', orderId: 'x', amount: 9900, plan: 'starter' }),
+  })
+  assert(kakaoCsrf.status === 403, `kakao CSRF expected 403, got ${kakaoCsrf.status}`)
 
   // 관리자 API: 크로스 오리진 PATCH 차단
   const adminCsrf = await fetchJson('/api/admin/programs', {
@@ -85,7 +95,7 @@ async function main() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      paymentKey: 'pk_test',
+      paymentId: 'np_test',
       orderId: 'ord_test_1',
       amount: 1,
       plan: 'starter',

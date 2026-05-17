@@ -8,12 +8,11 @@ import Link from 'next/link'
 import { PLANS, normalizePlanId, type PlanId } from '@/lib/billing/plans'
 import { SITE_NAME } from '@/lib/site-config'
 
-function SuccessContent() {
+function KakaoSuccessContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const resultCode = searchParams.get('resultCode')
-  const paymentId = searchParams.get('paymentId')
-  const orderId = searchParams.get('merchantPayKey')
+  const pgToken = searchParams.get('pg_token')
+  const orderId = searchParams.get('orderId')
   const amount = searchParams.get('amount')
   const rawPlan = searchParams.get('plan') ?? 'starter'
   let planId: PlanId = normalizePlanId(rawPlan)
@@ -24,12 +23,6 @@ function SuccessContent() {
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
-    if (resultCode && resultCode !== 'Success') {
-      const msg = searchParams.get('resultMessage') ?? '결제가 완료되지 않았습니다.'
-      router.replace(`/billing/fail?message=${encodeURIComponent(msg)}`)
-      return
-    }
-
     const confirm = async () => {
       const supabase = createClient()
       const {
@@ -40,17 +33,17 @@ function SuccessContent() {
         return
       }
 
-      if (!paymentId || !orderId || !amount) {
-        setErrorMsg('결제 인증 정보가 없습니다.')
+      if (!pgToken || !orderId || !amount) {
+        setErrorMsg('카카오페이 인증 정보가 없습니다.')
         setStatus('error')
         return
       }
 
-      const res = await fetch('/api/billing/confirm', {
+      const res = await fetch('/api/billing/kakao/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          paymentId,
+          pg_token: pgToken,
           orderId,
           amount: Number(amount),
           plan: planId,
@@ -66,15 +59,15 @@ function SuccessContent() {
       }
     }
 
-    if (paymentId && orderId && amount) void confirm()
-  }, [resultCode, paymentId, orderId, amount, planId, router, searchParams])
+    if (pgToken && orderId && amount) void confirm()
+  }, [pgToken, orderId, amount, planId, router])
 
   if (status === 'processing') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-gray-600">결제를 확인하고 있습니다...</p>
+          <Loader2 className="h-10 w-10 animate-spin text-[#FEE500] mx-auto mb-4" />
+          <p className="text-gray-600">카카오페이 결제를 확인하고 있습니다...</p>
         </div>
       </div>
     )
@@ -106,7 +99,7 @@ function SuccessContent() {
         <div className="flex flex-col gap-2">
           <Link
             href="/mypage"
-            className="py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors"
+            className="py-3 bg-[#FEE500] text-gray-900 rounded-xl font-bold hover:bg-[#f5dc00] transition-colors"
           >
             마이페이지 바로가기
           </Link>
@@ -119,10 +112,10 @@ function SuccessContent() {
   )
 }
 
-export default function SuccessPage() {
+export default function KakaoSuccessPage() {
   return (
     <Suspense>
-      <SuccessContent />
+      <KakaoSuccessContent />
     </Suspense>
   )
 }

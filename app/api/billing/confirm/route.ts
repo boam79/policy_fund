@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { getPlan, normalizePlanId } from '@/lib/billing/plans'
+import { applyNaverPayment, getNaverPayServerConfig } from '@/lib/billing/naverpay'
 import { takeRateLimit } from '@/lib/security/rateLimit'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 
@@ -12,8 +13,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '요청이 너무 많습니다.' }, { status: 429 })
     }
 
-    const pgEnabled = process.env.PAYMENT_PG_ENABLED === 'true'
-    if (!pgEnabled || !process.env.TOSS_SECRET_KEY) {
+    const naverCfg = getNaverPayServerConfig()
+    if (!naverCfg.ready) {
       return NextResponse.json(
         { error: '결제 시스템이 아직 활성화되지 않았습니다. 관리자에게 문의해주세요.' },
         { status: 503 }
@@ -28,9 +29,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
     }
 
-    const { paymentKey, orderId, amount, plan } = await request.json()
+    const body = await request.json().catch(() => ({}))
+    const paymentId = typeof body.paymentId === 'string' ? body.paymentId.trim() : ''
+    const orderId = typeof body.orderId === 'string' ? body.orderId.trim() : ''
+    const amount = body.amount
+    const plan = body.plan
 
-    if (!paymentKey || !orderId || !amount || !plan) {
+    if (!paymentId || !orderId || amount == null || !plan) {
       return NextResponse.json({ error: '필수 파라미터 누락' }, { status: 400 })
     }
     const planNorm = normalizePlanId(String(plan))
@@ -44,32 +49,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '결제 금액이 선택한 플랜과 일치하지 않습니다.' }, { status: 400 })
     }
 
-    if (typeof orderId !== 'string' || orderId.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(orderId)) {
+    if (orderId.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(orderId)) {
       return NextResponse.json({ error: '유효하지 않은 주문 ID입니다.' }, { status: 400 })
     }
+    if (paymentId.length > 50) {
+      return NextResponse.json({ error: '유효하지 않은 결제 번호입니다.' }, { status: 400 })
+    }
 
-    // 1. 토스페이먼츠 서버 확인
-    const tossRes = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${process.env.TOSS_SECRET_KEY}:`).toString('base64')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ paymentKey, orderId, amount }),
-    })
-
-    if (!tossRes.ok) {
-      const err = await tossRes.json().catch(() => ({}))
-      console.warn('[billing/confirm] toss confirm failed', tossRes.status, err)
+    const { ok, data } = await applyNaverPayment(paymentId)
+    if (!ok) {
+      console.warn('[billing/confirm] naver apply failed', data)
       return NextResponse.json(
-        { error: '결제 확인에 실패했습니다. 금액·주문 정보를 확인한 뒤 다시 시도해주세요.' },
+        { error: data.message ?? '결제 승인에 실패했습니다. 다시 시도해주세요.' },
         { status: 400 }
       )
     }
 
-    const payment = await tossRes.json()
+    const detail = data.body?.detail
+    if (
+      detail?.merchantPayKey &&
+      detail.merchantPayKey !== orderId
+    ) {
+      return NextResponse.json({ error: '주문 정보가 일치하지 않습니다.' }, { status: 400 })
+    }
+    if (
+      typeof detail?.totalPayAmount === 'number' &&
+      detail.totalPayAmount !== expectedAmount
+    ) {
+      return NextResponse.json({ error: '승인 금액이 일치하지 않습니다.' }, { status: 400 })
+    }
 
-    // 2. Supabase에 결제 및 구독 정보 저장
     const supabase = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -79,30 +88,29 @@ export async function POST(request: NextRequest) {
     const periodEnd = new Date(now)
     periodEnd.setMonth(periodEnd.getMonth() + 1)
 
-    // payments 저장
+    const orderName = detail?.productName ?? `${getPlan(planNorm).name} 월 구독`
+
     const { data: paymentRecord } = await supabase.from('payments').insert({
       user_id: user.id,
-      amount_krw: amount,
+      amount_krw: amountNum,
       status: 'done',
-      payment_provider: 'toss',
-      provider_payment_id: paymentKey,
+      payment_provider: 'naverpay',
+      provider_payment_id: paymentId,
       order_id: orderId,
-      order_name: payment.orderName,
+      order_name: orderName,
       paid_at: new Date().toISOString(),
     }).select('id').single()
 
-    // subscriptions upsert
     await supabase.from('subscriptions').upsert({
       user_id: user.id,
       plan_code: planNorm,
       status: 'active',
       current_period_start: now.toISOString(),
       current_period_end: periodEnd.toISOString(),
-      payment_provider: 'toss',
+      payment_provider: 'naverpay',
       updated_at: now.toISOString(),
     }, { onConflict: 'user_id' })
 
-    // payments에 subscription_id 연결
     if (paymentRecord) {
       const { data: sub } = await supabase.from('subscriptions').select('id').eq('user_id', user.id).single()
       if (sub) await supabase.from('payments').update({ subscription_id: sub.id }).eq('id', paymentRecord.id)

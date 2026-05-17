@@ -373,7 +373,7 @@ async function run() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      paymentKey: 'forged_key',
+      paymentId: 'forged_payment',
       orderId: 'forged_order',
       amount: 1000,
       plan: 'pro',
@@ -390,7 +390,7 @@ async function run() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       eventType: 'PAYMENT_STATUS_CHANGED',
-      data: { orderId: 'forged', status: 'CANCELED', paymentKey: 'forged' },
+      data: { event: 'CANCEL', merchantPayKey: 'forged' },
     }),
   })
   assert([400, 401, 403, 503].includes(webhookForged.status), 'US-15 expected webhook rejection')

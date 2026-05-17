@@ -50,7 +50,7 @@
 - Backend: Next.js API Routes (서버 전용 로직)
 - DB/Auth: Supabase (PostgreSQL, Auth, RLS)
 - LLM: Google Gemini (`@google/genai`) + 룰 기반 폴백
-- Payment: Toss Payments SDK (플래그 기반 온/오프)
+- Payment: 네이버페이 JS SDK + 승인 API (플래그 기반 온/오프)
 - Deploy: Vercel
 
 ---
@@ -97,7 +97,10 @@ PRD 원칙에 따라, 검색 결과는 LLM이 생성하지 않고 실제 공공 
 - `NEXT_PUBLIC_APP_URL` (OAuth `redirectTo`와 맞춤: 예 `https://policyfund-zeta.vercel.app`, 로컬은 `http://localhost:3000`)
 - `NEXT_PUBLIC_SITE_URL` (선택, canonical·OG 등과 동일 도메인 권장)
 - `NEXT_PUBLIC_PAYMENT_PG_ENABLED`
-- `NEXT_PUBLIC_TOSS_CLIENT_KEY`
+- `NEXT_PUBLIC_NAVER_PAY_CLIENT_ID`
+- `NEXT_PUBLIC_NAVER_PAY_CHAIN_ID`
+- `NEXT_PUBLIC_NAVER_PAY_MODE` (`development` | `production`, 기본 development)
+- `NEXT_PUBLIC_KAKAO_PAY_CID` (카카오페이 가맹점 CID, 클라이언트 결제 버튼 표시용)
 
 ### Supabase 소셜 로그인 (Google·카카오)
 
@@ -116,7 +119,13 @@ PRD 원칙에 따라, 검색 결과는 LLM이 생성하지 않고 실제 공공 
 - `SMES24_API_KEY`
 - `CRON_SECRET`
 - `PAYMENT_PG_ENABLED`
-- `TOSS_SECRET_KEY`
+- `NAVER_PAY_CLIENT_ID`
+- `NAVER_PAY_CLIENT_SECRET`
+- `NAVER_PAY_CHAIN_ID`
+- `NAVER_PAY_MODE` (`development` | `production`)
+- `NAVER_PAY_WEBHOOK_SECRET` (취소 알림용, 선택)
+- `KAKAO_PAY_CID` (카카오페이 가맹점 CID)
+- `KAKAO_PAY_SECRET_KEY` (카카오페이 REST API 시크릿 키, `Authorization: SECRET_KEY …` 헤더)
 - `SMES24_API_BASE` (optional)
 - `SMES24_DEFAULT_STRDT` (optional)
 - `SMES24_DEFAULT_ENDDT` (optional)

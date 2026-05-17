@@ -21,6 +21,8 @@ export const API_LOGIN_PREFIXES = [
   '/api/billing/subscription',
   '/api/billing/cancel',
   '/api/billing/confirm',
+  '/api/billing/kakao/confirm',
+  '/api/billing/kakao/ready',
   '/api/documents/',
   '/api/evaluate/',
   '/api/export/user',

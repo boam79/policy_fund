@@ -548,6 +548,8 @@ PAYMENT_SECRET_KEY=
 - **2026-05-17 (Executor)**: **v0.2.1 태그·푸시** + 프로덕션 스모크 PASS (`policyfund-zeta.vercel.app`, verify:story·wave2~5·journey·wave4).
 - **2026-05-17 (Executor)**: 유저 여정 전수 시뮬레이션 — `verify:journey-exhaustive` 추가·`verify:strict` 포함. 수정: 진단 세션 잘못된 UUID→400, 검색 limit 최대 50, 「N년 미만」 업력 표시/URL, Header auth hydration, 검색 `include_closed` URL 동기화. 커밋·푸시 `7a7f2d4` 완료.
 - **2026-05-17 (Executor)**: 사용자 요청 재검증 — 워킹 트리 clean, `npm run build` + `npm run verify:strict` 전부 PASS (journey-exhaustive 39/39).
+- **2026-05-17 (Executor)**: **관리자 운영 보강** — `AdminOpsTabs`·`AdminOpsPageShell`, 중복 공고 탭(`ProgramsDuplicatesPanel`), 공고 API 필터(source/visibility/quality), `nav-badges` ops(48h 동기화 실패·중복 그룹), 사이드바 운영 강조·배지·운영 바로가기. `npm run build` PASS. 커밋·푸시 `ea84d55`.
+- **2026-05-17 (Executor)**: **카카오페이 결제 연동 마무리** (Context7 `/websites/developers_kakaopay`) — `lib/billing/kakaopay.ts`, `POST /api/billing/kakao/ready|confirm`, `/billing/kakao/success`, checkout에 네이버·카카오 이중 버튼, README env, middleware 로그인·CSRF, `verify:security` 카카오 CSRF. `npm run build` PASS. **미커밋** — Vercel에 `KAKAO_PAY_CID`·`KAKAO_PAY_SECRET_KEY`·`NEXT_PUBLIC_KAKAO_PAY_CID` 설정 후 실결제 스모크 필요.
 - **2026-05-09**: 초기 커밋 `ef7f9bf`를 `origin/main`에 푸시 완료(SSH).
 - **2026-05-11**: Scratchpad 최초 재작성 (PRD v2.0 기반).
 - **2026-05-15**: Planner 재분석 — 저장소 상태 확인, README.md 삭제 이슈 발견, 계획 전면 갱신.
