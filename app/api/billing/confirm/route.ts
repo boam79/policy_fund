@@ -1,11 +1,17 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
-import { normalizePlanId } from '@/lib/billing/plans'
+import { getPlan, normalizePlanId } from '@/lib/billing/plans'
+import { takeRateLimit } from '@/lib/security/rateLimit'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
+    const rate = takeRateLimit(request, 'api:billing:confirm', { windowMs: 60_000, max: 10 })
+    if (!rate.ok) {
+      return NextResponse.json({ error: '요청이 너무 많습니다.' }, { status: 429 })
+    }
+
     const pgEnabled = process.env.PAYMENT_PG_ENABLED === 'true'
     if (!pgEnabled || !process.env.TOSS_SECRET_KEY) {
       return NextResponse.json(
@@ -30,6 +36,16 @@ export async function POST(request: NextRequest) {
     const planNorm = normalizePlanId(String(plan))
     if (planNorm !== 'starter' && planNorm !== 'pro') {
       return NextResponse.json({ error: '유효하지 않은 플랜입니다.' }, { status: 400 })
+    }
+
+    const expectedAmount = getPlan(planNorm).price
+    const amountNum = Number(amount)
+    if (!Number.isFinite(amountNum) || amountNum !== expectedAmount) {
+      return NextResponse.json({ error: '결제 금액이 선택한 플랜과 일치하지 않습니다.' }, { status: 400 })
+    }
+
+    if (typeof orderId !== 'string' || orderId.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(orderId)) {
+      return NextResponse.json({ error: '유효하지 않은 주문 ID입니다.' }, { status: 400 })
     }
 
     // 1. 토스페이먼츠 서버 확인

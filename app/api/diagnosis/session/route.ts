@@ -3,23 +3,17 @@
  * POST /api/diagnosis/session — 진단 조건을 짧은 sid로 저장 (URL data= 대체)
  */
 import { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
+import { requireServiceRoleClient } from '@/lib/supabase/serviceRole'
+import { isBodyTooLarge } from '@/lib/security/requestBody'
+import { takeRateLimit } from '@/lib/security/rateLimit'
 import { isUuid } from '@/lib/validation/uuid'
 
 export const dynamic = 'force-dynamic'
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
-
-function getSupabase() {
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-}
+const MAX_POST_BODY = 96_000
 
 export async function GET(request: NextRequest) {
   const traceId = createTraceId()
@@ -45,7 +39,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = getSupabase()
+    const supabase = requireServiceRoleClient()
     const { data, error } = await supabase
       .from('diagnosis_sessions')
       .select('id, raw_query, parsed_payload, expires_at')
@@ -91,6 +85,15 @@ export async function GET(request: NextRequest) {
       trace_id: traceId,
     })
   } catch (e) {
+    if (e instanceof Error && e.message === 'SUPABASE_SERVICE_ROLE_KEY_REQUIRED') {
+      return apiError({
+        status: 503,
+        errorCode: 'DIAGNOSIS_SESSION_UNAVAILABLE',
+        message: '진단 세션 서비스를 일시적으로 사용할 수 없습니다.',
+        step: 'diagnosis.session.get.config',
+        traceId,
+      })
+    }
     logApiError('/api/diagnosis/session', traceId, e)
     return apiError({
       status: 500,
@@ -105,6 +108,27 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const traceId = createTraceId()
   try {
+    const rate = takeRateLimit(request, 'api:diagnosis:session:post', { windowMs: 60_000, max: 25 })
+    if (!rate.ok) {
+      return apiError({
+        status: 429,
+        errorCode: 'DIAGNOSIS_SESSION_RATE_LIMITED',
+        message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+        step: 'diagnosis.session.post.rate_limit',
+        traceId,
+      })
+    }
+
+    if (isBodyTooLarge(request, MAX_POST_BODY)) {
+      return apiError({
+        status: 413,
+        errorCode: 'DIAGNOSIS_SESSION_BODY_TOO_LARGE',
+        message: '요청 본문이 너무 큽니다.',
+        step: 'diagnosis.session.post.validate',
+        traceId,
+      })
+    }
+
     const body = (await request.json()) as { raw_query?: string; parsed?: ParseNLResult }
     if (!body.parsed || typeof body.parsed !== 'object') {
       return apiError({
@@ -117,7 +141,7 @@ export async function POST(request: NextRequest) {
     }
 
     const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString()
-    const supabase = getSupabase()
+    const supabase = requireServiceRoleClient()
     const { data, error } = await supabase
       .from('diagnosis_sessions')
       .insert({
@@ -147,6 +171,15 @@ export async function POST(request: NextRequest) {
       trace_id: traceId,
     })
   } catch (e) {
+    if (e instanceof Error && e.message === 'SUPABASE_SERVICE_ROLE_KEY_REQUIRED') {
+      return apiError({
+        status: 503,
+        errorCode: 'DIAGNOSIS_SESSION_UNAVAILABLE',
+        message: '진단 세션 서비스를 일시적으로 사용할 수 없습니다.',
+        step: 'diagnosis.session.post.config',
+        traceId,
+      })
+    }
     logApiError('/api/diagnosis/session', traceId, e)
     return apiError({
       status: 500,

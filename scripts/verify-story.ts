@@ -291,17 +291,17 @@ async function run() {
   })
   assert(timelineUnauth.status === 401, 'US-08b expected 401 for unauthenticated timeline')
 
-  // US-10 negative: timeline missing deadline (본 검증은 입력 오류로 400, 인증 전에 처리)
+  // US-10 negative: 미인증 timeline → 401 (미들웨어·라우트 이중 차단)
   const timelineInvalid = await requestJson('/api/documents/timeline', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ announcementTitle: '테스트 공고' }),
   })
-  assert(timelineInvalid.status === 400, 'US-10 expected 400 when deadline missing')
-  assert(isStandardErrorShape(timelineInvalid.json), 'US-10 missing standardized error payload')
+  assert(timelineInvalid.status === 401, 'US-10 unauthenticated timeline → 401')
   assert(
-    timelineInvalid.json.error_code === 'DOC_TIMELINE_INPUT_REQUIRED',
-    'US-10 missing DOC_TIMELINE_INPUT_REQUIRED'
+    timelineInvalid.json.error_code === 'AUTH_REQUIRED' ||
+      timelineInvalid.json.error === '로그인이 필요합니다.',
+    'US-10 expected AUTH_REQUIRED'
   )
 
   if (!STORY_SESSION_COOKIE) {

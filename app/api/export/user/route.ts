@@ -4,10 +4,31 @@ import { getPlanIdForUser } from '@/lib/billing/usage'
 import { planAllowsTabularExport } from '@/lib/billing/plans'
 import { rowsToCsv, rowsToXlsxBuffer } from '@/lib/export/table'
 import { EXPORT_FILE_PREFIX } from '@/lib/site-config'
+import { isBodyTooLarge } from '@/lib/security/requestBody'
+import { userBypassesPlanLimits } from '@/lib/auth/admin'
 
 export const dynamic = 'force-dynamic'
 
 const MAX_ROWS = 500
+const MAX_BODY_BYTES = 512_000
+const MAX_COLS_PER_ROW = 40
+const MAX_CELL_CHARS = 2_000
+
+function sanitizeExportRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  return rows.slice(0, MAX_ROWS).map((row) => {
+    const out: Record<string, unknown> = {}
+    let col = 0
+    for (const [k, v] of Object.entries(row)) {
+      if (col >= MAX_COLS_PER_ROW) break
+      const key = String(k).slice(0, 80)
+      if (typeof v === 'string') out[key] = v.slice(0, MAX_CELL_CHARS)
+      else if (typeof v === 'number' || typeof v === 'boolean' || v === null) out[key] = v
+      else out[key] = String(v).slice(0, MAX_CELL_CHARS)
+      col += 1
+    }
+    return out
+  })
+}
 
 /**
  * 로그인 사용자 전용: 클라이언트가 넘긴 표 형태 데이터를 CSV/XLSX로 반환.
@@ -23,8 +44,13 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: '로그인이 필요합니다.' }, { status: 401 })
     }
 
+    if (isBodyTooLarge(request, MAX_BODY_BYTES)) {
+      return Response.json({ error: '요청 본문이 너무 큽니다.' }, { status: 413 })
+    }
+
+    const adminBypass = await userBypassesPlanLimits(user.id)
     const planId = await getPlanIdForUser(user.id)
-    if (!planAllowsTabularExport(planId)) {
+    if (!adminBypass && !planAllowsTabularExport(planId)) {
       return Response.json(
         { error: 'CSV·XLSX 보내기는 Starter 이상 플랜에서 이용할 수 있습니다.' },
         { status: 403 }
@@ -37,7 +63,9 @@ export async function POST(request: NextRequest) {
       filenamePrefix?: string
     }
     const format = body.format === 'xlsx' ? 'xlsx' : 'csv'
-    const rows = Array.isArray(body.rows) ? body.rows.slice(0, MAX_ROWS) : []
+    const rows = Array.isArray(body.rows)
+      ? sanitizeExportRows(body.rows as Record<string, unknown>[])
+      : []
     if (!rows.length) {
       return Response.json({ error: '보낼 데이터(rows)가 비어 있습니다.' }, { status: 400 })
     }

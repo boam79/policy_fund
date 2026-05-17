@@ -1,16 +1,22 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isAdminEmail } from '@/lib/auth/admin'
 import { safeInternalNextPath } from '@/lib/auth/safeNextPath'
 import { takeRateLimit } from '@/lib/security/rateLimit'
+import {
+  applyEdgeRateLimit,
+  csrfBlocked,
+  requiresApiLogin,
+} from '@/lib/security/middlewarePolicy'
 
 const PROTECTED = ['/mypage', '/manage', '/admin', '/billing']
-const ADMIN_ONLY_EMAIL = (process.env.ADMIN_ONLY_EMAIL ?? 'pjm7908@hanmail.net').toLowerCase().trim()
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
+  const method = request.method
 
-  /** 공개 GET API — IP별 남용 방지(불특정 다수), Supabase 세션 갱신 생략 */
-  if (request.method === 'GET' && path === '/api/home/recommendations') {
+  /** 공개 GET API — IP별 남용 방지 */
+  if (method === 'GET' && path === '/api/home/recommendations') {
     const rate = takeRateLimit(request, 'api:home:recommendations', { windowMs: 60_000, max: 120 })
     if (!rate.ok) {
       return NextResponse.json(
@@ -21,7 +27,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  if (request.method === 'GET' && path === '/api/programs/trending') {
+  if (method === 'GET' && path === '/api/programs/trending') {
     const rate = takeRateLimit(request, 'api:programs:trending', { windowMs: 60_000, max: 120 })
     if (!rate.ok) {
       return NextResponse.json(
@@ -32,6 +38,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  const edgeRate = applyEdgeRateLimit(request, path)
+  if (edgeRate) return edgeRate
+
+  if (csrfBlocked(request, path, method)) {
+    return NextResponse.json(
+      { error: '잘못된 요청 출처입니다.', error_code: 'CSRF_ORIGIN_MISMATCH' },
+      { status: 403 }
+    )
+  }
+
+  const needsSession = PROTECTED.some((p) => path.startsWith(p)) || requiresApiLogin(path)
+  const isAdminPath = path.startsWith('/admin')
+  const isAdminApiPath = path.startsWith('/api/admin') && path !== '/api/admin/sync'
+  const isAdminArea = isAdminPath || isAdminApiPath
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -39,7 +60,9 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return request.cookies.getAll() },
+        getAll() {
+          return request.cookies.getAll()
+        },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
@@ -51,17 +74,16 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const isProtected = PROTECTED.some(p => path.startsWith(p))
-  const isAdminPath = path.startsWith('/admin')
-  /** 수동 동기화 API만 라우트 내 세션/시크릿 검증 (다른 /api/admin/* 는 미들웨어에서 관리자 이메일 강제) */
-  const isAdminApiPath = path.startsWith('/api/admin') && path !== '/api/admin/sync'
-  const isAdminArea = isAdminPath || isAdminApiPath
-
-  if (isProtected && !user) {
+  if (needsSession && !user) {
     if (path.startsWith('/api/')) {
-      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
+      return NextResponse.json(
+        { error: '로그인이 필요합니다.', error_code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      )
     }
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -70,11 +92,12 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isAdminArea) {
-    const email = user?.email?.toLowerCase().trim()
-    const isAdmin = email === ADMIN_ONLY_EMAIL
-    if (!isAdmin) {
+    if (!isAdminEmail(user?.email)) {
       if (path.startsWith('/api/')) {
-        return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
+        return NextResponse.json(
+          { error: '관리자 권한이 필요합니다.', error_code: 'AUTH_ADMIN_REQUIRED' },
+          { status: 403 }
+        )
       }
       const url = request.nextUrl.clone()
       url.pathname = '/'
@@ -95,5 +118,15 @@ export const config = {
     '/api/admin/:path*',
     '/api/home/recommendations',
     '/api/programs/trending',
+    '/api/query/parse',
+    '/api/search',
+    '/api/eligibility',
+    '/api/diagnosis/session',
+    '/api/contact',
+    '/api/feedback',
+    '/api/documents/:path*',
+    '/api/evaluate/:path*',
+    '/api/export/:path*',
+    '/api/billing/:path*',
   ],
 }

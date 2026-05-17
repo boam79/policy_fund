@@ -11,8 +11,7 @@ import {
   normalizeProgramSearchMode,
   runProgramSearch,
 } from '@/lib/gov-support/tools/runProgramSearch'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
+import { getServiceRoleClient } from '@/lib/supabase/serviceRole'
 import { takeRateLimit } from '@/lib/security/rateLimit'
 import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
 import { sanitizeProgramForClient } from '@/lib/utils/stripHtml'
@@ -221,11 +220,8 @@ export async function POST(request: NextRequest) {
     })
 
     try {
-      const supabase = createClient<Database>(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-      )
+      const supabase = getServiceRoleClient()
+      if (!supabase) throw new Error('no service role')
       await supabase.from('search_sessions').insert({
         natural_language_query: keyword ?? null,
         extracted_conditions: JSON.parse(JSON.stringify({ ...profile, search_mode })),

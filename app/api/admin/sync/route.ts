@@ -11,6 +11,8 @@ import type { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { createClient as createServerSupabase } from '@/lib/supabase/server'
+import { isAdminEmail } from '@/lib/auth/admin'
+import { secretsEqual } from '@/lib/security/secrets'
 
 function createSyncClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -43,21 +45,21 @@ export const maxDuration = 300
 /** ms 대기 */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-const ADMIN_ONLY_EMAIL = (process.env.ADMIN_ONLY_EMAIL ?? 'pjm7908@hanmail.net').toLowerCase().trim()
-
 /** 인증 확인 공통 함수 (cron secret 또는 관리자 세션) */
 async function checkAuth(request: NextRequest): Promise<boolean> {
-  const authHeader = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader === `Bearer ${cronSecret}`) return true
+  const authHeader = request.headers.get('authorization')?.trim() ?? ''
+  const cronSecret = process.env.CRON_SECRET?.trim()
+  if (cronSecret && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice('Bearer '.length)
+    if (secretsEqual(token, cronSecret)) return true
+  }
 
   try {
     const supabase = await createServerSupabase()
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    const email = user?.email?.toLowerCase().trim()
-    return email === ADMIN_ONLY_EMAIL
+    return isAdminEmail(user?.email)
   } catch {
     return false
   }

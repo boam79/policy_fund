@@ -19,7 +19,8 @@
     "verify:wave5": "tsx scripts/verify-wave5.ts",
     "tag:industry": "tsx scripts/tag-industry-batch.ts",
     "verify:parse-rate": "tsx scripts/verify-parse-rate.ts",
-    "verify:strict": "npm run verify:story && npm run verify:admin && npm run verify:hard && npm run verify:journey && npm run verify:journey-exhaustive && npm run verify:wave2 && npm run verify:wave3 && npm run verify:wave4 && npm run verify:wave5",
+    "verify:security": "tsx scripts/verify-security.ts",
+    "verify:strict": "npm run verify:story && npm run verify:admin && npm run verify:hard && npm run verify:journey && npm run verify:journey-exhaustive && npm run verify:wave2 && npm run verify:wave3 && npm run verify:wave4 && npm run verify:wave5 && npm run verify:security",
     "verify:counts": "tsx scripts/verify-source-counts.ts",
     "verify:apply": "tsx scripts/verify-apply-available.ts"
   },

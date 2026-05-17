@@ -20,8 +20,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const { secretsEqual } = await import('@/lib/security/secrets')
     const receivedSecret = request.headers.get('x-webhook-secret')
-    if (receivedSecret !== webhookSecret) {
+    if (!secretsEqual(receivedSecret, webhookSecret)) {
       return NextResponse.json(
         { received: false, message: '웹훅 인증 실패' },
         { status: 401 }

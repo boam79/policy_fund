@@ -5,8 +5,8 @@
  */
 
 import type { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
+import { requireServiceRoleClient } from '@/lib/supabase/serviceRole'
+import { isUuid } from '@/lib/validation/uuid'
 import {
   checkEligibility,
   eligibilityLabel,
@@ -54,11 +54,11 @@ export async function POST(request: NextRequest) {
       profile: CompanyProfile
     }
 
-    if (!program_id) {
+    if (!program_id || !isUuid(String(program_id))) {
       return apiError({
         status: 400,
         errorCode: 'ELIGIBILITY_PROGRAM_ID_REQUIRED',
-        message: 'program_id 필수',
+        message: '유효한 program_id(UUID)가 필요합니다.',
         step: 'eligibility.validate',
         traceId,
       })
@@ -113,11 +113,18 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    let supabase
+    try {
+      supabase = requireServiceRoleClient()
+    } catch {
+      return apiError({
+        status: 503,
+        errorCode: 'ELIGIBILITY_UNAVAILABLE',
+        message: '자격 판정 서비스를 일시적으로 사용할 수 없습니다.',
+        step: 'eligibility.config',
+        traceId,
+      })
+    }
 
     // 공고 조회
     const { data: program, error } = await supabase

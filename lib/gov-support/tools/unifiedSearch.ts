@@ -3,8 +3,8 @@
  * PRD §5.2 데이터 운영 모드: api_minimal_cache
  */
 
-import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
+import { requireServiceRoleClient } from '@/lib/supabase/serviceRole'
 import { toCanonicalIndustry } from '@/lib/industry/canonical'
 import {
   programSearchPoolEndDateOr,
@@ -175,11 +175,7 @@ export async function unifiedSearch(params: SearchParams): Promise<SearchResult>
     include_closed = false,
   } = params
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  const supabase = createClient<Database>(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
+  const supabase = requireServiceRoleClient()
 
   const offset = (page - 1) * limit
   const today = todayISODate()

@@ -55,11 +55,9 @@ export async function POST(request: NextRequest) {
     // generated_documents 저장
     if (body.program_id) {
       try {
-        const supabase = createClient<Database>(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          { auth: { autoRefreshToken: false, persistSession: false } }
-        )
+        const { getServiceRoleClient } = await import('@/lib/supabase/serviceRole')
+        const supabase = getServiceRoleClient()
+        if (!supabase) throw new Error('SUPABASE_SERVICE_ROLE_KEY_REQUIRED')
         await supabase.from('generated_documents').insert({
           user_id: userId,
           doc_type: 'business_plan',

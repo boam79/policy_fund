@@ -1,7 +1,6 @@
 import type { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
 import { takeRateLimit } from '@/lib/security/rateLimit'
+import { requireServiceRoleClient } from '@/lib/supabase/serviceRole'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,11 +41,12 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: '이메일 형식이 올바르지 않습니다.' }, { status: 400 })
     }
 
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    let supabase
+    try {
+      supabase = requireServiceRoleClient()
+    } catch {
+      return Response.json({ error: '문의 서비스를 일시적으로 사용할 수 없습니다.' }, { status: 503 })
+    }
 
     const { error } = await supabase.from('customer_inquiries').insert({
       name: nameCl,
