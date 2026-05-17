@@ -4,7 +4,7 @@ import SearchBar from '@/components/home/SearchBar'
 import GuestProgramCard from '@/components/home/GuestProgramCard'
 import HomeStatsBar from '@/components/home/HomeStatsBar'
 import HeroIllustration from '@/components/home/HeroIllustration'
-import GuestHeroScene from '@/components/home/GuestHeroScene'
+import Image from 'next/image'
 import type { HomeStats } from '@/lib/home/stats'
 import type { RecommendedProgram } from '@/lib/home/recommendations'
 
@@ -43,7 +43,14 @@ export default function GuestHomeView({
               <HomeStatsBar stats={stats} variant="guest" />
 
               <div className="mt-8 flex justify-center lg:hidden">
-                <GuestHeroScene className="h-48 w-full max-w-[280px]" />
+                <Image
+                  src="/images/guest-hero-mockup.png"
+                  alt=""
+                  width={598}
+                  height={424}
+                  className="h-auto w-full max-w-[300px] object-contain"
+                  priority
+                />
               </div>
             </div>
 
