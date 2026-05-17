@@ -10,20 +10,15 @@ import { User, LogOut, Star, CreditCard, Bookmark } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { SITE_NAME } from '@/lib/site-config'
 
-const navLinks = [
+/** 비로그인·로그인 공통 상단 메뉴 */
+const mainNavLinks = [
   { href: '/about', label: '서비스 소개' },
   { href: '/search', label: '지원사업 찾기' },
+  { href: '/diagnosis', label: 'AI 맞춤 진단' },
   { href: '/documents/plan', label: '사업계획서' },
   { href: '/guide', label: '이용안내' },
-]
-
-const guestNavLinks = [
-  { href: '/search', label: '사업 검색' },
-  { href: '/diagnosis', label: 'AI 추천' },
-  { href: '/diagnosis', label: '맞춤 컨설팅' },
-  { href: '/guide', label: '지원 가이드' },
-  { href: '/faq', label: '알림·소식' },
-]
+  { href: '/faq', label: '자주 묻는 질문' },
+] as const
 
 export default function Header() {
   const router = useRouter()
@@ -71,10 +66,10 @@ export default function Header() {
           <span className="text-xl font-bold text-primary">{SITE_NAME}</span>
         </Link>
 
-        <nav className="hidden h-full items-center gap-4 md:flex">
-          {(user ? navLinks : guestNavLinks).map((link, i) => (
+        <nav className="hidden h-full items-center gap-4 lg:flex" aria-label="주요 메뉴">
+          {mainNavLinks.map((link) => (
             <Link
-              key={`${link.href}-${link.label}-${i}`}
+              key={link.href}
               href={link.href}
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
@@ -87,7 +82,15 @@ export default function Header() {
           {!authReady ? (
             <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" aria-hidden />
           ) : user ? (
-            <div className="relative">
+            <>
+              <Link
+                href="/manage"
+                className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:inline-flex"
+              >
+                <Bookmark className="h-4 w-4 text-slate-500" />
+                찜한 공고
+              </Link>
+              <div className="relative">
               <button onClick={() => setMenuOpen(o => !o)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 transition-colors">
                 <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center">
@@ -122,6 +125,7 @@ export default function Header() {
                 </div>
               )}
             </div>
+            </>
           ) : (
             <>
               <Link
