@@ -116,15 +116,38 @@ function QuickReportContent() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const sid = searchParams.get('sid')
     const dataParam = searchParams.get('data')
-    if (!dataParam) {
+
+    if (!sid && !dataParam) {
       setError('진단 데이터가 없습니다.')
       return
     }
-    try {
-      setParsed(JSON.parse(decodeURIComponent(dataParam)) as ParseNLResult)
-    } catch {
-      setError('데이터를 불러올 수 없습니다.')
+
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        if (sid) {
+          const res = await fetch(`/api/diagnosis/session?id=${encodeURIComponent(sid)}`)
+          const json = (await res.json()) as { ok?: boolean; parsed?: ParseNLResult; message?: string }
+          if (!res.ok || !json.parsed) {
+            if (!cancelled) setError(String(json.message ?? '진단 세션을 불러올 수 없습니다.'))
+            return
+          }
+          if (!cancelled) setParsed(json.parsed)
+          return
+        }
+        if (!cancelled) {
+          setParsed(JSON.parse(decodeURIComponent(dataParam!)) as ParseNLResult)
+        }
+      } catch {
+        if (!cancelled) setError('데이터를 불러올 수 없습니다.')
+      }
+    })()
+
+    return () => {
+      cancelled = true
     }
   }, [searchParams])
 
@@ -154,7 +177,11 @@ function QuickReportContent() {
       {/* 상단 액션 바 */}
       <div className="mb-6 flex items-center justify-between print:hidden">
         <a
-          href={`/diagnosis?q=${encodeURIComponent(parsed.raw_query)}&data=${searchParams.get('data') ?? ''}`}
+          href={
+            searchParams.get('sid')
+              ? `/diagnosis?sid=${encodeURIComponent(searchParams.get('sid')!)}&q=${encodeURIComponent(parsed.raw_query)}`
+              : `/diagnosis?q=${encodeURIComponent(parsed.raw_query)}&data=${searchParams.get('data') ?? ''}`
+          }
           className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), '-ml-2')}
         >
           <ArrowLeft className="mr-1 h-4 w-4" />

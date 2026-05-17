@@ -254,6 +254,30 @@ export type Database = {
           },
         ]
       }
+      diagnosis_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          parsed_payload: Json
+          raw_query: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          parsed_payload: Json
+          raw_query?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          parsed_payload?: Json
+          raw_query?: string | null
+        }
+        Relationships: []
+      }
       customer_inquiries: {
         Row: {
           created_at: string

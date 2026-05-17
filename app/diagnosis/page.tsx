@@ -12,9 +12,12 @@ import { formatKRW } from '@/types'
 import type { ParseNLResult, ParsedConditions } from '@/lib/query/parseNaturalLanguage'
 import { AlertCircle, CheckCircle2, HelpCircle, Pencil, Zap, Search } from 'lucide-react'
 import ConditionEditInput from '@/components/diagnosis/ConditionEditInput'
+import ConditionNumericStepper from '@/components/diagnosis/ConditionNumericStepper'
+import DiagnosisConfirmChips from '@/components/diagnosis/DiagnosisConfirmChips'
 import { mergeSavedProfileIntoParsed } from '@/lib/profile/business-profile-defaults'
 import { fetchMyBusinessProfileDefaults } from '@/lib/profile/fetch-my-business-profile'
-import { toCanonicalIndustry } from '@/lib/industry/canonical'
+import { coerceValueByKey } from '@/lib/diagnosis/coerce'
+import { applyDiagnosisSearchNavigation, buildDiagnosisQuickReportHref } from '@/lib/diagnosis/navigate'
 
 // ─── 조건 표시 라벨 매핑 ───────────────────────────────────
 const CONDITION_LABELS: Record<string, string> = {
@@ -45,36 +48,6 @@ const MISSING_LABELS: Record<string, string> = {
   startup_stage: '창업 단계',
   credit_score: '신용점수',
   tax_arrears: '세금 체납',
-}
-
-const REGION_NORMALIZE_MAP: Record<string, string> = {
-  서울특별시: '서울',
-  경기도: '경기',
-  인천광역시: '인천',
-  부산광역시: '부산',
-  대구광역시: '대구',
-  광주광역시: '광주',
-  대전광역시: '대전',
-  울산광역시: '울산',
-  세종특별자치시: '세종',
-  강원도: '강원',
-  강원특별자치도: '강원',
-  충청북도: '충북',
-  충청남도: '충남',
-  전라북도: '전북',
-  전북특별자치도: '전북',
-  전라남도: '전남',
-  경상북도: '경북',
-  경상남도: '경남',
-  제주도: '제주',
-  제주특별자치도: '제주',
-}
-
-function normalizeRegionForFilter(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  const raw = value.trim()
-  if (!raw) return null
-  return REGION_NORMALIZE_MAP[raw] ?? raw
 }
 
 function formatConditionValue(key: string, value: unknown): string {
@@ -134,21 +107,7 @@ function missingNeedsYellowAddRow(parsed: ParseNLResult, key: string): boolean {
   return !inExtracted
 }
 
-function coerceValueByKey(key: string, raw: string): unknown {
-  const value = raw.trim()
-  if (value.length === 0) return undefined
-
-  if (['business_age_years', 'employee_count', 'annual_revenue_krw', 'desired_amount_krw', 'credit_score'].includes(key)) {
-    const n = Number(value.replace(/,/g, ''))
-    return Number.isFinite(n) ? n : undefined
-  }
-  if (key === 'tax_arrears') {
-    if (['있음', 'yes', 'true', '1'].includes(value.toLowerCase())) return true
-    if (['없음', 'no', 'false', '0'].includes(value.toLowerCase())) return false
-    return undefined
-  }
-  return value
-}
+const NUMERIC_STEPPER_KEYS = new Set(['business_age_years', 'employee_count'])
 
 // ─── 메인 컨텐츠 ───────────────────────────────────────────
 function DiagnosisContent() {
@@ -163,8 +122,9 @@ function DiagnosisContent() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const sid = searchParams.get('sid')
     const dataParam = searchParams.get('data')
-    if (!dataParam) {
+    if (!sid && !dataParam) {
       const programId = searchParams.get('program_id')
       if (programId) {
         router.replace(`/eligibility?program_id=${encodeURIComponent(programId)}`)
@@ -177,23 +137,40 @@ function DiagnosisContent() {
     let cancelled = false
     setError(null)
 
+    async function applyParsed(data: ParseNLResult) {
+      let merged = data
+      try {
+        const prof = await fetchMyBusinessProfileDefaults()
+        if (!cancelled && prof) merged = mergeSavedProfileIntoParsed(data, prof)
+      } catch {
+        /* 프로필 없음·오류 시 원본만 사용 */
+      }
+      if (cancelled) return
+      setParsed(merged)
+      const initValues: Record<string, string> = {}
+      Object.entries(merged.conditions).forEach(([key, cond]) => {
+        if (cond) initValues[key] = String((cond as { value: unknown }).value)
+      })
+      setEditValues(initValues)
+    }
+
     ;(async () => {
       try {
-        const data = JSON.parse(decodeURIComponent(dataParam)) as ParseNLResult
-        let merged = data
-        try {
-          const prof = await fetchMyBusinessProfileDefaults()
-          if (!cancelled && prof) merged = mergeSavedProfileIntoParsed(data, prof)
-        } catch {
-          /* 프로필 없음·오류 시 원본만 사용 */
+        if (sid) {
+          const res = await fetch(`/api/diagnosis/session?id=${encodeURIComponent(sid)}`)
+          const json = (await res.json()) as { ok?: boolean; parsed?: ParseNLResult; message?: string }
+          if (!res.ok || !json.parsed) {
+            if (!cancelled) {
+              setError(String(json.message ?? '진단 세션을 불러올 수 없습니다. 홈에서 다시 검색해주세요.'))
+            }
+            return
+          }
+          await applyParsed(json.parsed)
+          return
         }
-        if (cancelled) return
-        setParsed(merged)
-        const initValues: Record<string, string> = {}
-        Object.entries(merged.conditions).forEach(([key, cond]) => {
-          if (cond) initValues[key] = String((cond as { value: unknown }).value)
-        })
-        setEditValues(initValues)
+
+        const data = JSON.parse(decodeURIComponent(dataParam!)) as ParseNLResult
+        await applyParsed(data)
       } catch {
         if (!cancelled) setError('조건 데이터가 유효하지 않습니다.')
       }
@@ -203,6 +180,14 @@ function DiagnosisContent() {
       cancelled = true
     }
   }, [searchParams, router])
+
+  function navigateToSearch() {
+    if (!parsed) {
+      router.push('/search')
+      return
+    }
+    applyDiagnosisSearchNavigation(router, parsed, editValues)
+  }
 
   function beginEdit(key: string, initial = '') {
     setEditMode(key)
@@ -311,6 +296,10 @@ function DiagnosisContent() {
                 const c = cond as { value: unknown; confidence: number; source_text?: string }
                 const label = CONDITION_LABELS[key] ?? key
                 const displayValue = formatConditionValue(key, editValues[key] ?? c.value)
+                const useStepper =
+                  NUMERIC_STEPPER_KEYS.has(key) && c.confidence < 0.4 && editMode !== key
+                const numericRaw = editValues[key] ?? String(c.value ?? '0')
+                const numericVal = Number(String(numericRaw).replace(/,/g, ''))
 
                 return (
                   <div
@@ -322,7 +311,19 @@ function DiagnosisContent() {
                         <span className="text-xs text-muted-foreground">{label}</span>
                         {getConfidenceBadge(c.confidence)}
                       </div>
-                      {editMode === key ? (
+                      {useStepper && Number.isFinite(numericVal) ? (
+                        <div className="mt-1">
+                          <ConditionNumericStepper
+                            value={numericVal}
+                            min={0}
+                            max={key === 'employee_count' ? 50000 : 100}
+                            unit={key === 'business_age_years' ? '년' : '명'}
+                            onChange={(n) =>
+                              setEditValues((prev) => ({ ...prev, [key]: String(n) }))
+                            }
+                          />
+                        </div>
+                      ) : editMode === key ? (
                         <div className="mt-1 flex items-center gap-2">
                           <ConditionEditInput
                             value={draftValues[key] ?? ''}
@@ -353,7 +354,7 @@ function DiagnosisContent() {
                         <span className="text-sm font-medium">{displayValue}</span>
                       )}
                     </div>
-                    {editMode !== key && (
+                    {editMode !== key && !useStepper && (
                       <button
                         type="button"
                         onClick={() => beginEdit(key, String(c.value ?? ''))}
@@ -398,7 +399,15 @@ function DiagnosisContent() {
                     className="flex flex-col gap-2 rounded-md border border-yellow-200/80 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <span className="text-sm font-medium text-yellow-900">{MISSING_LABELS[key] ?? key}</span>
-                    {editMode === key ? (
+                    {NUMERIC_STEPPER_KEYS.has(key) ? (
+                      <ConditionNumericStepper
+                        value={Number(editValues[key] ?? '0') || 0}
+                        min={0}
+                        max={key === 'employee_count' ? 50000 : 100}
+                        unit={key === 'business_age_years' ? '년' : '명'}
+                        onChange={(n) => setEditValues((prev) => ({ ...prev, [key]: String(n) }))}
+                      />
+                    ) : editMode === key ? (
                       <div className="flex flex-1 flex-wrap items-center gap-2 sm:justify-end">
                         <ConditionEditInput
                           value={draftValues[key] ?? ''}
@@ -408,9 +417,7 @@ function DiagnosisContent() {
                           placeholder={
                             key === 'industry'
                               ? '예: 응용소프트웨어업, 제조업, IT'
-                              : key === 'employee_count'
-                                ? '예: 5'
-                                : '값을 입력하세요'
+                              : '값을 입력하세요'
                           }
                           className="h-8 min-w-[12rem] flex-1 rounded border px-2 text-sm outline-none focus:border-primary"
                         />
@@ -448,6 +455,8 @@ function DiagnosisContent() {
         </div>
       )}
 
+      <DiagnosisConfirmChips parsed={parsed} editValues={editValues} onSearch={navigateToSearch} />
+
       {/* 법적 고지 */}
       <p className="mb-8 rounded-lg bg-gray-50 px-4 py-3 text-xs text-muted-foreground">
         이 결과는 입력 조건을 기반으로 한 참고용 사전 분석입니다. 정확한 신청 가능 여부는
@@ -457,7 +466,10 @@ function DiagnosisContent() {
       {/* 방식 선택 버튼 */}
       <div className="grid gap-3 sm:grid-cols-2">
         <a
-          href={`/report/quick?data=${searchParams.get('data') ?? ''}`}
+          href={buildDiagnosisQuickReportHref(parsed, {
+            sid: searchParams.get('sid'),
+            encodedData: searchParams.get('data'),
+          })}
           className={cn(
             buttonVariants({ variant: 'outline' }),
             'flex h-auto flex-col items-start gap-1 px-5 py-4 text-left'
@@ -472,56 +484,8 @@ function DiagnosisContent() {
           </span>
         </a>
         <button
-          onClick={() => {
-            if (!parsed) { router.push('/search'); return }
-            const c = parsed.conditions
-            const params = new URLSearchParams()
-
-            const getValue = (key: keyof ParsedConditions) => {
-              const edited = editValues[key]
-              if (typeof edited === 'string') {
-                return coerceValueByKey(String(key), edited)
-              }
-              return c[key]?.value
-            }
-
-            const region = getValue('region')
-            const city = getValue('city')
-            const industry = getValue('industry')
-            const businessAge = getValue('business_age_years')
-            const employeeCount = getValue('employee_count')
-            const annualRevenue = getValue('annual_revenue_krw')
-            const creditScore = getValue('credit_score')
-            const taxArrears = getValue('tax_arrears')
-            const supportPurpose = getValue('support_purpose')
-
-            const normalizedRegion = normalizeRegionForFilter(region)
-            if (normalizedRegion) params.set('region', normalizedRegion)
-            if (city) params.set('city', String(city))
-            if (industry) params.set('industry', toCanonicalIndustry(String(industry)))
-            if (businessAge != null) params.set('business_age_years', String(businessAge))
-            if (employeeCount != null) params.set('employee_count', String(employeeCount))
-            if (annualRevenue != null) params.set('annual_revenue_krw', String(annualRevenue))
-            if (creditScore != null) params.set('credit_score', String(creditScore))
-            if (typeof taxArrears === 'boolean') params.set('tax_arrears', taxArrears ? 'yes' : 'no')
-            if (supportPurpose) params.set('support_purpose', String(supportPurpose))
-            // 업종·지원목적은 각각 전용 쿼리 파라미터만 사용 (keyword 중복 시 AND로 과도 필터링됨)
-
-            // 유저 여정에서 입력한 조건을 다음 단계(자격판정)에서 자동 채움할 수 있도록 저장
-            if (typeof window !== 'undefined') {
-              const profileDraft = {
-                region: normalizedRegion ?? undefined,
-                city: city ? String(city) : undefined,
-                industry: industry ? toCanonicalIndustry(String(industry)) : undefined,
-                business_age_years: businessAge != null ? Number(businessAge) : undefined,
-                employee_count: employeeCount != null ? Number(employeeCount) : undefined,
-                tax_arrears: typeof taxArrears === 'boolean' ? taxArrears : undefined,
-                support_purpose: supportPurpose ? String(supportPurpose) : undefined,
-              }
-              localStorage.setItem('pf:last_profile_draft', JSON.stringify(profileDraft))
-            }
-            router.push(`/search?${params.toString()}`)
-          }}
+          type="button"
+          onClick={navigateToSearch}
           className={cn(
             buttonVariants(),
             'flex h-auto flex-col items-start gap-1 px-5 py-4 text-left'

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 import { fetchMyBusinessProfileDefaults } from '@/lib/profile/fetch-my-business-profile'
 import { buildDefaultSearchQueryFromProfile } from '@/lib/profile/business-profile-defaults'
+import ParseFallbackMiniForm from '@/components/home/ParseFallbackMiniForm'
 
 const EXAMPLE_QUERIES = [
   '경기도 제조업 3년차 직원 5명인데 받을 수 있는 지원사업 찾아줘',
@@ -30,6 +31,7 @@ export default function SearchBar({
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showParseMiniForm, setShowParseMiniForm] = useState(false)
   const [savedProfileQuery, setSavedProfileQuery] = useState<string | null>(null)
   const router = useRouter()
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -61,6 +63,7 @@ export default function SearchBar({
 
     setLoading(true)
     setError(null)
+    setShowParseMiniForm(false)
 
     // 유저 여정 연결을 위한 최근 입력값 저장 (문서 생성 화면에서 활용)
     if (typeof window !== 'undefined') {
@@ -93,6 +96,12 @@ export default function SearchBar({
           ['PARSE_INVALID_INPUT', 'PARSE_QUERY_TOO_LONG'].includes(String(data.error_code ?? ''))
 
         // 비어 있거나 잘못된 입력이 아니면 분석 단계 장애와 관계 없이 공고 검색으로 이어짐
+        if (isInputValidationError) {
+          setShowParseMiniForm(true)
+          setError(message.length > 0 ? message : '검색어를 입력해주세요.')
+          return
+        }
+
         if (!isInputValidationError && q.trim()) {
           router.push(`/search?keyword=${encodeURIComponent(q)}&q=${encodeURIComponent(q)}`)
           return
@@ -108,12 +117,21 @@ export default function SearchBar({
         localStorage.setItem('pf:last_parsed', JSON.stringify(parsed))
       }
 
-      // 추출 결과를 URL 파라미터로 인코딩 후 /diagnosis 페이지로 이동
-      const params = new URLSearchParams({
-        q: q,
-        data: encodeURIComponent(JSON.stringify(parsed)),
-      })
-      router.push(`/diagnosis?${params.toString()}`)
+      let diagnosisPath = `/diagnosis?q=${encodeURIComponent(q)}&data=${encodeURIComponent(JSON.stringify(parsed))}`
+      try {
+        const sessRes = await fetch('/api/diagnosis/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raw_query: q, parsed }),
+        })
+        const sessJson = (await sessRes.json()) as { ok?: boolean; sid?: string }
+        if (sessRes.ok && sessJson.ok === true && sessJson.sid) {
+          diagnosisPath = `/diagnosis?sid=${encodeURIComponent(sessJson.sid)}&q=${encodeURIComponent(q)}`
+        }
+      } catch {
+        /* sid 저장 실패 시 data= URL 유지 */
+      }
+      router.push(diagnosisPath)
     } catch {
       setError('네트워크 오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
@@ -143,6 +161,7 @@ export default function SearchBar({
           onChange={(e) => {
             setQuery(e.target.value)
             setError(null)
+            setShowParseMiniForm(false)
           }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
@@ -176,6 +195,13 @@ export default function SearchBar({
       {/* 오류 메시지 */}
       {error && (
         <p className="mt-2 text-sm text-destructive">{error}</p>
+      )}
+
+      {showParseMiniForm && (
+        <ParseFallbackMiniForm
+          lastQuery={query}
+          onKeywordSearch={(k) => router.push(`/search?keyword=${encodeURIComponent(k)}&q=${encodeURIComponent(k)}`)}
+        />
       )}
 
       {/* 마이페이지 기본 검색문 */}

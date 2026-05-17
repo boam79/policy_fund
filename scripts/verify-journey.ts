@@ -99,6 +99,57 @@ async function run() {
     'trending response should be an object'
   )
 
+  // 4b) 진단 → 검색 파라미터 (Phase 12-2)
+  const diagParse = await fetchJson('/api/query/parse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: '서울 소프트웨어 업력 3년 지원사업' }),
+  })
+  assert(diagParse.status === 200, `Diagnosis parse failed: ${diagParse.status}`)
+  const diagParsed = (diagParse.json.data as Json | undefined)?.parsed as Json | undefined
+  const diagConds = (diagParsed?.conditions as Json | undefined) ?? {}
+  const diagAge = (diagConds.business_age_years as Json | undefined)?.value
+  assert(Number(diagAge) === 3, 'Journey: expected business_age_years 3 from parse')
+  const diagIndustry = (diagConds.industry as Json | undefined)?.value
+  assert(String(diagIndustry) === 'IT/소프트웨어', 'Journey: expected IT/소프트웨어 industry')
+
+  const sessionPost = await fetchJson('/api/diagnosis/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      raw_query: '서울 소프트웨어 업력 3년 지원사업',
+      parsed: diagParsed,
+    }),
+  })
+  if (sessionPost.status === 200 && sessionPost.json.ok === true) {
+    const sid = String(sessionPost.json.sid)
+    const sessionGet = await fetchJson(`/api/diagnosis/session?id=${encodeURIComponent(sid)}`)
+    assert(sessionGet.status === 200, 'Journey: diagnosis session GET failed')
+    const gotAge = (
+      ((sessionGet.json.parsed as Json | undefined)?.conditions as Json | undefined)
+        ?.business_age_years as Json | undefined
+    )?.value
+    assert(Number(gotAge) === 3, 'Journey: session roundtrip business_age_years')
+  } else {
+    console.log(
+      '[verify-journey] diagnosis_sessions skip — run scripts/sql/diagnosis_sessions.sql on Supabase'
+    )
+  }
+
+  const diagSearch = await fetchJson('/api/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      region: '서울',
+      industry: 'IT/소프트웨어',
+      business_age_years: 3,
+      search_mode: 'relaxed',
+      page: 1,
+      limit: 5,
+    }),
+  })
+  assert(diagSearch.status === 200 && diagSearch.json.ok === true, 'Journey: diagnosis-aligned search failed')
+
   // 4) 자격판정 API
   const elig = await fetchJson('/api/eligibility', {
     method: 'POST',
