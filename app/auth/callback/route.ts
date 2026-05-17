@@ -20,7 +20,14 @@ function redirectTarget(request: NextRequest, path: string): URL {
  */
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code')
+  const oauthError = request.nextUrl.searchParams.get('error')
   const next = safeInternalNextPath(request.nextUrl.searchParams.get('next'))
+
+  if (oauthError && !code) {
+    const fail = redirectTarget(request, '/login')
+    fail.searchParams.set('error', 'auth_callback_failed')
+    return NextResponse.redirect(fail)
+  }
 
   let response = NextResponse.redirect(redirectTarget(request, next))
 
