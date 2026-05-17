@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Bookmark } from 'lucide-react'
 import type { RecommendedProgram } from '@/lib/home/recommendations'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
-import { formatProgramSupportAmount, boostDisplayMatchScore } from '@/lib/home/program-display'
+import { formatProgramSupportAmount, guestCardMatchScore } from '@/lib/home/program-display'
 import MatchScoreRing from '@/components/home/MatchScoreRing'
 import { cn } from '@/lib/utils'
 
@@ -17,17 +17,20 @@ function deadlineBadge(daysLeft: number | null, status: string) {
   return { label: `D-${daysLeft}`, className: 'bg-slate-500 text-white' }
 }
 
+function metaLabel(program: RecommendedProgram): string | null {
+  if (program.region?.trim()) return stripHtmlToText(program.region)
+  if (program.support_type?.trim()) return stripHtmlToText(program.support_type)
+  if (program.organization?.trim()) return stripHtmlToText(program.organization)
+  return null
+}
+
 function buildTags(program: RecommendedProgram): string[] {
   const tags: string[] = []
-  if (program.support_type) {
-    const t = stripHtmlToText(program.support_type)
-    if (t) tags.push(t.length > 12 ? t.slice(0, 12) : t)
-  }
-  if (program.region) {
-    const r = stripHtmlToText(program.region)
-    if (r && !tags.includes(r)) tags.push(r.length > 8 ? r.slice(0, 8) : r)
-  }
-  return tags.slice(0, 3)
+  const type = program.support_type ? stripHtmlToText(program.support_type) : ''
+  const region = program.region ? stripHtmlToText(program.region) : ''
+  if (type && type.length <= 14) tags.push(type)
+  if (region && region.length <= 10 && !tags.includes(region)) tags.push(region)
+  return tags.slice(0, 2)
 }
 
 export default function GuestProgramCard({
@@ -37,24 +40,25 @@ export default function GuestProgramCard({
   program: RecommendedProgram
   rankIndex?: number
 }) {
-  const displayScore = boostDisplayMatchScore(program, { rankIndex })
+  const displayScore = guestCardMatchScore(rankIndex)
   const funding = formatProgramSupportAmount(
     program.support_amount,
     program.support_amount_min_krw,
     program.support_amount_max_krw
   )
   const badge = deadlineBadge(program.days_left, program.status)
+  const meta = metaLabel(program)
   const tags = buildTags(program)
-  const summary =
-    program.summary_text?.trim() ||
-    program.recommendReason ||
-    '중소기업·창업 지원을 위한 공공 지원사업입니다.'
+  const deadlineLine =
+    program.days_left !== null
+      ? `마감이 ${program.days_left}일 남았습니다.`
+      : program.recommendReason
 
   return (
-    <article className="group relative flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+    <article className="flex h-full flex-col rounded-2xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-md">
       <div className="mb-3 flex items-start justify-between gap-2">
         {badge ? (
-          <span className={cn('rounded-md px-2 py-0.5 text-[11px] font-bold', badge.className)}>
+          <span className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-bold', badge.className)}>
             {badge.label}
           </span>
         ) : (
@@ -62,24 +66,22 @@ export default function GuestProgramCard({
         )}
         <Link
           href="/login"
-          className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+          className="text-slate-300 transition-colors hover:text-slate-500"
           title="로그인 후 찜하기"
           aria-label="찜하기"
         >
-          <Bookmark className="h-4 w-4" />
+          <Bookmark className="h-4 w-4" strokeWidth={1.75} />
         </Link>
       </div>
 
       <Link href={`/search/${program.id}`} className="flex flex-1 flex-col">
-        <h3 className="mb-1.5 line-clamp-2 text-sm font-bold leading-snug text-gray-900 group-hover:text-blue-700">
+        <h3 className="mb-1 line-clamp-2 text-[13px] font-bold leading-snug text-blue-700 hover:text-blue-800">
           {stripHtmlToText(program.title)}
         </h3>
-        {program.organization && (
-          <p className="mb-2 text-xs font-medium text-blue-600 line-clamp-1">
-            {stripHtmlToText(program.organization)}
-          </p>
-        )}
-        <p className="mb-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{summary}</p>
+
+        {meta && <p className="mb-1 text-xs text-slate-500">{meta}</p>}
+
+        <p className="mb-3 text-xs leading-relaxed text-slate-500">{deadlineLine}</p>
 
         {tags.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-1.5">
@@ -94,16 +96,16 @@ export default function GuestProgramCard({
           </div>
         )}
 
-        <div className="mt-auto flex items-end justify-between gap-2 border-t border-slate-100 pt-3">
-          <div className="min-w-0 text-xs">
-            <span className="text-muted-foreground">지원금 </span>
-            <span className="font-bold text-gray-900">
-              {funding ? `최대 ${funding.replace(/^최대\s*/, '')}` : '공고 확인'}
+        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+          <p className="text-[11px] text-slate-500">
+            <span className="text-slate-400">지원금 </span>
+            <span className="font-semibold text-slate-700">
+              {funding ?? '공고 확인'}
             </span>
-          </div>
-          <div className="flex shrink-0 flex-col items-center gap-0.5">
-            <MatchScoreRing score={displayScore} />
-            <span className="text-[9px] text-muted-foreground">AI 매칭</span>
+          </p>
+          <div className="flex flex-col items-center gap-0.5">
+            <MatchScoreRing score={displayScore} size={48} />
+            <span className="text-[9px] font-medium text-slate-500">AI 매칭</span>
           </div>
         </div>
       </Link>

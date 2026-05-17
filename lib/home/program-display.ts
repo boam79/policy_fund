@@ -17,16 +17,23 @@ export function formatProgramSupportAmount(
     if (min === max) return fmt(min)
     return `${fmt(min)} ~ ${fmt(max)}`
   }
-  if (max != null) return `최대 ${fmt(max)}`
-  if (min != null) return `${fmt(min)} 이상`
+  if (max != null) return fmt(max)
+  if (min != null) return fmt(min)
   return null
 }
 
-/** 프로필 맞춤·스포트라이트 등 UI용 표시 점수 (DB 점수가 낮아도 순위 기반 보정) */
+/** 비로그인 홈 카드 목업 고정 매칭 % (78 → 69) */
+export function guestCardMatchScore(rankIndex: number): number {
+  return Math.max(69, 78 - rankIndex * 3)
+}
+
+/** 프로필 맞춤·스포트라이트 등 UI용 표시 점수 */
 export function boostDisplayMatchScore(
   program: RecommendedProgram,
-  options?: { rankIndex?: number; personalized?: boolean }
+  options?: { rankIndex?: number; personalized?: boolean; guest?: boolean }
 ): number {
+  if (options?.guest) return guestCardMatchScore(options.rankIndex ?? 0)
+
   const rank = options?.rankIndex ?? 0
   if (options?.personalized) {
     return Math.min(98, Math.max(program.matchScore, 92 - rank * 4))

@@ -167,9 +167,9 @@ export default function SearchBar({
     <div className="w-full">
       <div
         className={cn(
-          'flex items-center gap-2 border bg-white shadow-md',
+          'flex items-center gap-2 border bg-white',
           isHero
-            ? 'rounded-full border-slate-200 p-1.5 pl-5'
+            ? 'rounded-full border-slate-200 p-1.5 pl-5 shadow-lg'
             : cn('rounded-xl border-border/60 shadow-lg', isLarge ? 'p-3' : 'p-2')
         )}
       >

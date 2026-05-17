@@ -71,7 +71,7 @@ export default function Header() {
           <span className="text-xl font-bold text-primary">{SITE_NAME}</span>
         </Link>
 
-        <nav className="hidden h-full items-center gap-5 lg:flex">
+        <nav className="hidden h-full items-center gap-4 md:flex">
           {(user ? navLinks : guestNavLinks).map((link, i) => (
             <Link
               key={`${link.href}-${link.label}-${i}`}
@@ -126,19 +126,16 @@ export default function Header() {
             <>
               <Link
                 href="/login"
-                className={cn(
-                  buttonVariants({ variant: 'outline', size: 'sm' }),
-                  'hidden gap-1.5 sm:inline-flex'
-                )}
+                className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:inline-flex"
               >
-                <Bookmark className="h-4 w-4" />
+                <Bookmark className="h-4 w-4 text-slate-500" />
                 찜한 공고
               </Link>
               <Link
                 href="/login"
-                className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
               >
-                <User className="h-4 w-4" />
+                <User className="h-4 w-4 text-slate-500" />
                 로그인
               </Link>
             </>
