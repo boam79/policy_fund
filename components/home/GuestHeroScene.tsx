@@ -1,50 +1,100 @@
-/** 목업 안 A — 구형 로봇 + 둥지 + 말풍선 */
+/** 목업 안 A 히어로 일러스트 — 흰색 로봇 + 관공서 + 스카이라인 + 말풍선 */
 export default function GuestHeroScene({ className }: { className?: string }) {
+  const stroke = '#3B82F6'
+  const strokeDark = '#2563EB'
+  const fillLight = '#DBEAFE'
+  const fillPale = '#EFF6FF'
+  const visor = '#1D4ED8'
+
   return (
     <svg
-      viewBox="0 0 360 260"
+      viewBox="0 0 400 260"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       role="img"
-      aria-label="지원둥지 AI 도우미"
+      aria-label="지원둥지 AI 검색 도우미"
     >
-      <ellipse cx="120" cy="228" rx="56" ry="8" fill="#93C5FD" fillOpacity="0.35" />
+      {/* 구름 */}
+      <ellipse cx="52" cy="42" rx="28" ry="14" fill={fillLight} opacity="0.9" />
+      <ellipse cx="42" cy="40" rx="18" ry="12" fill={fillLight} opacity="0.7" />
+      <ellipse cx="348" cy="38" rx="26" ry="13" fill={fillLight} opacity="0.9" />
+      <ellipse cx="360" cy="36" rx="16" ry="10" fill={fillLight} opacity="0.7" />
 
-      {/* 로봇 본체 — 구형 */}
-      <circle cx="118" cy="142" r="62" fill="#3B82F6" />
-      <circle cx="118" cy="142" r="52" fill="#60A5FA" />
-      <line x1="118" y1="86" x2="118" y2="68" stroke="#1D4ED8" strokeWidth="3" strokeLinecap="round" />
-      <circle cx="118" cy="62" r="7" fill="#FBBF24" />
-
-      {/* 눈 — 곡선 미소 스타일 */}
-      <path d="M 98 132 Q 98 122 108 124" stroke="white" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-      <path d="M 138 132 Q 138 122 128 124" stroke="white" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-      <path d="M 104 150 Q 118 158 132 150" stroke="white" strokeWidth="3" strokeLinecap="round" fill="none" />
-
-      {/* 돋보기 */}
-      <circle cx="48" cy="128" r="20" stroke="#1D4ED8" strokeWidth="5" fill="#EFF6FF" />
-      <line x1="62" y1="142" x2="78" y2="158" stroke="#1D4ED8" strokeWidth="5" strokeLinecap="round" />
-
-      {/* 둥지 집 */}
-      <g transform="translate(220 108)">
+      {/* 좌측 관공서 건물 */}
+      <g opacity="0.85">
         <path
-          d="M 40 8 L 72 8 L 88 36 L 24 36 Z"
-          fill="#3B82F6"
-          stroke="#2563EB"
+          d="M 24 168 L 24 108 L 32 100 L 88 100 L 96 108 L 96 168 Z"
+          fill={fillPale}
+          stroke={stroke}
           strokeWidth="2"
+          strokeLinejoin="round"
         />
-        <rect x="32" y="36" width="48" height="44" rx="4" fill="#DBEAFE" stroke="#93C5FD" strokeWidth="2" />
-        <circle cx="56" cy="28" r="10" fill="#FCD34D" />
-        <path d="M 50 26 Q 56 18 62 26" fill="#F59E0B" />
+        <path d="M 16 100 L 60 72 L 104 100 Z" fill={fillLight} stroke={stroke} strokeWidth="2" strokeLinejoin="round" />
+        <line x1="40" y1="168" x2="40" y2="112" stroke={stroke} strokeWidth="2" />
+        <line x1="56" y1="168" x2="56" y2="112" stroke={stroke} strokeWidth="2" />
+        <line x1="72" y1="168" x2="72" y2="112" stroke={stroke} strokeWidth="2" />
+        <line x1="88" y1="168" x2="88" y2="112" stroke={stroke} strokeWidth="2" />
+        <line x1="58" y1="78" x2="58" y2="68" stroke={stroke} strokeWidth="2" strokeLinecap="round" />
+        <path d="M 54 68 L 58 62 L 62 68 Z" fill={stroke} />
       </g>
 
-      {/* 말풍선 */}
-      <ellipse cx="268" cy="72" rx="40" ry="26" fill="white" stroke="#BFDBFE" strokeWidth="2" />
-      <path d="M 248 90 L 238 108 L 258 96 Z" fill="white" stroke="#BFDBFE" strokeWidth="2" />
-      <circle cx="256" cy="70" r="3.5" fill="#93C5FD" />
-      <circle cx="268" cy="70" r="3.5" fill="#93C5FD" />
-      <circle cx="280" cy="70" r="3.5" fill="#93C5FD" />
+      {/* 우측 스카이라인 */}
+      <g opacity="0.85">
+        <rect x="300" y="128" width="28" height="72" rx="2" fill={fillLight} stroke={stroke} strokeWidth="2" />
+        <rect x="334" y="108" width="24" height="92" rx="2" fill={fillPale} stroke={stroke} strokeWidth="2" />
+        <rect x="364" y="118" width="22" height="82" rx="2" fill={fillLight} stroke={stroke} strokeWidth="2" />
+      </g>
+
+      {/* 로봇 — 흰색 본체 + 파란 테두리 */}
+      <g transform="translate(148 52)">
+        {/* 몸통 */}
+        <rect x="52" y="108" width="72" height="78" rx="28" fill="white" stroke={stroke} strokeWidth="2.5" />
+        {/* 머리 */}
+        <circle cx="88" cy="72" r="52" fill="white" stroke={stroke} strokeWidth="2.5" />
+        {/* 안테나 */}
+        <line x1="88" y1="22" x2="88" y2="8" stroke={strokeDark} strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx="88" cy="6" r="5" fill="white" stroke={strokeDark} strokeWidth="2" />
+        {/* 바이저 */}
+        <rect x="58" y="58" width="60" height="28" rx="14" fill={visor} />
+        {/* 눈 */}
+        <path
+          d="M 70 68 Q 74 62 78 68"
+          stroke="white"
+          strokeWidth="3"
+          strokeLinecap="round"
+          fill="none"
+        />
+        <path
+          d="M 98 68 Q 102 62 106 68"
+          stroke="white"
+          strokeWidth="3"
+          strokeLinecap="round"
+          fill="none"
+        />
+        {/* 왼팔 + 돋보기 */}
+        <path
+          d="M 52 130 Q 28 128 18 118"
+          stroke={stroke}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          fill="none"
+        />
+        <circle cx="14" cy="112" r="16" fill="white" stroke={strokeDark} strokeWidth="2.5" />
+        <circle cx="14" cy="112" r="10" fill={fillPale} stroke={stroke} strokeWidth="1.5" />
+        <line x1="26" y1="124" x2="38" y2="136" stroke={strokeDark} strokeWidth="2.5" strokeLinecap="round" />
+      </g>
+
+      {/* 말풍선 — 머리 오른쪽 */}
+      <g>
+        <circle cx="318" cy="88" r="28" fill={fillPale} stroke={stroke} strokeWidth="2" />
+        <circle cx="308" cy="86" r="3" fill="#93C5FD" />
+        <circle cx="318" cy="86" r="3" fill="#93C5FD" />
+        <circle cx="328" cy="86" r="3" fill="#93C5FD" />
+      </g>
+
+      {/* 바닥 그림자 */}
+      <ellipse cx="236" cy="238" rx="48" ry="6" fill="#93C5FD" fillOpacity="0.25" />
     </svg>
   )
 }
