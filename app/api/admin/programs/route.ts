@@ -35,6 +35,9 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(100, Math.max(1, Number(sp.get('limit') ?? 20)))
   const q = (sp.get('q') ?? sp.get('search') ?? '').trim()
   const status = (sp.get('status') ?? 'all').trim()
+  const source = (sp.get('source') ?? 'all').trim()
+  const visibility = (sp.get('visibility') ?? 'all').trim()
+  const quality = (sp.get('quality') ?? 'all').trim()
 
   let query = db
     .from('support_programs')
@@ -44,6 +47,12 @@ export async function GET(request: NextRequest) {
 
   if (q) query = query.ilike('title', `%${q}%`)
   if (status && status !== 'all') query = query.eq('status', status)
+  if (source && source !== 'all') query = query.eq('source', source)
+  if (visibility === 'visible' || visibility === 'hidden') {
+    query = query.eq('visibility_status', visibility)
+  }
+  if (quality === 'region_null') query = query.is('region', null)
+  if (quality === 'no_industry_tags') query = query.is('industry_tags', null)
 
   const { data, count, error } = await query
   if (error) {

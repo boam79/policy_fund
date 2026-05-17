@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Save } from 'lucide-react'
 import { readApiError } from '@/lib/api/readApiError'
+import { AdminOpsPageShell } from '@/components/admin/AdminOpsPageShell'
 
 export default function AdminSettingsPage() {
   const [dataMode, setDataMode] = useState('api_minimal_cache')
@@ -50,7 +51,7 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="p-6">
+    <AdminOpsPageShell>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">운영 설정</h1>
 
       {error && (
@@ -113,6 +114,6 @@ export default function AdminSettingsPage() {
           {saved && <p className="text-sm text-green-600">✓ 저장되었습니다</p>}
         </div>
       )}
-    </div>
+    </AdminOpsPageShell>
   )
 }

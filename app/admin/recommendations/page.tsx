@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Trash2, Eye, EyeOff, Loader2, Star } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 import { readApiError } from '@/lib/api/readApiError'
+import { AdminOpsPageShell } from '@/components/admin/AdminOpsPageShell'
 
 type Slot = Database['public']['Tables']['home_recommendation_slots']['Row'] & {
   program?: { title: string } | null
@@ -117,7 +118,7 @@ export default function RecommendationsPage() {
   }
 
   return (
-    <div className="p-6">
+    <AdminOpsPageShell>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -210,6 +211,6 @@ export default function RecommendationsPage() {
           ))
         )}
       </div>
-    </div>
+    </AdminOpsPageShell>
   )
 }

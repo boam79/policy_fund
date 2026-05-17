@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { RefreshCw, Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import { readApiError } from '@/lib/api/readApiError'
+import { AdminOpsPageShell } from '@/components/admin/AdminOpsPageShell'
 
 interface SyncLog {
   id: string
@@ -63,7 +64,7 @@ export default function AdminSyncPage() {
   }
 
   return (
-    <div className="p-6">
+    <AdminOpsPageShell>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">공고 동기화</h1>
@@ -153,6 +154,6 @@ export default function AdminSyncPage() {
           </table>
         </div>
       )}
-    </div>
+    </AdminOpsPageShell>
   )
 }

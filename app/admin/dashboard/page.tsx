@@ -16,6 +16,7 @@ import {
   ThumbsUp,
 } from 'lucide-react'
 import Link from 'next/link'
+import { AdminOpsPageShell } from '@/components/admin/AdminOpsPageShell'
 
 interface KPI {
   totalPrograms: number
@@ -138,7 +139,7 @@ export default function AdminDashboard() {
     : []
 
   return (
-    <div className="p-6">
+    <AdminOpsPageShell>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">대시보드</h1>
@@ -221,9 +222,17 @@ export default function AdminDashboard() {
             <div className="mb-6 rounded-xl border bg-white p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="font-semibold text-gray-900">데이터 품질</h2>
-                <Link href="/admin/programs" className="text-xs text-blue-500 hover:underline">
-                  공고 관리에서 상세 보기
-                </Link>
+                <div className="flex gap-3 text-xs">
+                  <Link href="/admin/programs?quality=region_null" className="text-blue-500 hover:underline">
+                    지역 미기재
+                  </Link>
+                  <Link href="/admin/programs?view=duplicates" className="text-blue-500 hover:underline">
+                    중복 공고
+                  </Link>
+                  <Link href="/admin/recommendations" className="text-blue-500 hover:underline">
+                    홈 배너
+                  </Link>
+                </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3">
@@ -287,11 +296,12 @@ export default function AdminDashboard() {
           </div>
 
           {/* 운영 바로가기 */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { href: '/admin/programs', label: '공고 목록', desc: '공고 상태·노출 관리', icon: FileText },
+              { href: '/admin/programs', label: '공고 목록', desc: '상태·노출·필터', icon: FileText },
+              { href: '/admin/programs?view=duplicates', label: '중복 공고', desc: '제목·출처 중복', icon: FileText },
               { href: '/admin/sync', label: '동기화', desc: '공공 API 수집', icon: RefreshCw },
-              { href: '/admin/settings', label: '운영 설정', desc: '데이터 모드·시스템', icon: RefreshCw },
+              { href: '/admin/recommendations', label: '홈 배너', desc: '추천 슬롯', icon: RefreshCw },
             ].map(({ href, label, desc, icon: Icon }) => (
               <Link key={href} href={href} className="bg-white rounded-xl border p-4 hover:border-blue-300 hover:shadow-sm transition-all">
                 <Icon className="h-5 w-5 text-gray-400 mb-2" />
@@ -302,6 +312,6 @@ export default function AdminDashboard() {
           </div>
         </>
       )}
-    </div>
+    </AdminOpsPageShell>
   )
 }
