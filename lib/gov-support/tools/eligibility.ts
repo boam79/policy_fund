@@ -184,6 +184,19 @@ export function checkEligibility(
   return { status, score, passed, failed, unknown: unknownList }
 }
 
+/** 카드·툴팁용 한 줄 사유 (failed 우선, 없으면 unknown) */
+export function eligibilityPrimaryReason(result: EligibilityResult): string | null {
+  if (result.failed.length > 0) {
+    const first = result.failed[0]
+    const colon = first.indexOf(': ')
+    return colon >= 0 ? first.slice(colon + 2).trim() : first
+  }
+  if (result.unknown.length > 0) {
+    return `${result.unknown[0]} 항목은 공고·프로필 정보가 부족해 추가 확인이 필요합니다`
+  }
+  return null
+}
+
 /** 자격판정 상태 → 한국어 레이블 */
 export function eligibilityLabel(status: EligibilityStatus): string {
   return {

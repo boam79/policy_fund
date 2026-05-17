@@ -84,6 +84,92 @@ async function run() {
   const programs = (searchStrict.json.programs as Json[] | undefined) ?? []
   assert(programs.length > 0, 'US-03 expected at least one program after fallback')
 
+  // US-03b (12-1-1): strict mode — no fallback, impossible industry → SEARCH_NO_RESULTS_STRICT
+  const searchStrictMode = await requestJson('/api/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      region: '서울',
+      industry: '__verify_no_match_industry_xyz__',
+      search_mode: 'strict',
+      page: 1,
+      limit: 5,
+    }),
+  })
+  assert(searchStrictMode.status === 404, 'US-03b expected 404 on strict zero results')
+  assert(isStandardErrorShape(searchStrictMode.json), 'US-03b missing standardized error payload')
+  assert(
+    searchStrictMode.json.error_code === 'SEARCH_NO_RESULTS_STRICT',
+    'US-03b expected SEARCH_NO_RESULTS_STRICT'
+  )
+  const strictMeta = searchStrictMode.json.meta as Json | undefined
+  assert(typeof strictMeta?.hint === 'string' && strictMeta.hint.length > 0, 'US-03b expected meta.hint')
+
+  const searchRelaxedSame = await requestJson('/api/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      region: '서울',
+      industry: '__verify_no_match_industry_xyz__',
+      search_mode: 'relaxed',
+      page: 1,
+      limit: 5,
+    }),
+  })
+  assert(searchRelaxedSame.status === 200, 'US-03c relaxed should still 200 when fallback widens')
+  const relaxedFallback = searchRelaxedSame.json.fallback_applied as string[] | null
+  assert(
+    Array.isArray(relaxedFallback) && relaxedFallback.includes('drop_industry'),
+    'US-03c expected drop_industry on relaxed'
+  )
+
+  // UX-01 (12-1-5): 서울·소프트웨어·3년 — 업력 누락 알림 없음 + 검색 industry 표준화
+  const ux01Parse = await requestJson('/api/query/parse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: '서울 소프트웨어 업력 3년 지원사업 찾아줘' }),
+  })
+  assert(ux01Parse.status === 200 && ux01Parse.json.success === true, 'UX-01 parse expected 200')
+  const ux01Parsed = (ux01Parse.json.data as Json | undefined)?.parsed as Json | undefined
+  const ux01Conds = (ux01Parsed?.conditions as Json | undefined) ?? {}
+  const ux01Age = (ux01Conds.business_age_years as Json | undefined)?.value
+  assert(Number(ux01Age) === 3, 'UX-01 expected business_age_years 3')
+  const ux01Industry = (ux01Conds.industry as Json | undefined)?.value
+  assert(String(ux01Industry) === 'IT/소프트웨어', 'UX-01 expected canonical industry IT/소프트웨어')
+  const ux01Missing = (ux01Parsed?.missing_important as string[] | undefined) ?? []
+  assert(!ux01Missing.includes('business_age_years'), 'UX-01 must not list business_age_years as missing')
+
+  const ux01Search = await requestJson('/api/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      region: '서울',
+      industry: 'IT/소프트웨어',
+      business_age_years: 3,
+      search_mode: 'relaxed',
+      page: 1,
+      limit: 10,
+    }),
+  })
+  assert(ux01Search.status === 200 && ux01Search.json.ok === true, 'UX-01 search expected 200')
+  assert(ux01Search.json.search_mode === 'relaxed', 'UX-01 search_mode in response')
+  const ux01Programs = (ux01Search.json.programs as Json[] | undefined) ?? []
+  if (ux01Programs.length >= 2) {
+    for (let i = 1; i < ux01Programs.length; i += 1) {
+      const prev = ux01Programs[i - 1]
+      const cur = ux01Programs[i]
+      const prevRec = Number(prev.recommendation_score ?? 0)
+      const curRec = Number(cur.recommendation_score ?? 0)
+      if (prevRec === curRec) {
+        const prevEl = Number((prev.eligibility as Json | undefined)?.score ?? 0)
+        const curEl = Number((cur.eligibility as Json | undefined)?.score ?? 0)
+        assert(prevEl >= curEl, 'UX-01/12-1-6 eligibility score sort when rec tied')
+      } else {
+        assert(prevRec >= curRec, 'UX-01/12-1-6 recommendation_score sort')
+      }
+    }
+  }
+
   // US-06 negative: eligibility missing program_id
   const eligibilityInvalid = await requestJson('/api/eligibility', {
     method: 'POST',

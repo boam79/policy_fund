@@ -5,7 +5,13 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, Filter, Building2, MapPin, Calendar, ExternalLink, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import FeedbackWidget from '@/components/FeedbackWidget'
-import { eligibilityLabel, eligibilityColor, type EligibilityStatus } from '@/lib/gov-support/tools/eligibility'
+import {
+  eligibilityLabel,
+  eligibilityColor,
+  eligibilityPrimaryReason,
+  type EligibilityStatus,
+} from '@/lib/gov-support/tools/eligibility'
+import type { ProgramSearchMode } from '@/lib/gov-support/tools/runProgramSearch'
 import type { SupportProgram } from '@/lib/gov-support/tools/unifiedSearch'
 import { readApiError } from '@/lib/api/readApiError'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
@@ -45,6 +51,8 @@ interface AppliedFilters {
   industry: string | null
   keyword: string | null
   support_purpose: string | null
+  business_age_years?: number | null
+  employee_count?: number | null
   text_terms: string[]
 }
 
@@ -87,6 +95,7 @@ function buildSearchQueryString(input: {
   businessAge: string
   employeeCount: string
   taxArrears: string
+  searchMode?: ProgramSearchMode
 }): string {
   const params = new URLSearchParams()
   if (input.region) params.set('region', input.region)
@@ -97,7 +106,16 @@ function buildSearchQueryString(input: {
   if (input.businessAge) params.set('business_age_years', input.businessAge)
   if (input.employeeCount) params.set('employee_count', input.employeeCount)
   if (input.taxArrears) params.set('tax_arrears', input.taxArrears)
+  if (input.searchMode === 'strict') params.set('search_mode', 'strict')
   return params.toString()
+}
+
+function FilterChip({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">
+      {label}: {value}
+    </span>
+  )
 }
 
 function SearchContent() {
@@ -132,6 +150,11 @@ function SearchContent() {
   const [searchError, setSearchError] = useState('')
   const [fallbackApplied, setFallbackApplied] = useState<string[]>([])
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters | null>(null)
+  const [searchMode, setSearchMode] = useState<ProgramSearchMode>(() =>
+    searchParams.get('search_mode') === 'strict' ? 'strict' : 'relaxed'
+  )
+  const [responseSearchMode, setResponseSearchMode] = useState<ProgramSearchMode | null>(null)
+  const [strictEmptyHint, setStrictEmptyHint] = useState<string | null>(null)
   const LIMIT = 20
   const [exporting, setExporting] = useState<'csv' | 'xlsx' | null>(null)
 
@@ -190,10 +213,13 @@ function SearchContent() {
     [programs]
   )
 
-  const handleSearch = useCallback(async (p = 1) => {
+  const handleSearch = useCallback(async (p = 1, opts?: { mode?: ProgramSearchMode }) => {
+    const mode = opts?.mode ?? searchMode
+    setSearchMode(mode)
     setLoading(true)
     setSearched(true)
     setSearchError('')
+    setStrictEmptyHint(null)
     setFallbackApplied([])
     setAppliedFilters(null)
     try {
@@ -206,6 +232,7 @@ function SearchContent() {
         businessAge,
         employeeCount,
         taxArrears,
+        searchMode: mode,
       })
       const searchPath = qs ? `/search?${qs}` : '/search'
       router.replace(searchPath, { scroll: false })
@@ -238,16 +265,25 @@ function SearchContent() {
           credit_score: creditScore ? Number(creditScore) : undefined,
           tax_arrears: taxArrears === 'yes' ? true : taxArrears === 'no' ? false : undefined,
           support_purpose: supportPurpose || undefined,
+          search_mode: mode,
           page: p,
           limit: LIMIT,
         }),
       })
       const data = await res.json()
       if (!res.ok || data.ok === false) {
+        const code = typeof data.error_code === 'string' ? data.error_code : ''
+        if (code === 'SEARCH_NO_RESULTS_STRICT') {
+          const meta = data.meta as { hint?: string; applied_filters?: AppliedFilters } | undefined
+          setStrictEmptyHint(typeof meta?.hint === 'string' ? meta.hint : null)
+          setAppliedFilters(meta?.applied_filters ?? null)
+          setResponseSearchMode('strict')
+        }
         setSearchError(readApiError(data, '검색에 실패했습니다. 잠시 후 다시 시도해 주세요.'))
         setPrograms([])
         setTotal(0)
         setPage(1)
+        setFallbackApplied([])
         return
       }
       setPrograms(data.programs ?? [])
@@ -255,13 +291,16 @@ function SearchContent() {
       setPage(p)
       setFallbackApplied(Array.isArray(data.fallback_applied) ? data.fallback_applied : [])
       setAppliedFilters(data.applied_filters ?? null)
+      setResponseSearchMode(
+        data.search_mode === 'strict' || data.search_mode === 'relaxed' ? data.search_mode : mode
+      )
     } catch {
       setPrograms([])
       setSearchError('네트워크 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
-  }, [region, city, industry, keyword, supportPurpose, businessAge, employeeCount, annualRevenue, creditScore, taxArrears, router])
+  }, [region, city, industry, keyword, supportPurpose, businessAge, employeeCount, annualRevenue, creditScore, taxArrears, searchMode, router])
 
   const listQueryString = buildSearchQueryString({
     region,
@@ -272,7 +311,10 @@ function SearchContent() {
     businessAge,
     employeeCount,
     taxArrears,
+    searchMode,
   })
+
+  const activeSearchMode = responseSearchMode ?? searchMode
 
   // diagnosis·URL 쿼리 진입 시 자동 검색 (빈 화면 깜빡임 방지)
   useLayoutEffect(() => {
@@ -285,8 +327,12 @@ function SearchContent() {
       searchParams.get('support_purpose') ||
       searchParams.get('business_age_years') ||
       searchParams.get('employee_count') ||
-      searchParams.get('tax_arrears')
+      searchParams.get('tax_arrears') ||
+      searchParams.get('search_mode')
     if (!hasParams || autoSearchKeyRef.current === key) return
+    if (searchParams.get('search_mode') === 'strict') {
+      setSearchMode('strict')
+    }
     autoSearchKeyRef.current = key
     void handleSearch(1)
   }, [searchParams, handleSearch])
@@ -436,34 +482,65 @@ function SearchContent() {
                 </button>
               </div>
             </div>
-            {(appliedFilters?.region || appliedFilters?.city || appliedFilters?.industry ||
-              appliedFilters?.keyword || appliedFilters?.support_purpose) && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-medium text-slate-700">실제 검색에 사용된 조건</p>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    activeSearchMode === 'strict'
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-white text-slate-600 border border-slate-200'
+                  }`}
+                >
+                  {activeSearchMode === 'strict' ? '엄격 검색' : '조건 완화 검색'}
+                </span>
+              </div>
               <div className="flex flex-wrap gap-1.5">
-                {appliedFilters?.region && (
-                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">지역: {appliedFilters.region}</span>
-                )}
-                {appliedFilters?.city && (
-                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">시·군: {appliedFilters.city}</span>
-                )}
-                {appliedFilters?.industry && (
-                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">업종: {appliedFilters.industry}</span>
-                )}
+                {appliedFilters?.region && <FilterChip label="지역" value={appliedFilters.region} />}
+                {appliedFilters?.city && <FilterChip label="시·군" value={appliedFilters.city} />}
+                {appliedFilters?.industry && <FilterChip label="업종" value={appliedFilters.industry} />}
                 {appliedFilters?.support_purpose && (
-                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">지원목적: {appliedFilters.support_purpose}</span>
+                  <FilterChip label="지원목적" value={appliedFilters.support_purpose} />
                 )}
-                {appliedFilters?.keyword && (
-                  <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">검색어: {appliedFilters.keyword}</span>
+                {appliedFilters?.keyword && <FilterChip label="검색어" value={appliedFilters.keyword} />}
+                {appliedFilters?.business_age_years != null && (
+                  <FilterChip label="업력" value={`${appliedFilters.business_age_years}년`} />
+                )}
+                {appliedFilters?.employee_count != null && (
+                  <FilterChip label="직원" value={`${appliedFilters.employee_count}명`} />
+                )}
+                {(appliedFilters?.text_terms ?? []).map((t) => (
+                  <FilterChip key={t} label="텍스트" value={t} />
+                ))}
+                {!appliedFilters?.region &&
+                  !appliedFilters?.city &&
+                  !appliedFilters?.industry &&
+                  !appliedFilters?.keyword &&
+                  !appliedFilters?.support_purpose &&
+                  appliedFilters?.business_age_years == null &&
+                  appliedFilters?.employee_count == null &&
+                  (appliedFilters?.text_terms ?? []).length === 0 && (
+                  <span className="text-xs text-slate-500">추가 필터 없이 전체 공고 풀에서 조회했습니다.</span>
                 )}
               </div>
-            )}
-            {appliedFilters?.region && appliedFilters.region !== '전국' && (
-              <p className="text-xs text-gray-500">{REGION_FILTER_HINT}</p>
-            )}
-            {fallbackApplied.length > 0 && (
-              <p className="text-xs text-amber-700">
-                {fallbackApplied.map((k) => FALLBACK_LABELS[k] ?? k).join(' ')}
-              </p>
-            )}
+              {appliedFilters?.region && appliedFilters.region !== '전국' && (
+                <p className="text-xs text-gray-500">{REGION_FILTER_HINT}</p>
+              )}
+              {fallbackApplied.length > 0 && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 space-y-2">
+                  <p className="text-xs text-amber-800">
+                    {fallbackApplied.map((k) => FALLBACK_LABELS[k] ?? k).join(' ')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleSearch(1, { mode: 'strict' })}
+                    className="text-xs font-medium text-amber-900 underline underline-offset-2 hover:text-amber-950"
+                  >
+                    입력 조건 그대로 엄격히 다시 검색
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -482,10 +559,24 @@ function SearchContent() {
 
         {/* 결과 없음 */}
         {searched && !loading && programs.length === 0 && (
-          <div className="bg-white rounded-xl border p-12 text-center">
-            <Search className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">검색 결과가 없습니다.</p>
-            <p className="text-sm text-gray-400 mt-1">조건을 변경하거나 키워드를 수정해보세요.</p>
+          <div className="bg-white rounded-xl border p-12 text-center space-y-3">
+            <Search className="h-10 w-10 text-gray-300 mx-auto" />
+            <p className="text-gray-500">{searchError || '검색 결과가 없습니다.'}</p>
+            {strictEmptyHint && (
+              <p className="text-sm text-amber-800 max-w-md mx-auto">{strictEmptyHint}</p>
+            )}
+            {strictEmptyHint && (
+              <button
+                type="button"
+                onClick={() => void handleSearch(1, { mode: 'relaxed' })}
+                className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                조건 완화 검색으로 다시 찾기
+              </button>
+            )}
+            {!strictEmptyHint && (
+              <p className="text-sm text-gray-400">조건을 변경하거나 키워드를 수정해보세요.</p>
+            )}
           </div>
         )}
 
@@ -567,6 +658,7 @@ function ProgramCard({
   const status = p.eligibility?.status ?? 'unknown'
   const colorClass = eligibilityColor(status)
   const label = eligibilityLabel(status)
+  const primaryReason = p.eligibility ? eligibilityPrimaryReason(p.eligibility) : null
 
   const isClosingSoon = p.days_left !== null && p.days_left !== undefined && p.days_left <= 7 && p.days_left >= 0
   const isClosed = p.days_left !== null && p.days_left !== undefined && p.days_left < 0
@@ -635,12 +727,12 @@ function ProgramCard({
         <ExternalLink className="h-4 w-4 text-gray-300 group-hover:text-blue-400 flex-shrink-0 mt-1 transition-colors" />
       </div>
 
-      {/* 자격판정 세부 (실패 조건이 있을 때만) */}
-      {p.eligibility?.failed?.length > 0 && (
+      {primaryReason && (
         <div className="mt-3 pt-3 border-t border-dashed">
-          <p className="text-xs text-gray-500">
-            ⚠️ {p.eligibility.failed[0]}
-            {p.eligibility.failed.length > 1 && ` 외 ${p.eligibility.failed.length - 1}건`}
+          <p className="text-xs text-gray-600">
+            <span className="font-medium text-gray-700">판정 사유: </span>
+            {primaryReason}
+            {(p.eligibility?.failed.length ?? 0) > 1 && ` (외 ${p.eligibility!.failed.length - 1}건)`}
           </p>
         </div>
       )}

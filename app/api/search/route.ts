@@ -4,9 +4,13 @@
  */
 
 import type { NextRequest } from 'next/server'
-import { collectSearchTextTerms, unifiedSearch } from '@/lib/gov-support/tools/unifiedSearch'
-import { checkEligibility } from '@/lib/gov-support/tools/eligibility'
 import type { CompanyProfile } from '@/lib/gov-support/tools/eligibility'
+import { checkEligibility } from '@/lib/gov-support/tools/eligibility'
+import {
+  collectSearchTextTerms,
+  normalizeProgramSearchMode,
+  runProgramSearch,
+} from '@/lib/gov-support/tools/runProgramSearch'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { takeRateLimit } from '@/lib/security/rateLimit'
@@ -14,6 +18,9 @@ import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
 import { sanitizeProgramForClient } from '@/lib/utils/stripHtml'
 
 export const dynamic = 'force-dynamic'
+
+const STRICT_NO_RESULTS_HINT =
+  '입력한 지역·업종·검색어 조건을 모두 만족하는 공고가 없습니다. 지역·업종을 넓히거나, 검색 화면에서 조건 완화 검색을 이용해 보세요.'
 
 export async function POST(request: NextRequest) {
   const traceId = createTraceId()
@@ -43,9 +50,17 @@ export async function POST(request: NextRequest) {
       keyword,
       page = 1,
       limit = 20,
-    } = body as CompanyProfile & { keyword?: string; page?: number; limit?: number }
+      search_mode: searchModeRaw,
+    } = body as CompanyProfile & {
+      keyword?: string
+      page?: number
+      limit?: number
+      search_mode?: string
+    }
 
-    let effectiveSearch = {
+    const search_mode = normalizeProgramSearchMode(searchModeRaw)
+
+    const initialSearch = {
       region: region ?? undefined,
       city: city ?? undefined,
       industry: industry ?? undefined,
@@ -58,48 +73,42 @@ export async function POST(request: NextRequest) {
       limit,
     }
 
-    // 공고 검색 (0건이면 조건을 점진 완화해 여정 단절 방지)
-    let result = await unifiedSearch(effectiveSearch)
-    const fallbackApplied: string[] = []
-
-    if (result.total === 0 && (keyword || support_purpose)) {
-      effectiveSearch = {
-        ...effectiveSearch,
-        keyword: undefined,
-        support_purpose: undefined,
-      }
-      result = await unifiedSearch(effectiveSearch)
-      if (result.total > 0) fallbackApplied.push('drop_keyword')
-    }
-
-    if (result.total === 0 && city) {
-      effectiveSearch = {
-        ...effectiveSearch,
-        city: undefined,
-        keyword: undefined,
-        support_purpose: undefined,
-      }
-      result = await unifiedSearch(effectiveSearch)
-      if (result.total > 0) fallbackApplied.push('drop_city')
-    }
-
-    if (result.total === 0 && industry) {
-      effectiveSearch = {
-        ...effectiveSearch,
-        city: undefined,
-        industry: undefined,
-        keyword: undefined,
-        support_purpose: undefined,
-      }
-      result = await unifiedSearch(effectiveSearch)
-      if (result.total > 0) fallbackApplied.push('drop_industry')
-    }
+    const { result, effectiveSearch, fallbackApplied } = await runProgramSearch(
+      initialSearch,
+      search_mode
+    )
 
     const appliedTextTerms = collectSearchTextTerms({
       industry: effectiveSearch.industry,
       support_purpose: effectiveSearch.support_purpose,
       keyword: effectiveSearch.keyword,
     })
+
+    const applied_filters = {
+      region: effectiveSearch.region ?? null,
+      city: effectiveSearch.city ?? null,
+      industry: effectiveSearch.industry ?? null,
+      keyword: effectiveSearch.keyword ?? null,
+      support_purpose: effectiveSearch.support_purpose ?? null,
+      business_age_years: business_age_years ?? null,
+      employee_count: employee_count ?? null,
+      text_terms: appliedTextTerms,
+    }
+
+    if (search_mode === 'strict' && result.total === 0) {
+      return apiError({
+        status: 404,
+        errorCode: 'SEARCH_NO_RESULTS_STRICT',
+        message: '입력하신 조건을 모두 만족하는 공고를 찾지 못했습니다.',
+        step: 'search.query.strict',
+        traceId,
+        meta: {
+          search_mode,
+          applied_filters,
+          hint: STRICT_NO_RESULTS_HINT,
+        },
+      })
+    }
 
     const profile: CompanyProfile = {
       region,
@@ -113,7 +122,6 @@ export async function POST(request: NextRequest) {
       support_purpose,
     }
 
-    // 각 공고에 자격판정 배지 추가
     const programsWithEligibility = result.programs.map((raw) => {
       const p = sanitizeProgramForClient(raw)
       const eligibility = checkEligibility(profile, {
@@ -140,7 +148,13 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // search_sessions 저장 (선택, 실패해도 검색 결과 반환)
+    programsWithEligibility.sort((a, b) => {
+      const recA = a.recommendation_score ?? 0
+      const recB = b.recommendation_score ?? 0
+      if (recB !== recA) return recB - recA
+      return (b.eligibility?.score ?? 0) - (a.eligibility?.score ?? 0)
+    })
+
     try {
       const supabase = createClient<Database>(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -149,7 +163,7 @@ export async function POST(request: NextRequest) {
       )
       await supabase.from('search_sessions').insert({
         natural_language_query: keyword ?? null,
-        extracted_conditions: JSON.parse(JSON.stringify(profile)),
+        extracted_conditions: JSON.parse(JSON.stringify({ ...profile, search_mode })),
         result_count: result.total,
         sort: 'recommendation_score',
       })
@@ -164,15 +178,9 @@ export async function POST(request: NextRequest) {
       page,
       limit,
       source: result.source,
+      search_mode,
       fallback_applied: fallbackApplied.length > 0 ? fallbackApplied : null,
-      applied_filters: {
-        region: effectiveSearch.region ?? null,
-        city: effectiveSearch.city ?? null,
-        industry: effectiveSearch.industry ?? null,
-        keyword: effectiveSearch.keyword ?? null,
-        support_purpose: effectiveSearch.support_purpose ?? null,
-        text_terms: appliedTextTerms,
-      },
+      applied_filters,
       trace_id: traceId,
     })
   } catch (e: unknown) {
