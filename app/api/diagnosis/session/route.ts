@@ -12,7 +12,7 @@ import { isUuid } from '@/lib/validation/uuid'
 
 export const dynamic = 'force-dynamic'
 
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const SESSION_TTL_MS = 48 * 60 * 60 * 1000
 const MAX_POST_BODY = 96_000
 
 export async function GET(request: NextRequest) {

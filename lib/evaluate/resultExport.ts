@@ -81,17 +81,25 @@ export async function downloadEvaluationRows(format: 'csv' | 'xlsx', rows: Recor
     triggerDownload(`${baseName}_${date}.csv`, new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
     return
   }
-  const XLSX = await import('xlsx')
-  const wsData =
-    rows.length > 0
-      ? [Object.keys(rows[0]), ...rows.map((r) => Object.keys(rows[0]).map((k) => r[k] ?? ''))]
-      : [['(데이터 없음)']]
-  const wb = XLSX.utils.book_new()
-  const ws = XLSX.utils.aoa_to_sheet(wsData)
-  XLSX.utils.book_append_sheet(wb, ws, '심사결과')
-  const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+  const ExcelJS = await import('exceljs')
+  const workbook = new ExcelJS.Workbook()
+  const worksheet = workbook.addWorksheet('심사결과')
+  if (rows.length === 0) {
+    worksheet.addRow(['(데이터 없음)'])
+  } else {
+    const keys = Object.keys(rows[0])
+    worksheet.columns = keys.map((key) => ({ header: key, key, width: 18 }))
+    for (const row of rows) {
+      const record: Record<string, unknown> = {}
+      for (const key of keys) record[key] = row[key] ?? ''
+      worksheet.addRow(record)
+    }
+  }
+  const buf = await workbook.xlsx.writeBuffer()
   triggerDownload(
     `${baseName}_${date}.xlsx`,
-    new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    new Blob([buf], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
   )
 }

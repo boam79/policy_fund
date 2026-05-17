@@ -70,5 +70,5 @@ export function csrfBlocked(request: NextRequest, path: string, method: string):
   if (CRON_BEARER_EXEMPT.some((p) => path === p || path.startsWith(p)) && isCronBearerAuthorized(request)) {
     return false
   }
-  return !isSameOriginRequest(request)
+  return !isSameOriginRequest(request, { strict: true })
 }

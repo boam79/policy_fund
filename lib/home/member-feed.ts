@@ -25,10 +25,9 @@ export type MemberHomeData = {
 export async function fetchBusinessProfile(
   userId: string
 ): Promise<SavedBusinessProfileDefaults | null> {
-  const supabase = createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const service = getServiceRoleClient()
+  if (!service) return null
+  const supabase = service
 
   const { data, error } = await supabase
     .from('business_profiles')

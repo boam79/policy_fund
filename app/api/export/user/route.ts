@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const buf = rowsToXlsxBuffer(rows, '데이터')
+    const buf = await rowsToXlsxBuffer(rows, '데이터')
     const filename = `${EXPORT_FILE_PREFIX}_${prefix}_${date}.xlsx`
     return new Response(new Uint8Array(buf), {
       headers: {

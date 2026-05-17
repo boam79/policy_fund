@@ -42,13 +42,6 @@ export async function middleware(request: NextRequest) {
   const edgeRate = applyEdgeRateLimit(request, path)
   if (edgeRate) return edgeRate
 
-  if (csrfBlocked(request, path, method)) {
-    return NextResponse.json(
-      { error: '잘못된 요청 출처입니다.', error_code: 'CSRF_ORIGIN_MISMATCH' },
-      { status: 403 }
-    )
-  }
-
   const needsSession = PROTECTED.some((p) => path.startsWith(p)) || requiresApiLogin(path)
   const isAdminPath = path.startsWith('/admin')
   const isAdminApiPath = path.startsWith('/api/admin')
@@ -91,6 +84,13 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/login'
     url.searchParams.set('next', safeInternalNextPath(path))
     return NextResponse.redirect(url)
+  }
+
+  if (csrfBlocked(request, path, method)) {
+    return NextResponse.json(
+      { error: '잘못된 요청 출처입니다.', error_code: 'CSRF_ORIGIN_MISMATCH' },
+      { status: 403 }
+    )
   }
 
   if (isAdminArea && !cronSyncBypass) {

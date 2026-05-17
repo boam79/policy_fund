@@ -28,7 +28,10 @@ async function main() {
     },
     body: JSON.stringify({ paymentId: 'x', orderId: 'x', amount: 9900, plan: 'starter' }),
   })
-  assert(csrf.status === 403, `CSRF expected 403, got ${csrf.status}`)
+  assert(
+    [401, 403].includes(csrf.status),
+    `billing CSRF/unauth expected 401 or 403, got ${csrf.status}`
+  )
 
   const kakaoCsrf = await fetchJson('/api/billing/kakao/confirm', {
     method: 'POST',
@@ -38,7 +41,10 @@ async function main() {
     },
     body: JSON.stringify({ pg_token: 'x', orderId: 'x', amount: 9900, plan: 'starter' }),
   })
-  assert(kakaoCsrf.status === 403, `kakao CSRF expected 403, got ${kakaoCsrf.status}`)
+  assert(
+    [401, 403].includes(kakaoCsrf.status),
+    `kakao CSRF/unauth expected 401 or 403, got ${kakaoCsrf.status}`
+  )
 
   // 관리자 API: 크로스 오리진 PATCH 차단
   const adminCsrf = await fetchJson('/api/admin/programs', {
@@ -102,8 +108,8 @@ async function main() {
     }),
   })
   assert(
-    [400, 401, 503].includes(badAmount.status),
-    `billing bad amount expected 400/401/503, got ${badAmount.status}`
+    [400, 401, 403, 503].includes(badAmount.status),
+    `billing bad amount expected 400/401/403/503, got ${badAmount.status}`
   )
 
   // 보안 헤더 (홈)
