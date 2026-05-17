@@ -30,6 +30,28 @@ async function main() {
   })
   assert(csrf.status === 403, `CSRF expected 403, got ${csrf.status}`)
 
+  // 관리자 API: 크로스 오리진 PATCH 차단
+  const adminCsrf = await fetchJson('/api/admin/programs', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'https://evil.example',
+    },
+    body: JSON.stringify({ id: '00000000-0000-4000-8000-000000000001', visibility_status: 'hidden' }),
+  })
+  assert(adminCsrf.status === 403, `admin CSRF expected 403, got ${adminCsrf.status}`)
+
+  // export CSV: 미로그인 차단 (anon 키 폴백 없음)
+  const exportCsvAnon = await fetchJson('/api/export/csv', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'programs' }),
+  })
+  assert(
+    [401, 403].includes(exportCsvAnon.status),
+    `export csv anon expected 401/403, got ${exportCsvAnon.status}`
+  )
+
   // 문서 API: 미로그인 401 (미들웨어)
   const docAnon = await fetchJson('/api/documents/checklist', {
     method: 'POST',

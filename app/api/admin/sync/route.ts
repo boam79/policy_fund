@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { createClient as createServerSupabase } from '@/lib/supabase/server'
 import { isAdminEmail } from '@/lib/auth/admin'
-import { secretsEqual } from '@/lib/security/secrets'
+import { isCronBearerAuthorized } from '@/lib/security/cronAuth'
 
 function createSyncClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -47,12 +47,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** 인증 확인 공통 함수 (cron secret 또는 관리자 세션) */
 async function checkAuth(request: NextRequest): Promise<boolean> {
-  const authHeader = request.headers.get('authorization')?.trim() ?? ''
-  const cronSecret = process.env.CRON_SECRET?.trim()
-  if (cronSecret && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice('Bearer '.length)
-    if (secretsEqual(token, cronSecret)) return true
-  }
+  if (isCronBearerAuthorized(request)) return true
 
   try {
     const supabase = await createServerSupabase()

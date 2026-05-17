@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { isAdminUser } from '@/lib/auth/admin'
 import { createServiceRoleClient } from '@/lib/supabase/service-role-client'
+import { isUuid } from '@/lib/validation/uuid'
 
 const SERVICE_ROLE_MSG =
   '문의 관리 API는 SUPABASE_SERVICE_ROLE_KEY가 서버에 설정되어 있어야 합니다.'
@@ -50,9 +51,11 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: SERVICE_ROLE_MSG }, { status: 503 })
     }
 
-    const { id, status } = await request.json()
-    if (!id || !status) {
-      return NextResponse.json({ error: '필수 파라미터 누락' }, { status: 400 })
+    const body = await request.json().catch(() => ({}))
+    const id = typeof body.id === 'string' ? body.id.trim() : ''
+    const status = typeof body.status === 'string' ? body.status.trim() : ''
+    if (!id || !isUuid(id) || !status) {
+      return NextResponse.json({ error: '유효한 id와 status가 필요합니다.' }, { status: 400 })
     }
     if (!['received', 'in_progress', 'resolved', 'closed'].includes(status)) {
       return NextResponse.json({ error: '유효하지 않은 상태값' }, { status: 400 })

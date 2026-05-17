@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { isCronBearerAuthorized } from '@/lib/security/cronAuth'
 import { takeRateLimit } from '@/lib/security/rateLimit'
 import { isSameOriginRequest } from '@/lib/security/sameOrigin'
 
@@ -25,15 +26,17 @@ export const API_LOGIN_PREFIXES = [
   '/api/export/user',
 ] as const
 
-/** Origin 검증(크로스 사이트 POST 차단). 웹훅·Cron 제외 */
+/** Origin 검증(크로스 사이트 변경 요청 차단). 웹훅·Cron Bearer 제외 */
 export const CSRF_PROTECTED_PREFIXES = [
   '/api/billing/',
   '/api/export/',
   '/api/documents/',
   '/api/evaluate/',
+  '/api/admin/',
 ] as const
 
 const WEBHOOK_EXEMPT = ['/api/billing/webhook']
+const CRON_BEARER_EXEMPT = ['/api/admin/sync']
 
 export function applyEdgeRateLimit(
   request: NextRequest,
@@ -61,5 +64,9 @@ export function requiresCsrfCheck(path: string, method: string): boolean {
 }
 
 export function csrfBlocked(request: NextRequest, path: string, method: string): boolean {
-  return requiresCsrfCheck(path, method) && !isSameOriginRequest(request)
+  if (!requiresCsrfCheck(path, method)) return false
+  if (CRON_BEARER_EXEMPT.some((p) => path === p || path.startsWith(p)) && isCronBearerAuthorized(request)) {
+    return false
+  }
+  return !isSameOriginRequest(request)
 }

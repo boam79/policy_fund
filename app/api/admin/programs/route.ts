@@ -2,7 +2,9 @@ import type { NextRequest } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { isAdminUser } from '@/lib/auth/admin'
+import { sanitizeIlikeTerm } from '@/lib/security/sanitizeIlike'
 import { createServiceRoleClient } from '@/lib/supabase/service-role-client'
+import { isUuid } from '@/lib/validation/uuid'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,9 +85,9 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const id = typeof body.id === 'string' ? body.id : ''
-  if (!id) {
-    return Response.json({ error: 'id가 필요합니다.' }, { status: 400 })
+  const id = typeof body.id === 'string' ? body.id.trim() : ''
+  if (!id || !isUuid(id)) {
+    return Response.json({ error: '유효한 공고 id가 필요합니다.' }, { status: 400 })
   }
 
   const visibility = body.visibility_status

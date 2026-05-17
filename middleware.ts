@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { isAdminEmail } from '@/lib/auth/admin'
 import { safeInternalNextPath } from '@/lib/auth/safeNextPath'
 import { takeRateLimit } from '@/lib/security/rateLimit'
+import { isCronBearerAuthorized } from '@/lib/security/cronAuth'
 import {
   applyEdgeRateLimit,
   csrfBlocked,
@@ -50,8 +51,9 @@ export async function middleware(request: NextRequest) {
 
   const needsSession = PROTECTED.some((p) => path.startsWith(p)) || requiresApiLogin(path)
   const isAdminPath = path.startsWith('/admin')
-  const isAdminApiPath = path.startsWith('/api/admin') && path !== '/api/admin/sync'
+  const isAdminApiPath = path.startsWith('/api/admin')
   const isAdminArea = isAdminPath || isAdminApiPath
+  const cronSyncBypass = path.startsWith('/api/admin/sync') && isCronBearerAuthorized(request)
 
   let supabaseResponse = NextResponse.next({ request })
 
@@ -91,7 +93,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (isAdminArea) {
+  if (isAdminArea && !cronSyncBypass) {
     if (!isAdminEmail(user?.email)) {
       if (path.startsWith('/api/')) {
         return NextResponse.json(

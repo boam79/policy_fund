@@ -1,9 +1,8 @@
 import type { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
 import { isAdminUser } from '@/lib/auth/admin'
 import { EXPORT_FILE_PREFIX } from '@/lib/site-config'
 import { rowsToCsv } from '@/lib/export/csvString'
+import { createServiceRoleClient } from '@/lib/supabase/service-role-client'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,11 +15,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { type = 'programs', filters = {} } = body
 
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    const supabase = createServiceRoleClient()
+    if (!supabase) {
+      return Response.json(
+        { error: 'CSV보내기에는 SUPABASE_SERVICE_ROLE_KEY가 서버에 설정되어 있어야 합니다.' },
+        { status: 503 }
+      )
+    }
 
     let rows: Record<string, unknown>[] = []
 

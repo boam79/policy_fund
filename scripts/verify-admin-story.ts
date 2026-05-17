@@ -65,6 +65,9 @@ async function run() {
     '/api/admin/inquiries',
     '/api/admin/sync-logs',
     '/api/admin/programs',
+    '/api/admin/programs/quality',
+    '/api/admin/programs/duplicates',
+    '/api/admin/nav-badges',
     '/api/admin/system-settings',
   ]
   for (const api of blockedAdminApis) {
@@ -75,6 +78,12 @@ async function run() {
   // 3) Admin sync endpoint should reject requests without secret/session.
   const syncRes = await requestJson('/api/admin/sync', { method: 'POST' })
   assert([401, 403].includes(syncRes.status), `Admin sync should reject unauth request (got ${syncRes.status})`)
+
+  const syncCsrf = await requestJson('/api/admin/sync', {
+    method: 'POST',
+    headers: { Origin: 'https://evil.example' },
+  })
+  assert(syncCsrf.status === 403, `Admin sync CSRF expected 403 (got ${syncCsrf.status})`)
 
   // 4) Export APIs should remain blocked for non-admin users.
   const exportCsv = await requestJson('/api/export/csv', {
