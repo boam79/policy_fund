@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CreditCard, Zap, Calendar, Receipt, Loader2, AlertCircle } from 'lucide-react'
 import { getPlan, type PlanId } from '@/lib/billing/plans'
+import { SITE_NAME } from '@/lib/site-config'
 import { createClient } from '@/lib/supabase/client'
 
 interface BillingData {
@@ -90,11 +91,12 @@ export default function BillingPage() {
               )}
             </div>
             <div className="flex flex-col gap-2">
-              {!adminBypass && currentPlan.id !== 'pro' && (
-                <Link href="/pricing" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors text-center">
-                  플랜 업그레이드
-                </Link>
-              )}
+              <Link
+                href="/support"
+                className="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700 transition-colors text-center"
+              >
+                후원하기
+              </Link>
               {!adminBypass && currentPlan.id !== 'free' && !sub?.cancel_at_period_end && (
                 <button onClick={handleCancel} disabled={canceling}
                   className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition-colors">
@@ -127,12 +129,13 @@ export default function BillingPage() {
               limit={usageLimit('evaluations_per_month')}
             />
           </div>
-          {currentPlan.id === 'free' && (
-            <p className="text-xs text-gray-400 mt-3">
-              사용량이 부족하신가요?{' '}
-              <Link href="/pricing" className="text-blue-500 hover:underline">요금제에서 업그레이드</Link>해 보세요.
-            </p>
-          )}
+          <p className="text-xs text-gray-400 mt-3">
+            {SITE_NAME}이 도움이 되셨다면{' '}
+            <Link href="/support" className="text-rose-600 hover:underline">
+              후원하기
+            </Link>
+            로 운영을 응원해 주세요.
+          </p>
         </div>
 
         {/* 결제 이력 */}

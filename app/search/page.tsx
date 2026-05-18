@@ -753,9 +753,9 @@ function SearchContent() {
                     </button>
                   ) : (
                     <p className="text-xs text-amber-900/90">
-                      엄격 검색은 Starter 이상 플랜에서 이용할 수 있습니다.{' '}
-                      <Link href="/pricing" className="font-medium underline">
-                        요금제 보기
+                      엄격 검색은 로그인 후 이용할 수 있습니다.{' '}
+                      <Link href="/login" className="font-medium underline">
+                        로그인
                       </Link>
                     </p>
                   )}

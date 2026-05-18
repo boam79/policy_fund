@@ -38,3 +38,10 @@ export const SITE_BOT_USER_AGENT = 'JiwondungjiBot/1.0'
 
 /**보내기 파일명 접두어 (ASCII) */
 export const EXPORT_FILE_PREFIX = 'jiwondungji'
+
+/** 후원하기 외부 링크 (토스·카카오페이 송금 등). 없으면 `/support` 안내 페이지만 사용 */
+export function getDonateUrl(): string | null {
+  const url = process.env.NEXT_PUBLIC_DONATE_URL?.trim()
+  if (!url) return null
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`
+}

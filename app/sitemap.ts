@@ -16,7 +16,7 @@ const PUBLIC_PATHS: {
   { path: '/about', priority: 0.8, changeFrequency: 'monthly' },
   { path: '/faq', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/contact', priority: 0.6, changeFrequency: 'monthly' },
-  { path: '/pricing', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/support', priority: 0.7, changeFrequency: 'monthly' },
   { path: '/evaluate', priority: 0.65, changeFrequency: 'weekly' },
   { path: '/documents/plan', priority: 0.75, changeFrequency: 'weekly' },
   { path: '/eligibility', priority: 0.6, changeFrequency: 'weekly' },

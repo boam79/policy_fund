@@ -72,7 +72,7 @@ async function main() {
       '/documents/plan',
       '/report/quick',
       '/guide',
-      '/pricing',
+      '/support',
       '/faq',
       '/about',
       '/contact',

@@ -103,6 +103,7 @@ PRD 원칙에 따라, 검색 결과는 LLM이 생성하지 않고 실제 공공 
 - `NEXT_PUBLIC_NAVER_PAY_CHAIN_ID`
 - `NEXT_PUBLIC_NAVER_PAY_MODE` (`development` | `production`, 기본 development)
 - `NEXT_PUBLIC_KAKAO_PAY_CID` (카카오페이 가맹점 CID, 클라이언트 결제 버튼 표시용)
+- `NEXT_PUBLIC_DONATE_URL` (선택, 후원하기 외부 링크 — 토스·카카오 송금 등. 없으면 `/support` 안내만 표시)
 
 ### Supabase 소셜 로그인 (Google·카카오)
 

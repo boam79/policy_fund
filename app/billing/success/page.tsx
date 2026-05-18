@@ -86,8 +86,8 @@ function SuccessContent() {
         <div className="text-center max-w-sm">
           <p className="text-red-600 font-medium mb-2">결제 처리 중 오류가 발생했습니다</p>
           <p className="text-sm text-gray-500 mb-4">{errorMsg}</p>
-          <Link href="/pricing" className="text-blue-600 hover:underline text-sm">
-            요금제 페이지로 돌아가기
+          <Link href="/" className="text-blue-600 hover:underline text-sm">
+            홈으로 돌아가기
           </Link>
         </div>
       </div>

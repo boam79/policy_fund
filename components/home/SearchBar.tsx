@@ -245,8 +245,8 @@ export default function SearchBar({
         <div className="mt-2 space-y-1">
           <p className="text-sm text-destructive">{error}</p>
           {error.includes('AI 조건 분석') || error.includes('AI 분석') ? (
-            <Link href="/pricing" className="text-xs font-medium text-blue-600 hover:underline">
-              요금제 보기 →
+            <Link href="/support" className="text-xs font-medium text-rose-600 hover:underline">
+              후원하기 →
             </Link>
           ) : null}
         </div>

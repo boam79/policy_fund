@@ -135,7 +135,7 @@ export function planAllowsStrictSearch(planId: PlanId): boolean {
 }
 
 export const UPGRADE_STRICT_SEARCH_MESSAGE =
-  '엄격 검색은 Starter 이상 플랜에서 이용할 수 있습니다. 요금제 페이지에서 업그레이드해 주세요.'
+  '엄격 검색을 이용하려면 로그인해 주세요.'
 
 export const UPGRADE_EXPORT_MESSAGE =
   'CSV·XLSX 보내기는 Starter 이상 플랜에서 이용할 수 있습니다.'

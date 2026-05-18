@@ -42,7 +42,7 @@ function CheckoutForm() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) {
-        router.push('/login?next=/pricing')
+        router.push('/login?next=/support')
         return
       }
       setUserId(user.id)
@@ -144,11 +144,11 @@ function CheckoutForm() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="w-full max-w-md">
           <Link
-            href="/pricing"
+            href="/support"
             className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-6"
           >
             <ArrowLeft className="h-4 w-4" />
-            요금제로 돌아가기
+            후원·안내로 돌아가기
           </Link>
 
           <div className="bg-white rounded-2xl border p-6 shadow-sm">
