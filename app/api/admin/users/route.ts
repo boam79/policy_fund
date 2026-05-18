@@ -1,154 +1,99 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
 import { isAdminUser } from '@/lib/auth/admin'
-import { normalizePlanId, type PlanId } from '@/lib/billing/plans'
+import {
+  createAdminAuthClient,
+  loadSubByUser,
+  loadUsageByUser,
+  mapAuthUser,
+  needsFullScan,
+  scanAuthUsers,
+  sortUsers,
+  startOfMonthOffset,
+  type ListFilters,
+} from '@/lib/admin/userDirectory'
 
 export const dynamic = 'force-dynamic'
+
+function parseFilters(searchParams: URLSearchParams): ListFilters {
+  return {
+    q: searchParams.get('q') ?? undefined,
+    plan: searchParams.get('plan') ?? 'all',
+    status: searchParams.get('status') ?? 'all',
+    inactiveDays: Number(searchParams.get('inactiveDays')) || undefined,
+    minDocuments: Number(searchParams.get('minDocuments')) || undefined,
+    domain: searchParams.get('domain') ?? undefined,
+    segment: searchParams.get('segment') ?? undefined,
+    sort: searchParams.get('sort') ?? 'created_desc',
+  }
+}
 
 export async function GET(request: NextRequest) {
   if (!(await isAdminUser())) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
   }
 
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!key) {
+  const admin = createAdminAuthClient()
+  if (!admin) {
     return NextResponse.json(
       { error: '회원 목록 조회에는 SUPABASE_SERVICE_ROLE_KEY가 서버에 설정되어 있어야 합니다.' },
       { status: 503 }
     )
   }
 
-  const admin = createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
-
   const { searchParams } = request.nextUrl
-  const q = (searchParams.get('q') ?? '').trim().toLowerCase()
+  const filters = parseFilters(searchParams)
   const page = Math.min(Math.max(Number(searchParams.get('page')) || 1, 1), 500)
-  const perPage = Math.min(Math.max(Number(searchParams.get('perPage')) || 50, 10), 100)
+  const perPage = Math.min(Math.max(Number(searchParams.get('perPage')) || 40, 10), 100)
+  const sinceIso = startOfMonthOffset(0)
+  const subByUser = await loadSubByUser(admin)
 
-  const { data: subs } = await admin
-    .from('subscriptions')
-    .select('user_id,plan_code,plan,status,current_period_end,cancel_at_period_end,updated_at')
-    .order('updated_at', { ascending: false })
+  if (needsFullScan(filters)) {
+    const { rows, scannedAuthPages } = await scanAuthUsers(admin, subByUser, sinceIso, filters)
+    const total = rows.length
+    const totalPages = Math.max(1, Math.ceil(total / perPage))
+    const safePage = Math.min(page, totalPages)
+    const start = (safePage - 1) * perPage
+    const users = rows.slice(start, start + perPage)
 
-  const subByUser: Record<
-    string,
-    {
-      plan_code: PlanId
-      raw_plan: string | null
-      status: string
-      current_period_end: string | null
-      cancel_at_period_end: boolean | null
-      updated_at: string
-    }
-  > = {}
-  for (const s of subs ?? []) {
-    const uid = s.user_id
-    if (!uid || subByUser[uid]) continue
-    subByUser[uid] = {
-      plan_code: normalizePlanId(String(s.plan_code ?? s.plan ?? 'free')) as PlanId,
-      raw_plan: s.plan_code ?? s.plan,
-      status: s.status,
-      current_period_end: s.current_period_end,
-      cancel_at_period_end: s.cancel_at_period_end,
-      updated_at: s.updated_at,
-    }
+    return NextResponse.json({
+      users,
+      page: safePage,
+      perPage,
+      total,
+      totalPages,
+      hasMore: safePage < totalPages,
+      query: filters.q || null,
+      scannedAuthPages,
+      scanMode: true,
+    })
   }
 
-  type Row = {
-    id: string
-    email: string
-    created_at: string
-    last_sign_in_at: string | null
-    plan: PlanId
-    subscription_status: string | null
-    current_period_end: string | null
-    cancel_at_period_end: boolean | null
+  const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
+  if (error) {
+    return NextResponse.json({ error: error.message || '회원 목록을 불러오지 못했습니다.' }, { status: 500 })
   }
 
-  const mapUser = (u: { id: string; email?: string | null; created_at: string; last_sign_in_at?: string | null }) => {
-    const sub = u.id ? subByUser[u.id] : undefined
-    const row: Row = {
-      id: u.id,
-      email: u.email ?? '',
-      created_at: u.created_at,
-      last_sign_in_at: u.last_sign_in_at ?? null,
-      plan: sub?.plan_code ?? 'free',
-      subscription_status: sub?.status ?? null,
-      current_period_end: sub?.current_period_end ?? null,
-      cancel_at_period_end: sub?.cancel_at_period_end ?? null,
-    }
-    return row
-  }
-
-  let rows: Row[] = []
-  let hasMore = false
-  let scannedAuthPages = 0
-
-  if (q) {
-    const maxMatches = 150
-    const maxAuthPages = 30
-    for (let p = 1; p <= maxAuthPages && rows.length < maxMatches; p += 1) {
-      scannedAuthPages = p
-      const { data, error } = await admin.auth.admin.listUsers({ page: p, perPage: 100 })
-      if (error || !data?.users?.length) break
-      for (const u of data.users) {
-        const email = (u.email ?? '').toLowerCase()
-        if (!email.includes(q)) continue
-        rows.push(mapUser(u))
-        if (rows.length >= maxMatches) break
-      }
-      if (data.users.length < 100) break
-    }
-    hasMore = false
-  } else {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
-    scannedAuthPages = page
-    if (error) {
-      return NextResponse.json({ error: error.message || '회원 목록을 불러오지 못했습니다.' }, { status: 500 })
-    }
-    rows = (data?.users ?? []).map(mapUser)
-    hasMore = (data?.users?.length ?? 0) === perPage
-  }
-
-  const userIds = rows.map((u) => u.id).filter(Boolean)
-  const usageByUser: Record<string, { eligibility_check: number; document_generate: number; evaluation: number }> = {}
-  if (userIds.length) {
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
-    const iso = startOfMonth.toISOString()
-
-    const { data: events } = await admin
-      .from('usage_events')
-      .select('user_id,event_type')
-      .gte('created_at', iso)
-      .in('user_id', userIds)
-
-    for (const uid of userIds) {
-      usageByUser[uid] = { eligibility_check: 0, document_generate: 0, evaluation: 0 }
-    }
-    for (const ev of events ?? []) {
-      const uid = ev.user_id
-      if (!uid || !usageByUser[uid]) continue
-      if (ev.event_type === 'eligibility_check') usageByUser[uid].eligibility_check += 1
-      else if (ev.event_type === 'document_generate') usageByUser[uid].document_generate += 1
-      else if (ev.event_type === 'evaluation') usageByUser[uid].evaluation += 1
-    }
-  }
+  const batch = data?.users ?? []
+  const userIds = batch.map((u) => u.id).filter(Boolean)
+  const usageByUser = await loadUsageByUser(admin, userIds, sinceIso)
+  const rows = batch.map((u) =>
+    mapAuthUser(
+      u,
+      subByUser,
+      usageByUser[u.id] ?? { eligibility_check: 0, document_generate: 0, evaluation: 0 }
+    )
+  )
 
   return NextResponse.json({
-    users: rows.map((u) => ({
-      ...u,
-      usage: usageByUser[u.id] ?? { eligibility_check: 0, document_generate: 0, evaluation: 0 },
-    })),
-    page: q ? 1 : page,
-    perPage: q ? rows.length : perPage,
-    hasMore,
-    query: q || null,
-    scannedAuthPages,
+    users: sortUsers(rows, filters.sort ?? 'created_desc'),
+    page,
+    perPage,
+    hasMore: batch.length === perPage,
+    total: null,
+    totalPages: null,
+    query: null,
+    scannedAuthPages: page,
+    scanMode: false,
   })
 }

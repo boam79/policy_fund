@@ -61,6 +61,23 @@ export async function GET() {
     if (n > 1) duplicateGroups += 1
   }
 
+  const { count: pastDueCount } = await supabase
+    .from('subscriptions')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'past_due')
+
+  let membersInactive30d = 0
+  try {
+    const { computeUserSummary, createAdminAuthClient } = await import('@/lib/admin/userDirectory')
+    const authAdmin = createAdminAuthClient()
+    if (authAdmin) {
+      const summary = await computeUserSummary(authAdmin)
+      membersInactive30d = summary.inactive30d
+    }
+  } catch {
+    membersInactive30d = 0
+  }
+
   return Response.json({
     ok: true,
     inquiries: {
@@ -70,6 +87,11 @@ export async function GET() {
     },
     paidSubscribers: paidSubs.count ?? 0,
     negativeFeedback7d: negativeFeedback.count ?? 0,
+    members: {
+      inactive30d: membersInactive30d,
+      pastDue: pastDueCount ?? 0,
+      alert: pastDueCount ?? 0,
+    },
     ops: {
       syncFailures48h: syncFailures48h ?? 0,
       duplicateGroups,

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Sprout } from 'lucide-react'
 import {
@@ -44,11 +45,15 @@ function dismissUntil(days: number) {
 }
 
 export function BetaNoticeDialog() {
+  const pathname = usePathname() ?? ''
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
+    if (pathname.startsWith('/admin')) return
     if (shouldShowNotice()) setOpen(true)
-  }, [])
+  }, [pathname])
+
+  if (pathname.startsWith('/admin')) return null
 
   const handleOpenChange = (next: boolean) => {
     if (!next && open) dismissUntil(1)

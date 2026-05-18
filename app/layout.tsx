@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { Geist_Mono, Noto_Sans_KR } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/layout/Header'
-import Footer from '@/components/layout/Footer'
+import ConditionalFooter from '@/components/layout/ConditionalFooter'
 import { Toaster } from '@/components/ui/sonner'
 import SiteWideJsonLd from '@/components/seo/SiteWideJsonLd'
 import OAuthReturnHandlerBoundary from '@/components/auth/OAuthReturnHandlerBoundary'
@@ -96,7 +96,7 @@ export default function RootLayout({
         <BetaNoticeDialog />
         <Header />
         <main className="min-h-[calc(100vh-4rem)]">{children}</main>
-        <Footer />
+        <ConditionalFooter />
         <Toaster richColors position="top-right" />
       </body>
     </html>

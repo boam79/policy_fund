@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { SITE_NAME } from '@/lib/site-config'
 
-type NavBadgeKey = 'inquiries' | 'feedback' | 'sync' | 'duplicates'
+type NavBadgeKey = 'inquiries' | 'feedback' | 'sync' | 'duplicates' | 'members'
 
 type NavItem = {
   href: string
@@ -45,7 +45,13 @@ const navGroups: NavGroup[] = [
         desc: '접수·답변',
         badgeKey: 'inquiries',
       },
-      { href: '/admin/users', icon: Users, label: '회원 관리', desc: '플랜·이용량' },
+      {
+        href: '/admin/users',
+        icon: Users,
+        label: '회원 관리',
+        desc: '플랜·이용량',
+        badgeKey: 'members',
+      },
       {
         href: '/admin/feedback',
         icon: ThumbsUp,
@@ -88,6 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [feedbackBadge, setFeedbackBadge] = useState(0)
   const [syncBadge, setSyncBadge] = useState(0)
   const [duplicatesBadge, setDuplicatesBadge] = useState(0)
+  const [membersBadge, setMembersBadge] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -99,6 +106,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setFeedbackBadge(data.negativeFeedback7d ?? 0)
         setSyncBadge(data.ops?.syncFailures48h ?? 0)
         setDuplicatesBadge(data.ops?.duplicateGroups ?? 0)
+        setMembersBadge(data.members?.alert ?? 0)
       })
       .catch(() => {})
     return () => {
@@ -111,6 +119,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (key === 'feedback') return feedbackBadge
     if (key === 'sync') return syncBadge
     if (key === 'duplicates') return duplicatesBadge
+    if (key === 'members') return membersBadge
     return 0
   }
 
