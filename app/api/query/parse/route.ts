@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   parseNaturalLanguage,
   parseNaturalLanguageFallback,
+  finalizeParseResult,
   toBusinessConditions,
 } from '@/lib/query/parseNaturalLanguage'
 import type { ApiResponse } from '@/types'
@@ -94,10 +95,11 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     const cached = getParseCache(queryText)
     if (cached) {
+      const parsed = finalizeParseResult(cached.parsed)
       return NextResponse.json<ApiResponse>({
         success: true,
         data: {
-          parsed: cached.parsed,
+          parsed,
           conditions: cached.conditions,
           cached: true,
         },

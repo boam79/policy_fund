@@ -287,13 +287,45 @@ export async function parseNaturalLanguage(query: string): Promise<ParseNLResult
     result.missing_important
   )
 
-  return {
+  return finalizeParseResult({
     ...result,
-    summary: normalizeParseSummaryText(result.summary),
     conditions: validatedConditions,
     missing_important,
     raw_query: query,
+  })
+}
+
+/** 추출 조건 → 요약 조각 (LLM·폴백 공통) */
+export function buildSummaryPartsFromConditions(conditions: ParsedConditions): string[] {
+  const summaryParts: string[] = []
+  if (conditions.region?.value) summaryParts.push(`지역은 ${conditions.region.value}`)
+  if (conditions.city?.value) summaryParts.push(`시군구는 ${conditions.city.value}`)
+  if (conditions.industry?.value) summaryParts.push(`업종은 ${conditions.industry.value}`)
+  if (conditions.business_age_years?.value != null) {
+    const ageSrc = conditions.business_age_years.source_text
+    if (ageSrc?.includes('미만')) {
+      summaryParts.push(`업력은 ${ageSrc}`)
+    } else {
+      summaryParts.push(`업력은 ${conditions.business_age_years.value}년`)
+    }
   }
+  if (conditions.employee_count?.value != null) {
+    summaryParts.push(`직원은 ${conditions.employee_count.value}명`)
+  }
+  if (conditions.support_purpose?.value) {
+    summaryParts.push(`지원 목적은 ${conditions.support_purpose.value}`)
+  }
+  return summaryParts
+}
+
+/** 캐시·LLM 응답 포함 — 조건 기반 요약으로 통일 (조사 오류·형식 불일치 방지) */
+export function finalizeParseResult(parsed: ParseNLResult): ParseNLResult {
+  const summaryParts = buildSummaryPartsFromConditions(parsed.conditions)
+  const summary =
+    summaryParts.length > 0
+      ? buildParseSummaryFromParts(summaryParts)
+      : normalizeParseSummaryText(parsed.summary)
+  return { ...parsed, summary }
 }
 
 /** 문장 끝(마지막 음절·약어)에 맞는 「으로/로」 선택 */
@@ -438,25 +470,12 @@ export function parseNaturalLanguageFallback(query: string): ParseNLResult {
   const importantKeys: (keyof ParsedConditions)[] = ['region', 'industry', 'business_age_years']
   const missing_important = importantKeys.filter((k) => !conditions[k]).map((k) => String(k))
 
-  const summaryParts: string[] = []
-  if (conditions.region?.value) summaryParts.push(`지역은 ${conditions.region.value}`)
-  if (conditions.city?.value) summaryParts.push(`시군구는 ${conditions.city.value}`)
-  if (conditions.industry?.value) summaryParts.push(`업종은 ${conditions.industry.value}`)
-  if (conditions.business_age_years?.value != null) {
-    const ageSrc = conditions.business_age_years.source_text
-    if (ageSrc?.includes('미만')) {
-      summaryParts.push(`업력은 ${ageSrc}`)
-    } else {
-      summaryParts.push(`업력은 ${conditions.business_age_years.value}년`)
-    }
-  }
-  if (conditions.support_purpose?.value) summaryParts.push(`지원 목적은 ${conditions.support_purpose.value}`)
-
-  const summary = buildParseSummaryFromParts(summaryParts)
-
   // Hybrid Confidence: fallback에도 동일 도메인 검증 적용
   const { conditions: validatedConditions, missing_important: validatedMissing } =
     domainValidateConditions(conditions, missing_important)
+
+  const summaryParts = buildSummaryPartsFromConditions(validatedConditions)
+  const summary = buildParseSummaryFromParts(summaryParts)
 
   return {
     conditions: validatedConditions,

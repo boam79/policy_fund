@@ -4,6 +4,8 @@ import type { BusinessConditions } from '@/types'
 
 const TTL_MS = 24 * 60 * 60 * 1000
 const MAX_ENTRIES = 500
+/** 요약 문구 형식 변경 시 bump → 기존 in-memory 캐시 무효화 */
+const CACHE_VERSION = 'v2'
 
 type ParseCacheEntry = {
   parsed: ParseNLResult
@@ -18,7 +20,9 @@ export function normalizeParseQueryForCache(query: string): string {
 }
 
 export function parseCacheKey(query: string): string {
-  return createHash('sha256').update(normalizeParseQueryForCache(query)).digest('hex')
+  return createHash('sha256')
+    .update(`${CACHE_VERSION}:${normalizeParseQueryForCache(query)}`)
+    .digest('hex')
 }
 
 export function getParseCache(query: string): ParseCacheEntry | null {
