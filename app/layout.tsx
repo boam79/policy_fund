@@ -6,6 +6,7 @@ import Footer from '@/components/layout/Footer'
 import { Toaster } from '@/components/ui/sonner'
 import SiteWideJsonLd from '@/components/seo/SiteWideJsonLd'
 import OAuthReturnHandlerBoundary from '@/components/auth/OAuthReturnHandlerBoundary'
+import { BetaNoticeDialog } from '@/components/BetaNoticeDialog'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_NAME_FULL, getSiteUrl } from '@/lib/site-config'
 
 /** macOS·Windows 동일 게이트용: 한글·라틴을 웹폰트로 고정하고 OS별 폰트 매칭을 줄임 */
@@ -92,6 +93,7 @@ export default function RootLayout({
       <body className={notoSansKR.className}>
         <SiteWideJsonLd />
         <OAuthReturnHandlerBoundary />
+        <BetaNoticeDialog />
         <Header />
         <main className="min-h-[calc(100vh-4rem)]">{children}</main>
         <Footer />
