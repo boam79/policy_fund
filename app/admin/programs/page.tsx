@@ -10,6 +10,7 @@ import { EXPORT_FILE_PREFIX } from '@/lib/site-config'
 import { AdminOpsPageShell } from '@/components/admin/AdminOpsPageShell'
 import { ProgramsDuplicatesPanel } from '@/components/admin/ProgramsDuplicatesPanel'
 import { ProgramsSyncVerifyPanel } from '@/components/admin/ProgramsSyncVerifyPanel'
+import { PROGRAM_SOURCES, PROGRAM_SOURCE_LABEL } from '@/lib/gov-support/programSources'
 
 interface Program {
   id: string
@@ -43,7 +44,7 @@ const STATUS_COLOR: Record<string, string> = {
   inactive: 'bg-red-100 text-red-600',
 }
 
-const SOURCE_OPTIONS = ['bizinfo', 'kstartup', 'smba', 'manual'] as const
+const SOURCE_OPTIONS = PROGRAM_SOURCES
 
 export default function AdminProgramsPage() {
   return (
@@ -333,7 +334,7 @@ function AdminProgramsContent() {
                 <option value="all">전체 출처</option>
                 {SOURCE_OPTIONS.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {PROGRAM_SOURCE_LABEL[s] ?? s}
                   </option>
                 ))}
               </select>

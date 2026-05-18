@@ -1,4 +1,5 @@
 import type { Database } from '@/types/database.types'
+import { normalizeProgramSourceList } from '@/lib/gov-support/programSources'
 
 type ProgramRow = Pick<
   Database['public']['Tables']['support_programs']['Row'],
@@ -64,12 +65,13 @@ export function matchProgramsForAlert(
   options?: { sinceIso?: string }
 ): AlertProgramMatch[] {
   const since = options?.sinceIso ? new Date(options.sinceIso) : null
+  const sourceFilter = normalizeProgramSourceList(profile.sources)
   const out: AlertProgramMatch[] = []
   const seen = new Set<string>()
 
   for (const p of programs) {
     if (p.status === 'closed' || p.status === 'inactive') continue
-    if (profile.sources.length > 0 && !profile.sources.includes(p.source)) continue
+    if (sourceFilter.length > 0 && !sourceFilter.includes(p.source)) continue
     if (!matchesList(p.region, profile.regions)) continue
     if (profile.industries.length > 0) {
       const inds = programIndustries(p)

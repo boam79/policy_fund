@@ -7,14 +7,14 @@ import { Bell, Loader2, Save, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { readApiError } from '@/lib/api/readApiError'
 import { SITE_NAME } from '@/lib/site-config'
+import { normalizeProgramSourceList, PROGRAM_SOURCES, PROGRAM_SOURCE_LABEL } from '@/lib/gov-support/programSources'
 
 const REGIONS = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
 const INDUSTRIES = ['제조업', 'IT/소프트웨어', '서비스업', '도소매업', '건설업', '농림어업', '바이오/헬스케어', '문화/콘텐츠', '기타']
-const SOURCES = [
-  { id: 'bizinfo', label: '기업마당' },
-  { id: 'kstartup', label: 'K-Startup' },
-  { id: 'smba', label: '중소벤처24' },
-]
+const SOURCES = PROGRAM_SOURCES.filter((id) => id !== 'manual').map((id) => ({
+  id,
+  label: PROGRAM_SOURCE_LABEL[id] ?? id,
+}))
 
 function toggleInList(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((x) => x !== value) : [...list, value]
@@ -53,7 +53,7 @@ export default function MyPageAlertsPage() {
           setIsActive(p.is_active !== false)
           setRegions(p.regions ?? [])
           setIndustries(p.industries ?? [])
-          setSources(p.sources ?? [])
+          setSources(normalizeProgramSourceList((p.sources ?? []) as string[]))
           setKeywords((p.keywords ?? []).join(', '))
           setNotifyDays(Number(p.notify_days_before) || 7)
           setNotifyNew(p.notify_new_programs !== false)
@@ -78,7 +78,7 @@ export default function MyPageAlertsPage() {
           is_active: isActive,
           regions,
           industries,
-          sources,
+          sources: normalizeProgramSourceList(sources),
           keywords: keywords
             .split(/[,，]/)
             .map((k) => k.trim())

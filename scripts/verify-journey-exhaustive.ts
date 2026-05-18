@@ -334,6 +334,69 @@ async function main() {
     assert([401, 403].includes(userExport.status), 'export/user without auth blocked')
   })
 
+  await section('관리자·알림 출처', async () => {
+    const { matchProgramsForAlert } = await import('../lib/alerts/matchPrograms')
+    const stub = {
+      id: 'p1',
+      title: '중소벤처24 테스트 공고',
+      source: 'smes24',
+      region: '서울',
+      industry: 'IT/소프트웨어',
+      industry_tags: null,
+      status: 'open',
+      application_end_date: new Date(Date.now() + 86400000 * 14).toISOString().slice(0, 10),
+      created_at: new Date().toISOString(),
+      synced_at: null,
+    }
+    const legacyHit = matchProgramsForAlert([stub], {
+      regions: [],
+      industries: [],
+      sources: ['smba'],
+      keywords: [],
+      notify_days_before: 30,
+      notify_new_programs: false,
+    })
+    assert(legacyHit.length === 1, 'alert profile smb a matches smes24 programs')
+
+    const wrongId = matchProgramsForAlert([stub], {
+      regions: [],
+      industries: [],
+      sources: ['smes24_wrong'],
+      keywords: [],
+      notify_days_before: 30,
+      notify_new_programs: false,
+    })
+    assert(wrongId.length === 0, 'invalid source filter excludes smes24')
+
+    for (const p of [
+      '/admin',
+      '/admin/dashboard',
+      '/admin/programs',
+      '/admin/programs?view=sync-verify',
+      '/admin/sync',
+    ]) {
+      const res = await fetchPage(p, 'manual')
+      assert(
+        [301, 302, 303, 307, 308].includes(res.status),
+        `${p} redirects when guest (got ${res.status})`
+      )
+    }
+
+    const adminApiChecks: { path: string; method: string; body?: string }[] = [
+      { path: '/api/admin/sync/verify?source=bizinfo', method: 'GET' },
+      { path: '/api/admin/sync/heal', method: 'POST', body: JSON.stringify({ source: 'bizinfo' }) },
+      { path: '/api/admin/programs/bizinfo-verify', method: 'GET' },
+    ]
+    for (const { path, method, body } of adminApiChecks) {
+      const r = await fetchJson(path, {
+        method,
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body,
+      })
+      assert([401, 403].includes(r.status), `${path} blocked without admin`)
+    }
+  })
+
   console.log(`\n[verify-journey-exhaustive] done: ${passed} passed, ${failed} failed`)
   if (failed > 0) process.exit(1)
   console.log('[verify-journey-exhaustive] PASS')

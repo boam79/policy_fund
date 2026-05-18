@@ -67,8 +67,11 @@ async function run() {
     '/api/admin/programs',
     '/api/admin/programs/quality',
     '/api/admin/programs/duplicates',
+    '/api/admin/programs/bizinfo-verify',
     '/api/admin/nav-badges',
     '/api/admin/system-settings',
+    '/api/admin/sync/verify',
+    '/api/admin/sync/heal',
   ]
   for (const api of blockedAdminApis) {
     const res = await requestJson(api)
@@ -84,6 +87,16 @@ async function run() {
     headers: { Origin: 'https://evil.example' },
   })
   assert(syncCsrf.status === 403, `Admin sync CSRF expected 403 (got ${syncCsrf.status})`)
+
+  const verifyPost = await requestJson('/api/admin/sync/verify', { method: 'POST' })
+  assert([401, 403].includes(verifyPost.status), `sync/verify POST blocked (got ${verifyPost.status})`)
+
+  const healPost = await requestJson('/api/admin/sync/heal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source: 'bizinfo' }),
+  })
+  assert([401, 403].includes(healPost.status), `sync/heal POST blocked (got ${healPost.status})`)
 
   // 4) Export APIs should remain blocked for non-admin users.
   const exportCsv = await requestJson('/api/export/csv', {
@@ -116,6 +129,22 @@ async function run() {
 
     const users = await requestJson('/api/admin/users', { headers: { Cookie: adminCookie } })
     assert(users.status === 200, `Admin users with cookie expected 200 (got ${users.status})`)
+
+    const programs = await requestJson('/api/admin/programs?page=1&limit=5', {
+      headers: { Cookie: adminCookie },
+    })
+    assert(programs.status === 200, `Admin programs list (got ${programs.status})`)
+
+    const navBadges = await requestJson('/api/admin/nav-badges', { headers: { Cookie: adminCookie } })
+    assert(navBadges.status === 200 && navBadges.json.ok === true, 'nav-badges ok')
+
+    const syncVerifyGet = await requestJson('/api/admin/sync/verify?source=bizinfo', {
+      headers: { Cookie: adminCookie },
+    })
+    assert(
+      [200, 503].includes(syncVerifyGet.status),
+      `sync/verify GET (got ${syncVerifyGet.status})`
+    )
 
     console.log('[verify-admin] PASS (including ADMIN_VERIFY_COOKIE simulation)')
   } else {
