@@ -21,6 +21,9 @@ export type Database = {
           industries: string[] | null
           is_active: boolean
           keywords: string[] | null
+          last_digest_at: string | null
+          notify_days_before: number
+          notify_new_programs: boolean
           regions: string[] | null
           sources: string[] | null
           updated_at: string
@@ -32,6 +35,9 @@ export type Database = {
           industries?: string[] | null
           is_active?: boolean
           keywords?: string[] | null
+          last_digest_at?: string | null
+          notify_days_before?: number
+          notify_new_programs?: boolean
           regions?: string[] | null
           sources?: string[] | null
           updated_at?: string
@@ -43,6 +49,9 @@ export type Database = {
           industries?: string[] | null
           is_active?: boolean
           keywords?: string[] | null
+          last_digest_at?: string | null
+          notify_days_before?: number
+          notify_new_programs?: boolean
           regions?: string[] | null
           sources?: string[] | null
           updated_at?: string

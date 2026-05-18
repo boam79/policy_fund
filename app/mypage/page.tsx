@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { User, Building2, FileText, Search, LogOut, Loader2, Save, CreditCard } from 'lucide-react'
+import { User, Building2, FileText, Search, LogOut, Loader2, Save, CreditCard, Bell } from 'lucide-react'
+import { BusinessVerifyCard } from '@/components/profile/BusinessVerifyCard'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SITE_NAME } from '@/lib/site-config'
@@ -121,9 +122,15 @@ export default function MyPage() {
               <p className="text-xs text-gray-400">{SITE_NAME} 회원</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 transition-colors">
-            <LogOut className="h-4 w-4" />로그아웃
-          </button>
+          <div className="flex items-center gap-3">
+            <Link href="/mypage/alerts" className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800">
+              <Bell className="h-4 w-4" />
+              공고 알림
+            </Link>
+            <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 transition-colors">
+              <LogOut className="h-4 w-4" />로그아웃
+            </button>
+          </div>
         </div>
 
         {/* 탭 */}
@@ -156,6 +163,11 @@ export default function MyPage() {
                   업종·업력·직원 수 등을 저장해 두면 이후 검색·진단·문서 작성의 기본값으로 사용됩니다.
                 </p>
               </div>
+
+              <BusinessVerifyCard
+                companyName={profile.company_name}
+                onCompanyNameHint={(name) => set('company_name', name)}
+              />
 
               <section className="space-y-4">
                 <h3 className="text-sm font-medium text-gray-800 border-b pb-2">사업자·회사</h3>

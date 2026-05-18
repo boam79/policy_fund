@@ -3,7 +3,8 @@
 **역할**: Planner 주도 계획 / Executor는 사용자 승인 후 단계별 실행  
 **기준 문서**: `policyfund_v2_prd_v2_0_free_plan_db_switch_ready.md` (PF-WEB-001 v2.0, 2026-05-11) — 문서 내 과거 명칭 PolicyFund AI는 제품 코드명 참고용이며, **사용자 노출 브랜드는 지원둥지**로 통일함 (2026-05-16).  
 **UI 목업 기준**: `KakaoTalk_Photo_2026-05-11-18-15-52 001.png` (관리자 대시보드), `KakaoTalk_Photo_2026-05-11-18-15-53 002.png` (사용자 홈)  
-**Planner 최종 갱신**: 2026-05-17 (Phase 13 고도화 우선순위 계획 — Planner)
+**Planner 최종 갱신**: 2026-05-17 (Phase 14 공공데이터·신뢰 로드맵 — Planner)  
+**현재 모드**: **Planner** — Executor 착수 전 사용자 승인 대기
 
 ### 홈 UI 목업 정합 (2026-05-17 Executor)
 - 사용자 피드백: 배포/로컬 화면이 제안 목업(안 A / B+C)과 시각적으로 크게 다름
@@ -44,6 +45,27 @@ PolicyFund AI v2는 기존 GitHub Pages 단일페이지 MVP(`policyfundapp`)의 
 - 사용자 요청: 구글 「지원둥지」 검색 미노출 → **canonical/sitemap이 배포별 URL**을 가리키던 문제 확인. Executor가 `getSiteUrl`·dynamic robots/sitemap·llms/ai 라우트 수정(**미배포·미커밋 가능** — Executor 피드백 참고).
 - 원칙 유지: 기능 폭 확대보다 **신뢰·설명 가능성·유입** 우선. Executor는 **태스크 1개씩**, 완료 후 사용자 검증.
 
+### Phase 14 배경 (2026-05-17 — 공공데이터·신뢰 로드맵, Planner)
+
+사용자가 공유한 **「추천 로드맵 (지원둥지에 맞춤)」** 을 Phase 14로 공식화한다. 기존 Phase 13(성장·SEO·찜·알림)과 **병행 가능하나 Executor는 한 번에 14-x-1 태스크만** 수행한다.
+
+| 순서 | 기능 | 기대 효과 | Phase 13과 관계 |
+|:---:|---|---|---|
+| **14-1** | 사업자 진위확인 + 프로필 자동화 | 홈 UX·자격판정 신뢰 동시 개선 | 13-P1-3(프로필) 확장 |
+| **14-2** | 마감/신규 알림 (`alert_profiles`) | 로그인 유저 재방문 | = 13-P2-2 (동일 스코프) |
+| **14-3** | 기업마당 목록 파일 ↔ DB 교차검증 | 가짜/누락 공고 신뢰 | 신규 (운영·데이터) |
+| **14-4** | 상권정보 API | 소상공·지역 매칭 차별화 | 신규 (선택·후순위) |
+| **14-5** | 온통청년 API | 청년 세그먼트 랜딩·SEO | 신규 (마케팅) |
+| **14-6** | 벤처/이노비즈 + R&D 공고원 | 고급 사용자·객단가 | 신규 (장기) |
+
+**인프라 전제 (변경 없음)**  
+- Supabase Free **500MB**, Vercel **Cron** (Hobby 한도)  
+- 공고 **원문 전문 DB 저장 금지**, 사용자 요청 시 **대량 실시간 공공 API 호출 금지**  
+- PRD 원칙 유지: **서버 캐시 + 핵심 필드만 저장**, 동기화는 배치·upsert
+
+**최근 UX 기반선 (Executor 완료, Phase 14 설계에 반영)**  
+- 베타 `BETA_ALL_ACCESS`, 검색 `empty_state`·`requested_filters`, parse 조사·마감 문구 — **14-1**에서 「검증된 프로필」과 연결
+
 ---
 
 ## Key Challenges and Analysis
@@ -58,6 +80,15 @@ PolicyFund AI v2는 기존 GitHub Pages 단일페이지 MVP(`policyfundapp`)의 
 8. **진단·검색 단절**: `/diagnosis?data=` URL 인코딩 JSON은 길이·캐시·구버전 파싱 결과가 남을 수 있음
 9. **자격판정 설명 부족**: `failed`/`unknown` 이유가 카드에 한 줄로 안 보이면 “검색이 틀렸다”로 오해
 10. **무료 플랜·다수 이용**: parse/search 레이트리밋·LLM 비용·동기화 품질을 운영 지표로 보지 않으면 장애 시 전원 fallback
+
+### Phase 14 — Key Challenges (Planner, 2026-05-17)
+
+1. **사업자 진위확인 API**: 키 발급 주체(공공데이터포털·국세청 등), **개인정보·사업자번호** 처리, 로그인 사용자만 호출, 결과 **캐시 TTL**(예 24h) 필요. 프론트에 사업자번호 직접 저장 최소화.
+2. **프로필 자동화 vs 사용자 통제**: 진위확인 성공 시 `business_profiles` 자동 채움은 편의 ↑, 오인 시 신뢰 ↓ → **미리보기·수정 후 저장** UI 필수.
+3. **교차검증(14-3)**: 기업마당 **목록 파일/API**와 `support_programs` diff — 누락·중복·`external_id` 불일치. 관리자 대시보드에만 노출, 사용자 API 부하 없음.
+4. **알림(14-2)**: `alert_profiles` 테이블은 PRD·`database.types`에 존재. Cron 일 1회 배치가 Free 한도에 안전. 이메일 1차(Resend/Supabase Auth 메일 재사용 검토).
+5. **상권·청년·R&D(14-4~6)**: 검색 핵심 경로에 넣지 말고 **보조 신호·랜딩·Pro 기능**으로 격리 — 500MB·latency 방지.
+6. **Phase 13과 순서 충돌**: 13-P0-2(US-12-UX 수동), GSC는 유지. **Executor 첫 착수 권장 = 14-1-1**(스파이크) 또는 사용자가 고른 14-x-1.
 
 ### 반복 오류 방지 전략 (Planner 확정)
 
@@ -471,7 +502,34 @@ PAYMENT_SECRET_KEY=
 - [ ] Phase 10 — 결제·구독 (후순위)
 - [ ] Phase 11 — 엄격 유저스토리 + 오류 재발 방지 체계
 - [x] **Phase 12 — 서비스 고도화** (Wave 1~5 Executor 완료 2026-05-17, 프로덕션 US-12-UX 스모크 권장)
-- [ ] **Phase 13 — 성장·신뢰·운영** (Planner 계획 완료 2026-05-17, Executor **13-P0-1**부터)
+- [ ] **Phase 13 — 성장·신뢰·운영** (Planner 계획 완료 2026-05-17, 일부 P0·P1 완료)
+- [ ] **Phase 14 — 공공데이터·신뢰 로드맵** (Planner 계획 완료 2026-05-17, **사용자 승인 후 14-1-1**부터)
+
+### Phase 14 — Project Status Board (Planner, 로드맵 순)
+
+**Wave A — 신뢰·프로필 (14-1)** ← **Executor 첫 착수 권장**
+- [x] 14-1-1 **스파이크**: `docs/phase14-business-verify-spike.md`
+- [x] 14-1-2 env·서버 클라이언트: `lib/gov-support/clients/ntsBusinessman.ts` (`PUBLIC_DATA_SERVICE_KEY`)
+- [x] 14-1-3 `POST /api/profile/verify-business` (로그인, rate limit, 24h 캐시)
+- [x] 14-1-4 마이페이지 `BusinessVerifyCard` (진단 연동·DB verified_at은 미구현)
+- [ ] 14-1-5 자격판정: `verified_at` 배지·`eligibility` unknown 문구에 「미확인 프로필」 구분 (선택)
+- [ ] 14-1-6 `verify:story` 또는 `verify:journey`에 mock/스텁 경로 1건
+
+**Wave B — 재방문 (14-2)** (= 13-P2-2 통합)
+- [x] 14-2-1 `alert_profiles` CRUD API + RLS 마이그레이션(원격 적용 필요)
+- [x] 14-2-2 `/mypage/alerts` UI
+- [x] 14-2-3 Cron `/api/cron/alerts` + `vercel.json` (Resend 없으면 로그만)
+- [ ] 14-2-4 이메일 템플릿·구독 해지 링크
+
+**Wave C — 데이터 신뢰 (14-3)**
+- [x] 14-3-1 API 페이지 샘플 수집 (`collectBizinfoApiIds`, `BIZINFO_VERIFY_MAX_PAGES`)
+- [x] 14-3-2 admin API diff (`runBizinfoCrossCheck`)
+- [x] 14-3-3 `/admin/programs?view=sync-verify` 「동기화 검증」탭
+
+**Wave D~F — 확장 (14-4~6, 사용자 승인 후)**
+- [ ] 14-4-1 상권정보: API 스파이크 → 지역 검색 결과 **참고 카드** 1블록(비동기)
+- [ ] 14-5-1 온통청년: `/youth` 랜딩 + sitemap + 수동 큐레이션 링크(초기는 API 최소)
+- [ ] 14-6-1 벤처/이노비즈 인증 조회 + R&D 공고 소스 1개 추가(동기화 파이프라인 재사용)
 
 ### Phase 13 — Project Status Board (Planner, 우선순위순)
 
@@ -542,9 +600,9 @@ PAYMENT_SECRET_KEY=
 
 ## Current Status / Progress Tracking
 
-- **현재 모드**: **Executor** — Phase 13 P0·P1 + **보안 패치 배포 완료**(2026-05-17). 남음: US-12-UX 수동 3건, GSC 사이트맵, Supabase Auth 유출 비밀번호 보호(대시보드).
+- **현재 모드**: **Planner** — Phase 14 로드맵 계획 반영 완료(2026-05-17). **다음**: 사용자가 14-1-1(스파이크) 또는 다른 Wave 승인 → Executor 1태스크.
 - **저장소**: `https://github.com/boam79/policy_fund` · 로컬 `/Users/parkjaemin/Dev/policy_fund`
-- **최신 커밋**: `a3ca07c` (보안: RLS·CSRF·ADMIN_ONLY_EMAIL·exceljs) · 이전 `0d4c804` (Phase 13 P0–P1) · **릴리스 태그**: `v0.2.1` (Phase 12)
+- **최신 커밋**: `6fb3923` (검색 0건 UX) · `8246ead` (베타·마감·parse) · **릴리스 태그**: `v0.2.1` (Phase 12)
 - **Supabase 프로젝트**: `hwqsxarzgodpsvwahzae` (policyfund-ai-v2, ap-northeast-2, Free Plan)
 - **데이터 운영 모드**: `api_minimal_cache`
 - **Gemini API Key**: ✅ `.env.local`에 등록 완료
@@ -576,6 +634,8 @@ PAYMENT_SECRET_KEY=
 
 ## Executor's Feedback or Assistance Requests
 
+- **2026-05-17 (Executor)**: Phase 14 **로드맵 1~3 (Wave A~C) 구현** — `npm run build` PASS. **Wave A**: `ntsBusinessman.ts`, `POST /api/profile/verify-business`, 마이페이지 `BusinessVerifyCard`. **Wave B**: `GET/PUT /api/alerts/profile`, `/mypage/alerts`, `GET /api/cron/alerts`(Resend 선택), `vercel.json` cron 01:00 UTC, 마이그레이션 `20260517140000_phase14_alerts_rls.sql`. **Wave C**: `bizinfoCrossCheck.ts`, `GET /api/admin/programs/bizinfo-verify`, 관리자 공고 「동기화 검증」탭. **사용자 확인**: (1) Supabase에 마이그레이션 적용 (2) `CRON_SECRET`·선택 `RESEND_API_KEY`/`ALERT_FROM_EMAIL` (3) 마이페이지 진위확인 실번호 스모크 (4) 관리자 동기화 검증 실행. **미커밋**.
+- **2026-05-17 (Planner)**: Phase 14 로드맵(사용자 공유 6항목) scratchpad 반영. **Executor 대기** — 사용자 승인·위 3가지 결정 후 **14-1-1** 착수. Phase 13 `13-P0-2` US-12-UX·GSC는 병행 가능(비개발).
 - **2026-05-17 (Executor)**: **검색 0건 UX** — `empty_state`·`requested_filters` API, `SearchEmptyState` UI(입력 vs 실제 조건·진단 링크), 진단 사전 경고 배너, `q` URL 전달. `npm run build` PASS.
 - **2026-05-17 (Executor)**: **오타·문구 점검** — `폴리시펀드`→`지원둥지`(면책), parse `IT으로`→`IT로`(`pickEuroParticle`), 요금제·심사 `CSV·XLSX 보내기` 띄어쓰기. `verify:journey-exhaustive` 44/44 PASS.
 - **2026-05-17 (Executor)**: **유저 여정 UX 버그 수정** — `lib/programs/deadline.ts` 공통화, parse 요약 `년로`→`년으로`·`buildParseSummaryFromParts`, 홈/검색/상세/북마크 마감 `0일`→`오늘 마감`. `verify:journey-exhaustive` 42/42·`verify:journey` PASS. **미커밋** — 프로덕션 배포·수동 스모크(홈 카드·진단 요약·검색 D-0) 요청.
@@ -925,3 +985,87 @@ PAYMENT_SECRET_KEY=
 
 **Planner → Executor 인계**  
 「**13-P0-1**부터. SEO 변경 커밋·푸시·Vercel env 확인·`verify:seo` 로그 첨부. 완료 시 [x] 표시 후 사용자에게 US-12-UX 수동 검증 요청.」
+
+---
+
+## Phase 14 — 공공데이터·신뢰 로드맵 (Planner, 2026-05-17)
+
+**목표**: 공유 로드맵 6항목을 **500MB·Cron·핵심필드-only** 제약 안에서 단계적으로 구현.  
+**완료 정의 (Planner만 선언)**: Wave A(14-1) 최소 14-1-1~14-1-4 프로덕션 + 회귀 테스트 1건 + 사용자 수동 1회.
+
+### High-level Task Breakdown (Executor는 **한 줄만** 착수)
+
+#### 14-1 사업자 진위확인 + 프로필 자동화
+
+| ID | 작업 | 성공 기준 (Executor 자가 검증) | 사용자 수동 |
+|---|---|---|---|
+| 14-1-1 | API 스파이크 문서 | 사용 API명·엔드포인트·필수 env·일 1만 건 이하 전략 명시 | 키 발급 여부 확인 |
+| 14-1-2 | 서버 클라이언트 | 로컬 `tsx` 1회 호출 성공(테스트 번호) 또는 mock 모드 | — |
+| 14-1-3 | verify API | 비로그인 401, 로그인 200/4xx 표준 오류, 응답에 `verified`·`profile_patch` | Postman 1회 |
+| 14-1-4 | UI 연동 | 마이페이지에서 확인→저장→검색 URL에 반영 | 홈→진단→검색 1회 |
+| 14-1-5 | 자격 문구 (선택) | 미확인 시 카드에 「프로필 미확인」 | — |
+| 14-1-6 | 회귀 테스트 | `verify:journey` 또는 `verify:story` PASS | — |
+
+**비범위**: 사업자번호를 URL·localStorage 평문 장기 저장; LLM이 진위 결과 생성.
+
+#### 14-2 마감/신규 알림
+
+| ID | 작업 | 성공 기준 |
+|---|---|---|
+| 14-2-1 | DB·API | `alert_profiles` upsert, RLS 본인만 |
+| 14-2-2 | UI | 조건 1세트 저장·목록 |
+| 14-2-3 | Cron | dry-run 로그에 대상 N건, 실발송 상한 |
+| 14-2-4 | 이메일 | 수신 1통, 수신거부 |
+
+#### 14-3 기업마당 ↔ DB 교차검증
+
+| ID | 작업 | 성공 기준 |
+|---|---|---|
+| 14-3-1 | 스냅샷 | 최신 파일/API 페이지 ID 집합 생성 |
+| 14-3-2 | diff | 누락·DB-only 목록 admin JSON |
+| 14-3-3 | UI | 대시보드 카드 숫자 + 링크 |
+
+#### 14-4~14-6 (요약)
+
+- **14-4 상권**: 검색 **옵션** 「상권 참고」카드, API 실패 시 숨김.  
+- **14-5 온통청년**: `/youth` 정적+동기화 최소, SEO 메타.  
+- **14-6 R&D/벤처**: `source` enum 확장 + sync 1소스, Pro 게이트 검토.
+
+### Phase 14 vs Phase 13 우선순위 (Planner 권장)
+
+```mermaid
+flowchart LR
+  subgraph now [지금]
+    A[14-1-1 스파이크]
+    B[13-P0-2 US-12-UX 수동]
+  end
+  subgraph next [다음 2~4주]
+    C[14-1-2~4 진위+프로필]
+    D[14-3 교차검증]
+    E[14-2 알림]
+  end
+  subgraph later [이후]
+    F[14-4 상권]
+    G[14-5 청년 SEO]
+    H[14-6 R&D]
+  end
+  A --> C
+  C --> D
+  D --> E
+  E --> F
+  F --> G
+  G --> H
+```
+
+| 권장 순서 | 이유 |
+|---|---|
+| 14-1 → 14-3 → 14-2 → 14-4~6 | 홈/자격 **신뢰**가 로드맵 1·3순위와 일치; 알림은 재방문(2)이나 DB 작업 적음; 4~6은 차별화·SEO |
+
+### Executor 착수 전 사용자 결정 (Planner 요청)
+
+1. **14-1-1 스파이크**부터 진행해도 되는지 (API 키 보유 여부).  
+2. 사업자번호 입력 UI: **마이페이지만** vs **진단 직후 1회** 유도.  
+3. Phase 13 잔여(US-12-UX, GSC)와 **병행** vs **14-1 우선**.
+
+**Planner → Executor 인계 (승인 후)**  
+「**14-1-1**만 수행. `docs/phase14-business-verify-spike.md` 작성, API 후보 2개 이하로 좁히기, env 이름 제안. 코드 구현은 14-1-2부터. 완료 시 scratchpad [x]·사용자에게 스파이크 요약 전달.」

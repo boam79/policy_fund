@@ -9,6 +9,7 @@ import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import { EXPORT_FILE_PREFIX } from '@/lib/site-config'
 import { AdminOpsPageShell } from '@/components/admin/AdminOpsPageShell'
 import { ProgramsDuplicatesPanel } from '@/components/admin/ProgramsDuplicatesPanel'
+import { ProgramsSyncVerifyPanel } from '@/components/admin/ProgramsSyncVerifyPanel'
 
 interface Program {
   id: string
@@ -63,7 +64,9 @@ export default function AdminProgramsPage() {
 function AdminProgramsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const isDuplicates = searchParams.get('view') === 'duplicates'
+  const view = searchParams.get('view')
+  const isDuplicates = view === 'duplicates'
+  const isSyncVerify = view === 'sync-verify'
 
   const [programs, setPrograms] = useState<Program[]>([])
   const [loading, setLoading] = useState(true)
@@ -136,8 +139,8 @@ function AdminProgramsContent() {
   }
 
   useEffect(() => {
-    if (!isDuplicates) void loadPrograms()
-  }, [page, statusFilter, sourceFilter, visibilityFilter, qualityFilter, isDuplicates])
+    if (!isDuplicates && !isSyncVerify) void loadPrograms()
+  }, [page, statusFilter, sourceFilter, visibilityFilter, qualityFilter, isDuplicates, isSyncVerify])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -145,9 +148,10 @@ function AdminProgramsContent() {
     void loadPrograms()
   }
 
-  const setSubView = (view: 'list' | 'duplicates') => {
+  const setSubView = (sub: 'list' | 'duplicates' | 'sync-verify') => {
     const params = new URLSearchParams(searchParams.toString())
-    if (view === 'duplicates') params.set('view', 'duplicates')
+    if (sub === 'duplicates') params.set('view', 'duplicates')
+    else if (sub === 'sync-verify') params.set('view', 'sync-verify')
     else params.delete('view')
     const qs = params.toString()
     router.push(qs ? `/admin/programs?${qs}` : '/admin/programs')
@@ -212,7 +216,11 @@ function AdminProgramsContent() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">공고 관리</h1>
           <p className="text-sm text-gray-500">
-            {isDuplicates ? '동일 제목·출처 중복 그룹' : `전체 ${total.toLocaleString()}건`}
+            {isDuplicates
+              ? '동일 제목·출처 중복 그룹'
+              : isSyncVerify
+                ? '기업마당 ↔ DB 교차검증'
+                : `전체 ${total.toLocaleString()}건`}
           </p>
         </div>
       </div>
@@ -222,7 +230,7 @@ function AdminProgramsContent() {
           type="button"
           onClick={() => setSubView('list')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-            !isDuplicates ? 'border-slate-800 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700'
+            !isDuplicates && !isSyncVerify ? 'border-slate-800 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
           목록
@@ -237,10 +245,21 @@ function AdminProgramsContent() {
           <Copy className="h-3.5 w-3.5" />
           중복 공고
         </button>
+        <button
+          type="button"
+          onClick={() => setSubView('sync-verify')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+            isSyncVerify ? 'border-slate-800 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          동기화 검증
+        </button>
       </div>
 
       {isDuplicates ? (
         <ProgramsDuplicatesPanel />
+      ) : isSyncVerify ? (
+        <ProgramsSyncVerifyPanel />
       ) : (
         <>
           {quality && (
