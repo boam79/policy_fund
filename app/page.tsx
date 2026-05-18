@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { SITE_DESCRIPTION, SITE_NAME_FULL, getSiteUrl } from '@/lib/site-config'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { fetchRecommendedPrograms } from '@/lib/home/recommendations'
+import { HOME_GUEST_PROGRAM_LIMIT } from '@/lib/home/program-display'
 import { fetchHomeStats } from '@/lib/home/stats'
 import { fetchMemberHomeData } from '@/lib/home/member-feed'
 import GuestHomeView from '@/components/home/GuestHomeView'
@@ -50,7 +51,7 @@ export default async function HomePage() {
   if (!user) {
     const [stats, programs] = await Promise.all([
       fetchHomeStats(pub),
-      fetchRecommendedPrograms(pub, 8),
+      fetchRecommendedPrograms(pub, HOME_GUEST_PROGRAM_LIMIT),
     ])
     return <GuestHomeView stats={stats} programs={programs} />
   }

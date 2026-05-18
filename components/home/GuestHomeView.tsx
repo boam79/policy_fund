@@ -7,6 +7,7 @@ import HeroIllustration from '@/components/home/HeroIllustration'
 import Image from 'next/image'
 import type { HomeStats } from '@/lib/home/stats'
 import type { RecommendedProgram } from '@/lib/home/recommendations'
+import { HOME_GUEST_PROGRAM_LIMIT } from '@/lib/home/program-display'
 
 export default function GuestHomeView({
   stats,
@@ -82,9 +83,9 @@ export default function GuestHomeView({
               <p className="text-sm font-medium text-muted-foreground">공고 데이터를 동기화 중입니다</p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {programs.slice(0, 4).map((prog, i) => (
-                <GuestProgramCard key={prog.id} program={prog} rankIndex={i} />
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {programs.slice(0, HOME_GUEST_PROGRAM_LIMIT).map((prog, i) => (
+                <GuestProgramCard key={prog.id} program={prog} rankIndex={i} compact />
               ))}
             </div>
           )}

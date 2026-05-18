@@ -27,21 +27,14 @@ function metaLabel(program: RecommendedProgram): string | null {
   return null
 }
 
-function buildTags(program: RecommendedProgram): string[] {
-  const tags: string[] = []
-  const type = program.support_type ? stripHtmlToText(program.support_type) : ''
-  const region = program.region ? stripHtmlToText(program.region) : ''
-  if (type && type.length <= 14) tags.push(type)
-  if (region && region.length <= 10 && !tags.includes(region)) tags.push(region)
-  return tags.slice(0, 2)
-}
-
 export default function GuestProgramCard({
   program,
   rankIndex = 0,
+  compact = false,
 }: {
   program: RecommendedProgram
   rankIndex?: number
+  compact?: boolean
 }) {
   const displayScore = guestCardMatchScore(rankIndex)
   const funding = formatProgramSupportAmount(
@@ -51,15 +44,26 @@ export default function GuestProgramCard({
   )
   const badge = deadlineBadge(program.days_left, program.status)
   const meta = metaLabel(program)
-  const tags = buildTags(program)
   const deadlineLine =
     formatDeadlineRemainingMessage(program.days_left) ?? program.recommendReason
+  const ringSize = compact ? 36 : 48
 
   return (
-    <article className="flex h-full flex-col rounded-2xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-md">
-      <div className="mb-3 flex items-start justify-between gap-2">
+    <article
+      className={cn(
+        'flex h-full flex-col border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-md',
+        compact ? 'rounded-xl p-2.5' : 'rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
+      )}
+    >
+      <div className={cn('flex items-start justify-between gap-1.5', compact ? 'mb-2' : 'mb-3')}>
         {badge ? (
-          <span className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-bold', badge.className)}>
+          <span
+            className={cn(
+              'rounded-full font-bold',
+              badge.className,
+              compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-[11px]'
+            )}
+          >
             {badge.label}
           </span>
         ) : (
@@ -71,42 +75,47 @@ export default function GuestProgramCard({
           title="로그인 후 찜하기"
           aria-label="찜하기"
         >
-          <Bookmark className="h-4 w-4" strokeWidth={1.75} />
+          <Bookmark className={cn(compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} strokeWidth={1.75} />
         </Link>
       </div>
 
-      <Link href={`/search/${program.id}`} className="flex flex-1 flex-col">
-        <h3 className="mb-1 line-clamp-2 text-[13px] font-bold leading-snug text-blue-700 hover:text-blue-800">
+      <Link href={`/search/${program.id}`} className="flex min-h-0 flex-1 flex-col">
+        <h3
+          className={cn(
+            'font-bold leading-snug text-blue-700 hover:text-blue-800',
+            compact
+              ? 'mb-0.5 line-clamp-2 text-[11px]'
+              : 'mb-1 line-clamp-2 text-[13px]'
+          )}
+        >
           {stripHtmlToText(program.title)}
         </h3>
 
-        {meta && <p className="mb-1 text-xs text-slate-500">{meta}</p>}
-
-        <p className="mb-3 text-xs leading-relaxed text-slate-500">{deadlineLine}</p>
-
-        {tags.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-600"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
+        {meta && (
+          <p className={cn('text-slate-500 line-clamp-1', compact ? 'mb-0.5 text-[10px]' : 'mb-1 text-xs')}>
+            {meta}
+          </p>
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-          <p className="text-[11px] text-slate-500">
+        <p
+          className={cn(
+            'text-slate-500 line-clamp-1',
+            compact ? 'mb-2 text-[10px] leading-snug' : 'mb-3 text-xs leading-relaxed'
+          )}
+        >
+          {deadlineLine}
+        </p>
+
+        <div className="mt-auto flex items-end justify-between gap-1.5 pt-0.5">
+          <p className={cn('min-w-0 text-slate-500', compact ? 'text-[10px]' : 'text-[11px]')}>
             <span className="text-slate-400">지원금 </span>
-            <span className="font-semibold text-slate-700">
-              {funding ?? '공고 확인'}
-            </span>
+            <span className="font-semibold text-slate-700">{funding ?? '공고 확인'}</span>
           </p>
-          <div className="flex flex-col items-center gap-0.5">
-            <MatchScoreRing score={displayScore} size={48} />
-            <span className="text-[9px] font-medium text-slate-500">AI 매칭</span>
+          <div className="flex shrink-0 flex-col items-center gap-0">
+            <MatchScoreRing score={displayScore} size={ringSize} />
+            <span className={cn('font-medium text-slate-500', compact ? 'text-[8px]' : 'text-[9px]')}>
+              AI 매칭
+            </span>
           </div>
         </div>
       </Link>

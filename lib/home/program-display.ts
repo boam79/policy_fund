@@ -22,10 +22,13 @@ export function formatProgramSupportAmount(
   return null
 }
 
-/** 비로그인 홈 카드 목업 고정 매칭 % (78 → 69) */
+/** 비로그인 홈 카드 목업 고정 매칭 % (78 → 57, 8칸) */
 export function guestCardMatchScore(rankIndex: number): number {
-  return Math.max(69, 78 - rankIndex * 3)
+  return Math.max(57, 78 - rankIndex * 3)
 }
+
+/** 비로그인 홈 추천 공고 노출 개수 */
+export const HOME_GUEST_PROGRAM_LIMIT = 8
 
 /** 프로필 맞춤·스포트라이트 등 UI용 표시 점수 */
 export function boostDisplayMatchScore(

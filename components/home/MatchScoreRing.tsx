@@ -20,7 +20,10 @@ export default function MatchScoreRing({ score, size = 44 }: { score: number; si
           strokeLinecap="round"
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-blue-600">
+      <span
+        className="absolute inset-0 flex items-center justify-center font-bold text-blue-600"
+        style={{ fontSize: size <= 36 ? 9 : 11 }}
+      >
         {score}%
       </span>
     </div>
