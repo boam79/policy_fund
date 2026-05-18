@@ -27,6 +27,7 @@ import { buildSearchUrlFromProfile } from '@/lib/profile/business-profile-defaul
 import SearchEmptyStatePanel from '@/components/search/SearchEmptyState'
 import type { SearchEmptyState, SearchFilterSnapshot } from '@/lib/search/emptyResult'
 import { buildSearchEmptyState, lowConfidenceFieldKeys } from '@/lib/search/emptyResult'
+import { isSearchBrowseEntry } from '@/lib/search/browse'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 
 interface EligibilityResult {
@@ -210,6 +211,7 @@ function SearchContent() {
 
   useEffect(() => {
     const hasParams =
+      isSearchBrowseEntry(searchParams) ||
       searchParams.get('region') ||
       searchParams.get('industry') ||
       searchParams.get('keyword') ||
@@ -467,6 +469,7 @@ function SearchContent() {
   useLayoutEffect(() => {
     const key = searchParams.toString()
     const hasParams =
+      isSearchBrowseEntry(searchParams) ||
       searchParams.get('region') ||
       searchParams.get('industry') ||
       searchParams.get('keyword') ||

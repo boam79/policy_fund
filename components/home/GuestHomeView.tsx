@@ -8,6 +8,7 @@ import Image from 'next/image'
 import type { HomeStats } from '@/lib/home/stats'
 import type { RecommendedProgram } from '@/lib/home/recommendations'
 import { HOME_GUEST_PROGRAM_LIMIT } from '@/lib/home/program-display'
+import { SEARCH_BROWSE_QUERY } from '@/lib/search/browse'
 
 export default function GuestHomeView({
   stats,
@@ -64,14 +65,15 @@ export default function GuestHomeView({
 
       <section className="bg-white px-4 py-10 md:py-12">
         <div className="container mx-auto max-w-7xl">
-          <div className="mb-5 flex items-center justify-between gap-4">
+          <div className="relative z-10 mb-5 flex items-center justify-between gap-4">
             <h2 className="flex items-center gap-1.5 text-lg font-bold text-gray-900 md:text-xl">
               AI가 추천하는 맞춤 지원사업
               <Info className="h-4 w-4 text-slate-400" aria-hidden />
             </h2>
             <Link
-              href="/search"
-              className="shrink-0 text-sm font-medium text-blue-600 hover:text-blue-800"
+              href={`/search?${SEARCH_BROWSE_QUERY}`}
+              className="relative z-10 shrink-0 rounded-sm px-1 text-sm font-medium text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              aria-label="모집 중 지원사업 전체 목록 보기"
             >
               더보기 &gt;
             </Link>

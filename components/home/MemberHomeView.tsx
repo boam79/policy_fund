@@ -129,7 +129,7 @@ export default function MemberHomeView({
                   </p>
                 </div>
                 <Link
-                  href={profileSearchUrl ?? '/search'}
+                  href={profileSearchUrl ?? '/search?browse=1'}
                   className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
                 >
                   더 보기 →
