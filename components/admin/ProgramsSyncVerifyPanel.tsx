@@ -15,6 +15,8 @@ type VerifyPayload = {
   note?: string
   checked_at?: string
   message?: string
+  api_fetch_error?: string
+  db_only?: boolean
 }
 
 export function ProgramsSyncVerifyPanel() {
@@ -60,6 +62,16 @@ export function ProgramsSyncVerifyPanel() {
 
       {data && (
         <>
+          {data.api_fetch_error && (
+            <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <strong>기업마당 API:</strong> {data.api_fetch_error}
+              {data.db_only && (
+                <span className="block mt-1 text-xs text-amber-800">
+                  아래는 DB 기준(유령·미동기화)만 표시됩니다. API 교차 비교는 로컬 동기화 후 다시 시도하세요.
+                </span>
+              )}
+            </p>
+          )}
           <div className="grid gap-3 sm:grid-cols-4">
             <Stat label="API 고유 ID" value={data.api_unique_ids} />
             <Stat label="DB 활성 건" value={data.db_active_ids} />

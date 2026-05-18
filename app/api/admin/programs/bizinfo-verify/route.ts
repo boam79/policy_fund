@@ -21,6 +21,6 @@ export async function GET() {
   } catch (e) {
     const message = e instanceof Error ? e.message : '교차검증 실패'
     console.error('[bizinfo-verify]', message)
-    return Response.json({ ok: false, message }, { status: 500 })
+    return Response.json({ ok: false, message, db_only: true }, { status: 200 })
   }
 }

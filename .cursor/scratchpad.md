@@ -512,6 +512,7 @@ PAYMENT_SECRET_KEY=
 - [x] 14-1-2 env·서버 클라이언트: `lib/gov-support/clients/ntsBusinessman.ts` (`PUBLIC_DATA_SERVICE_KEY`)
 - [x] 14-1-3 `POST /api/profile/verify-business` (로그인, rate limit, 24h 캐시)
 - [x] 14-1-4 마이페이지 `BusinessVerifyCard` (진단 연동·DB verified_at은 미구현)
+- [x] ~~14-1-4b 사업자번호 조회 자동 채움~~ **제거** (2026-05-17, FSC API 단건 조회 불가)
 - [ ] 14-1-5 자격판정: `verified_at` 배지·`eligibility` unknown 문구에 「미확인 프로필」 구분 (선택)
 - [ ] 14-1-6 `verify:story` 또는 `verify:journey`에 mock/스텁 경로 1건
 
@@ -634,7 +635,8 @@ PAYMENT_SECRET_KEY=
 
 ## Executor's Feedback or Assistance Requests
 
-- **2026-05-17 (Executor)**: Phase 14 **로드맵 1~3 (Wave A~C) 구현** — `npm run build` PASS. **Wave A**: `ntsBusinessman.ts`, `POST /api/profile/verify-business`, 마이페이지 `BusinessVerifyCard`. **Wave B**: `GET/PUT /api/alerts/profile`, `/mypage/alerts`, `GET /api/cron/alerts`(Resend 선택), `vercel.json` cron 01:00 UTC, 마이그레이션 `20260517140000_phase14_alerts_rls.sql`. **Wave C**: `bizinfoCrossCheck.ts`, `GET /api/admin/programs/bizinfo-verify`, 관리자 공고 「동기화 검증」탭. **사용자 확인**: (1) Supabase에 마이그레이션 적용 (2) `CRON_SECRET`·선택 `RESEND_API_KEY`/`ALERT_FROM_EMAIL` (3) 마이페이지 진위확인 실번호 스모크 (4) 관리자 동기화 검증 실행. **미커밋**.
+- **2026-05-17 (Executor)**: **사업자번호 자동 채움 기능 제거** — FSC 15108168은 통계용(번호 단건 조회 불가). `BusinessLookupCard`, `lookup-business` API, FSC 클라이언트·문서·스크립트 삭제. 마이페이지는 수동 입력만.
+- **2026-05-18 (Executor)**: **Supabase MCP** — `phase14_alerts_rls` 원격 적용 완료(`20260518042619`). 컬럼·RLS 정책 확인. **Vercel MCP** — `441fc7c` 프로덕션 READY (`policyfund-zeta.vercel.app`). Production env에 `CRON_SECRET`·`PUBLIC_DATA_SERVICE_KEY`·`BIZINFO_API_KEY` 있음. `RESEND_API_KEY` 없음 → 알림 cron은 로그만.
 - **2026-05-17 (Planner)**: Phase 14 로드맵(사용자 공유 6항목) scratchpad 반영. **Executor 대기** — 사용자 승인·위 3가지 결정 후 **14-1-1** 착수. Phase 13 `13-P0-2` US-12-UX·GSC는 병행 가능(비개발).
 - **2026-05-17 (Executor)**: **검색 0건 UX** — `empty_state`·`requested_filters` API, `SearchEmptyState` UI(입력 vs 실제 조건·진단 링크), 진단 사전 경고 배너, `q` URL 전달. `npm run build` PASS.
 - **2026-05-17 (Executor)**: **오타·문구 점검** — `폴리시펀드`→`지원둥지`(면책), parse `IT으로`→`IT로`(`pickEuroParticle`), 요금제·심사 `CSV·XLSX 보내기` 띄어쓰기. `verify:journey-exhaustive` 44/44 PASS.

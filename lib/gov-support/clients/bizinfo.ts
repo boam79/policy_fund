@@ -37,6 +37,45 @@ export interface BizinfoResponse {
 
 const BIZINFO_BASE = 'https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do'
 
+function normalizeApiKey(raw: string | undefined): string {
+  if (!raw) return ''
+  return raw.trim().replace(/^['"]|['"]$/g, '')
+}
+
+function parseBizinfoJson(text: string): Record<string, unknown> {
+  const trimmed = text.trim()
+  if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html')) {
+    throw new Error(
+      '[bizinfo] API가 HTML 오류 페이지를 반환했습니다. Vercel 등 클라우드 IP 차단·일시 장애일 수 있습니다. 로컬에서 `npm run sync`로 확인해 보세요.'
+    )
+  }
+  try {
+    return JSON.parse(trimmed) as Record<string, unknown>
+  } catch {
+    throw new Error(`[bizinfo] JSON 파싱 실패: ${trimmed.slice(0, 120)}`)
+  }
+}
+
+function extractList(json: Record<string, unknown>): BizinfoItem[] {
+  const reqErr = json.reqErr
+  if (typeof reqErr === 'string' && reqErr.trim()) {
+    throw new Error(`[bizinfo] 인증 오류: ${reqErr.trim()}`)
+  }
+
+  if (Array.isArray(json.jsonArray)) {
+    return json.jsonArray as BizinfoItem[]
+  }
+  const body = (json.body ?? json.result ?? json) as Record<string, unknown>
+  const items = body.items as Record<string, unknown> | undefined
+  if (items && Array.isArray(items.item)) {
+    return items.item as BizinfoItem[]
+  }
+  if (Array.isArray(body.list)) {
+    return body.list as BizinfoItem[]
+  }
+  return []
+}
+
 // 분야 → bizTpCd 매핑 (기업마당 공식 코드)
 const FIELD_CODE_MAP: Record<string, string> = {
   창업: '01',
@@ -58,7 +97,7 @@ export async function fetchBizinfo(options: {
   pageUnit?: number
   keyword?: string
 }): Promise<BizinfoResponse> {
-  const apiKey = process.env.BIZINFO_API_KEY
+  const apiKey = normalizeApiKey(process.env.BIZINFO_API_KEY)
   if (!apiKey) {
     console.warn('[bizinfo] BIZINFO_API_KEY 미설정 — 빈 결과 반환')
     return { list: [], totalCount: 0, pageIndex: 1, pageUnit: 10 }
@@ -81,55 +120,69 @@ export async function fetchBizinfo(options: {
   }
 
   const url = `${BIZINFO_BASE}?${params.toString()}`
+  const maxAttempts = 3
+  let lastError: Error | null = null
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 15000)
-  let res: Response
-  try {
-    res = await fetch(url, {
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        'User-Agent': `Mozilla/5.0 (compatible; ${SITE_BOT_USER_AGENT})`,
-        Referer: 'https://www.bizinfo.go.kr/',
-        Origin: 'https://www.bizinfo.go.kr',
-      },
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-  } finally {
-    clearTimeout(timeoutId)
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 20000)
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          'User-Agent': `Mozilla/5.0 (compatible; ${SITE_BOT_USER_AGENT})`,
+          Referer: 'https://www.bizinfo.go.kr/',
+        },
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+
+      const bodyText = await res.text()
+
+      if (!res.ok) {
+        const retryable = res.status >= 500 || res.status === 429
+        lastError = new Error(
+          `[bizinfo] API 오류: ${res.status} ${res.statusText}${bodyText ? ` | ${bodyText.slice(0, 120)}` : ''}`
+        )
+        if (retryable && attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, 400 * attempt))
+          continue
+        }
+        throw lastError
+      }
+
+      const json = parseBizinfoJson(bodyText)
+      const rawList = extractList(json)
+      const firstItem = rawList[0]
+      const totalCount = Number(json.totCnt ?? firstItem?.totCnt ?? rawList.length)
+
+      return {
+        list: rawList,
+        totalCount,
+        pageIndex,
+        pageUnit,
+      }
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') {
+        lastError = new Error('[bizinfo] API 요청 시간 초과(20초)')
+      } else if (e instanceof Error) {
+        lastError = e
+      } else {
+        lastError = new Error('[bizinfo] 알 수 없는 오류')
+      }
+      const retryable =
+        attempt < maxAttempts &&
+        (/50[023]|429|시간 초과|HTML 오류/i.test(lastError.message) ||
+          lastError.message.includes('fetch failed'))
+      if (retryable) {
+        await new Promise((r) => setTimeout(r, 400 * attempt))
+        continue
+      }
+      throw lastError
+    } finally {
+      clearTimeout(timeoutId)
+    }
   }
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`[bizinfo] API 오류: ${res.status} ${res.statusText}${body ? ` | ${body.slice(0, 100)}` : ''}`)
-  }
-
-  const json = await res.json()
-
-  // 기업마당 실제 응답 구조: { jsonArray: [...] }
-  // 하위 호환으로 body.items.item / body.list / result.list 도 처리
-  let rawList: BizinfoItem[] = []
-  if (Array.isArray(json?.jsonArray)) {
-    rawList = json.jsonArray
-  } else {
-    const body = json?.body ?? json?.result ?? json
-    rawList = Array.isArray(body?.items?.item)
-      ? body.items.item
-      : Array.isArray(body?.list)
-      ? body.list
-      : []
-  }
-
-  const firstItem = rawList[0]
-  const totalCount = Number(
-    json?.totCnt ?? firstItem?.totCnt ?? rawList.length
-  )
-
-  return {
-    list: rawList,
-    totalCount,
-    pageIndex,
-    pageUnit,
-  }
+  throw lastError ?? new Error('[bizinfo] API 호출 실패')
 }
