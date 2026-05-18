@@ -16,6 +16,7 @@ import {
   Headphones,
 } from 'lucide-react'
 import { SITE_NAME } from '@/lib/site-config'
+import AdminTopBar from '@/components/admin/AdminTopBar'
 
 type NavBadgeKey = 'inquiries' | 'feedback' | 'sync' | 'duplicates' | 'members'
 
@@ -257,7 +258,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      <main className="ml-60 flex-1 min-h-screen bg-gray-100">{children}</main>
+      <div className="ml-60 flex min-h-screen min-w-0 flex-1 flex-col">
+        <AdminTopBar />
+        <div className="flex-1 overflow-y-auto bg-gray-100">{children}</div>
+      </div>
     </div>
   )
 }

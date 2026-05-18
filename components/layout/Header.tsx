@@ -3,8 +3,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { buttonVariants } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { User, LogOut, Star, CreditCard, Bookmark } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -52,6 +50,10 @@ export default function Header() {
     router.refresh()
   }
 
+  if (isAdminConsole) {
+    return null
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
@@ -89,20 +91,18 @@ export default function Header() {
           </nav>
         )}
 
-        <div className={cn('flex h-full flex-shrink-0 items-center gap-2', isAdminConsole && 'ml-auto')}>
+        <div className="flex h-full flex-shrink-0 items-center gap-2">
           {!authReady ? (
             <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" aria-hidden />
           ) : user ? (
             <>
-              {!isAdminConsole && (
-                <Link
-                  href="/manage"
-                  className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:inline-flex"
-                >
-                  <Bookmark className="h-4 w-4 text-slate-500" />
-                  찜한 공고
-                </Link>
-              )}
+              <Link
+                href="/manage"
+                className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:inline-flex"
+              >
+                <Bookmark className="h-4 w-4 text-slate-500" />
+                찜한 공고
+              </Link>
               <div className="relative">
               <button onClick={() => setMenuOpen(o => !o)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100 transition-colors">
@@ -118,27 +118,18 @@ export default function Header() {
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-lg border py-1 z-50">
-                  {isAdminConsole ? (
-                    <Link href="/" onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
-                      서비스로 돌아가기
-                    </Link>
-                  ) : (
-                    <>
-                      <Link href="/mypage" onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
-                        <User className="h-4 w-4" />마이페이지
-                      </Link>
-                      <Link href="/manage" onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
-                        <Star className="h-4 w-4" />내 신청 관리
-                      </Link>
-                      <Link href="/mypage/billing" onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
-                        <CreditCard className="h-4 w-4" />결제 관리
-                      </Link>
-                    </>
-                  )}
+                  <Link href="/mypage" onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                    <User className="h-4 w-4" />마이페이지
+                  </Link>
+                  <Link href="/manage" onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                    <Star className="h-4 w-4" />내 신청 관리
+                  </Link>
+                  <Link href="/mypage/billing" onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                    <CreditCard className="h-4 w-4" />결제 관리
+                  </Link>
                   <hr className="my-1" />
                   <button onClick={handleLogout}
                     className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 w-full text-left">
@@ -150,15 +141,13 @@ export default function Header() {
             </>
           ) : (
             <>
-              {!isAdminConsole && (
-                <Link
-                  href="/login"
-                  className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:inline-flex"
-                >
-                  <Bookmark className="h-4 w-4 text-slate-500" />
-                  찜한 공고
-                </Link>
-              )}
+              <Link
+                href="/login"
+                className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:inline-flex"
+              >
+                <Bookmark className="h-4 w-4 text-slate-500" />
+                찜한 공고
+              </Link>
               <Link
                 href="/login"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
