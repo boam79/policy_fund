@@ -71,7 +71,7 @@ export function BetaNoticeDialog() {
             </div>
             <p className="text-xs font-medium text-emerald-700/90 tracking-wide">BETA</p>
             <DialogTitle className="text-lg font-semibold text-gray-900 leading-snug">
-              {SITE_NAME}는 아직 둥지 튼는 중이에요
+              {SITE_NAME}는 아직 둥지를 트는 중이예요
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-600 leading-relaxed text-center max-w-sm">
               지금은 <strong className="font-medium text-gray-800">베타</strong>로 운영하고 있어요.
