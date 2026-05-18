@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Calendar, Building2, MapPin, ExternalLink } from 'lucide-react'
 import type { RecommendedProgram } from '@/app/api/home/recommendations/route'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
+import { formatDeadlineBadgeLabel } from '@/lib/programs/deadline'
 
 interface Props {
   program: RecommendedProgram
@@ -34,8 +35,10 @@ export default function ProgramBannerCard({ program }: Props) {
           </Badge>
           <Badge variant="outline" className={`text-xs font-medium ${badge.className}`}>
             {badge.label}
-            {program.days_left !== null && program.days_left <= 7 && (
-              <span className="ml-1">D-{program.days_left}</span>
+            {program.days_left !== null && program.days_left <= 7 && program.days_left >= 0 && (
+              <span className="ml-1">
+                {formatDeadlineBadgeLabel(program.days_left) ?? `D-${program.days_left}`}
+              </span>
             )}
           </Badge>
         </div>

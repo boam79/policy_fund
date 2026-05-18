@@ -287,7 +287,52 @@ export async function parseNaturalLanguage(query: string): Promise<ParseNLResult
     result.missing_important
   )
 
-  return { ...result, conditions: validatedConditions, missing_important, raw_query: query }
+  return {
+    ...result,
+    summary: normalizeParseSummaryText(result.summary),
+    conditions: validatedConditions,
+    missing_important,
+    raw_query: query,
+  }
+}
+
+/** 문장 끝(마지막 음절·약어)에 맞는 「으로/로」 선택 */
+export function pickEuroParticle(phrase: string): '으로' | '로' {
+  const trimmed = phrase.trim()
+  if (!trimmed) return '으로'
+
+  const last = [...trimmed].pop() ?? ''
+  const code = last.charCodeAt(0)
+  if (code >= 0xac00 && code <= 0xd7a3) {
+    const jong = (code - 0xac00) % 28
+    if (jong === 0 || jong === 8) return '로'
+    return '으로'
+  }
+  if (/[a-zA-Z]$/.test(trimmed)) return '로'
+  return '으로'
+}
+
+/** 조건 요약 조각을 자연스러운 한국어 문장으로 연결 (「3년로」「IT으로」 같은 오류 방지) */
+export function buildParseSummaryFromParts(summaryParts: string[]): string {
+  if (summaryParts.length === 0) {
+    return '질문에서 명확한 조건을 충분히 찾지 못했습니다. 조건을 보완해 다시 확인해주세요.'
+  }
+  const body =
+    summaryParts.length === 1
+      ? summaryParts[0]!
+      : `${summaryParts.slice(0, -1).join(', ')}, ${summaryParts[summaryParts.length - 1]}`
+  const particle = pickEuroParticle(body)
+  return `${body}${particle} 추정됩니다. 누락된 조건은 직접 확인 후 수정해주세요.`
+}
+
+/** LLM·폴백 공통: 잘못된 조사(년로·IT으로 등) 보정 */
+export function normalizeParseSummaryText(summary: string): string {
+  return summary
+    .replace(/(\d+)년로/g, '$1년으로')
+    .replace(/(\d+)명로/g, '$1명으로')
+    .replace(/, 로 추정/g, '으로 추정')
+    .replace(/\bIT으로\b/g, 'IT로')
+    .replace(/([A-Za-z]{2,})으로 추정/g, '$1로 추정')
 }
 
 /**
@@ -407,10 +452,7 @@ export function parseNaturalLanguageFallback(query: string): ParseNLResult {
   }
   if (conditions.support_purpose?.value) summaryParts.push(`지원 목적은 ${conditions.support_purpose.value}`)
 
-  const summary =
-    summaryParts.length > 0
-      ? `${summaryParts.join(', ')}로 추정됩니다. 누락된 조건은 직접 확인 후 수정해주세요.`
-      : '질문에서 명확한 조건을 충분히 찾지 못했습니다. 조건을 보완해 다시 확인해주세요.'
+  const summary = buildParseSummaryFromParts(summaryParts)
 
   // Hybrid Confidence: fallback에도 동일 도메인 검증 적용
   const { conditions: validatedConditions, missing_important: validatedMissing } =

@@ -4,6 +4,10 @@ import { createClient } from '@/lib/supabase/client'
 import { Loader2, Bookmark, BookmarkX, ExternalLink } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import {
+  computeDaysUntilDeadline,
+  formatDeadlineBadgeLabel,
+} from '@/lib/programs/deadline'
 
 interface SavedProgram {
   id: string
@@ -51,7 +55,6 @@ export default function ManagePage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
 
   // eslint-disable-next-line react-hooks/purity
-  const now = Date.now()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -77,9 +80,7 @@ export default function ManagePage() {
           <div className="space-y-3">
             {saves.map(s => {
               const prog = s.program
-              const daysLeft = prog?.application_end_date
-                ? Math.ceil((new Date(prog.application_end_date).getTime() - now) / 86400000)
-                : null
+              const daysLeft = computeDaysUntilDeadline(prog?.application_end_date ?? null)
               return (
                 <div key={s.id} className="bg-white rounded-xl border p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -93,7 +94,9 @@ export default function ManagePage() {
                           </span>
                         )}
                         {daysLeft !== null && daysLeft >= 0 && (
-                          <span className={`text-xs font-medium ${daysLeft <= 7 ? 'text-red-600' : 'text-blue-600'}`}>D-{daysLeft}</span>
+                          <span className={`text-xs font-medium ${daysLeft <= 7 ? 'text-red-600' : 'text-blue-600'}`}>
+                            {formatDeadlineBadgeLabel(daysLeft, { urgentSuffix: true }) ?? `D-${daysLeft}`}
+                          </span>
                         )}
                         {daysLeft !== null && daysLeft < 0 && <span className="text-xs text-gray-400">마감</span>}
                       </div>

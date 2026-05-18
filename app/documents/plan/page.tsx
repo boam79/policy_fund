@@ -422,7 +422,7 @@ function DocumentPlanContent() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-gray-600 mb-1 block">회사명</label>
-                    <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="(주)폴리시펀드" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="(주)회사명" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-600 mb-1 block">업종</label>

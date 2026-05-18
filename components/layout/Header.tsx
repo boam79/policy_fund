@@ -14,7 +14,6 @@ import { SITE_NAME } from '@/lib/site-config'
 const mainNavLinks = [
   { href: '/about', label: '서비스 소개' },
   { href: '/search', label: '지원사업 찾기' },
-  { href: '/diagnosis', label: 'AI 맞춤 진단' },
   { href: '/documents/plan', label: '사업계획서' },
   { href: '/guide', label: '이용안내' },
   { href: '/faq', label: '자주 묻는 질문' },

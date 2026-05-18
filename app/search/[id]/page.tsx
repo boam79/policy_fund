@@ -6,8 +6,12 @@ import Link from 'next/link'
 import AlertButton from '@/components/AlertButton'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import { buildEligibilityHref } from '@/lib/search/buildEligibilityHref'
+import {
+  computeDaysUntilDeadline,
+  formatDeadlineBadgeLabel,
+} from '@/lib/programs/deadline'
 
-const LEGAL_DISCLAIMER = '본 자격판정 결과는 AI 기반 참고 정보이며 법적 효력이 없습니다. 실제 신청 가능 여부는 해당 지원기관의 공식 공고문과 담당자에게 반드시 확인하세요. 폴리시펀드는 판정 결과의 정확성을 보장하지 않습니다.'
+const LEGAL_DISCLAIMER = '본 자격판정 결과는 AI 기반 참고 정보이며 법적 효력이 없습니다. 실제 신청 가능 여부는 해당 지원기관의 공식 공고문과 담당자에게 반드시 확인하세요. 지원둥지는 판정 결과의 정확성을 보장하지 않습니다.'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,14 +35,25 @@ const SOURCE_LABEL: Record<string, string> = {
 }
 
 function DaysLeftBadge({ endDate }: { endDate: string | null }) {
-  if (!endDate) return null
-  // eslint-disable-next-line react-hooks/purity
-  const now = Date.now()
-  const days = Math.ceil((new Date(endDate).getTime() - now) / (1000 * 60 * 60 * 24))
-  if (days < 0) return <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-500">마감</span>
-  if (days === 0) return <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 font-bold">오늘 마감</span>
-  if (days <= 7) return <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">D-{days}</span>
-  return <span className="px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700">D-{days}</span>
+  const days = computeDaysUntilDeadline(endDate)
+  if (days === null) return null
+  const label =
+    days < 0
+      ? '마감'
+      : formatDeadlineBadgeLabel(days, { urgentSuffix: true }) ?? `D-${days}`
+  const softClass =
+    days < 0
+      ? 'bg-gray-100 text-gray-500'
+      : days <= 7
+        ? 'bg-red-100 text-red-700'
+        : 'bg-blue-50 text-blue-700'
+  return (
+    <span
+      className={`px-2 py-1 rounded-full text-xs ${softClass} ${days === 0 ? 'font-bold' : ''}`}
+    >
+      {label}
+    </span>
+  )
 }
 
 export default async function ProgramDetailPage({
@@ -56,11 +71,7 @@ export default async function ProgramDetailPage({
   const program = await getProgram(id)
   if (!program) notFound()
 
-  // eslint-disable-next-line react-hooks/purity
-  const now = Date.now()
-  const daysLeft = program.application_end_date
-    ? Math.ceil((new Date(program.application_end_date).getTime() - now) / (1000 * 60 * 60 * 24))
-    : null
+  const daysLeft = computeDaysUntilDeadline(program.application_end_date)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -107,7 +118,11 @@ export default async function ProgramDetailPage({
               <InfoRow
                 icon={<Clock className="h-4 w-4" />}
                 label="접수 마감"
-                value={`${program.application_end_date}${daysLeft !== null && daysLeft >= 0 ? ` (D-${daysLeft})` : ' (마감)'}`}
+                value={`${program.application_end_date}${
+                  daysLeft !== null && daysLeft >= 0
+                    ? ` (${formatDeadlineBadgeLabel(daysLeft) ?? `D-${daysLeft}`})`
+                    : ' (마감)'
+                }`}
               />
             )}
             {(program.support_amount_min_krw || program.support_amount_max_krw) && (

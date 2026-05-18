@@ -576,6 +576,8 @@ PAYMENT_SECRET_KEY=
 
 ## Executor's Feedback or Assistance Requests
 
+- **2026-05-17 (Executor)**: **오타·문구 점검** — `폴리시펀드`→`지원둥지`(면책), parse `IT으로`→`IT로`(`pickEuroParticle`), 요금제·심사 `CSV·XLSX 보내기` 띄어쓰기. `verify:journey-exhaustive` 44/44 PASS.
+- **2026-05-17 (Executor)**: **유저 여정 UX 버그 수정** — `lib/programs/deadline.ts` 공통화, parse 요약 `년로`→`년으로`·`buildParseSummaryFromParts`, 홈/검색/상세/북마크 마감 `0일`→`오늘 마감`. `verify:journey-exhaustive` 42/42·`verify:journey` PASS. **미커밋** — 프로덕션 배포·수동 스모크(홈 카드·진단 요약·검색 D-0) 요청.
 - **2026-05-17 (Executor)**: **Supabase MCP 전수 점검** — `get_advisors` security 1건(유출 비밀번호 보호, **Free 플랜이라 Pro 이상에서만 활성화 가능**), performance 다수(INFO/WARN, 당장 차단 아님). `execute_sql`: public 25테이블 RLS ON, 위험 anon INSERT/UPDATE 정책 없음, `handle_new_user` anon/auth EXECUTE 없음, `update_updated_at_column` search_path=public. anon REST INSERT `support_programs`·`customer_inquiries` → RLS 42501 차단 확인. 마이그레이션 `010_security_hardening` 원격 적용됨.
 - **2026-05-17 (Executor)**: **보안 패치 배포** — 커밋·푸시 `a3ca07c`, Vercel Production env `ADMIN_ONLY_EMAIL`·`NEXT_PUBLIC_SITE_URL` 추가, `vercel deploy --prod` 완료. 프로덕션 `verify:seo`·`verify:security` PASS. **남음**: Auth 유출 비밀번호(Pro 플랜), US-12-UX 수동 3건, GSC, performance RLS initplan(선택).
 - **2026-05-17 (Executor)**: Phase 13 **P0·P1 구현** — `industry_match`, 검색 정렬, 자격 사유, eligibility 프로필 동기화, diagnosis `data=`→`sid`, SEO·ops 문서. `npm run build` PASS, `verify:story`~`verify:security` PASS. `verify:journey-exhaustive` 1건(업력 N년 미만 summary) 기존 플레이크 가능 — 재실행 권장.

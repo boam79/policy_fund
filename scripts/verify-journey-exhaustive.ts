@@ -114,6 +114,25 @@ async function main() {
       body: JSON.stringify({ query: '서울 IT 3년' }),
     })
     assert(valid.status === 200 && valid.json.success === true, 'valid parse → 200')
+
+    const gyeonggi = await fetchJson('/api/query/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: '경기도 제조업 3년차 직원 5명 운영자금' }),
+    })
+    assert(gyeonggi.status === 200, 'gyeonggi parse 200')
+    const gSummary = String(((gyeonggi.json.data as Json)?.parsed as Json | undefined)?.summary ?? '')
+    assert(!gSummary.includes('년로'), 'parse summary must not use wrong particle (년로)')
+    assert(gSummary.includes('으로 추정') || gSummary.includes('로 추정'), 'parse summary uses natural particle')
+    assert(!gSummary.includes('IT으로'), 'parse summary must not use IT으로')
+
+    const itOnly = await fetchJson('/api/query/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: '업종 IT' }),
+    })
+    const itSummary = String(((itOnly.json.data as Json)?.parsed as Json | undefined)?.summary ?? '')
+    assert(!itSummary.includes('IT으로'), 'IT-only parse summary particle')
   })
 
   await section('search 엣지', async () => {

@@ -20,6 +20,8 @@ import { sanitizeProgramForClient } from '@/lib/utils/stripHtml'
 import {
   getPlanIdForUser,
 } from '@/lib/billing/usage'
+import { isBetaOpenAccessEnabled } from '@/lib/billing/betaAccess'
+import { computeDaysUntilDeadline } from '@/lib/programs/deadline'
 import {
   planAllowsStrictSearch,
   UPGRADE_STRICT_SEARCH_MESSAGE,
@@ -103,16 +105,18 @@ export async function POST(request: NextRequest) {
           traceId,
         })
       }
-      const planId = await getPlanIdForUser(userId)
-      if (!planAllowsStrictSearch(planId)) {
-        return apiError({
-          status: 403,
-          errorCode: 'SEARCH_STRICT_PLAN_REQUIRED',
-          message: UPGRADE_STRICT_SEARCH_MESSAGE,
-          step: 'search.strict.plan',
-          traceId,
-          meta: { plan: planId },
-        })
+      if (!isBetaOpenAccessEnabled()) {
+        const planId = await getPlanIdForUser(userId)
+        if (!planAllowsStrictSearch(planId)) {
+          return apiError({
+            status: 403,
+            errorCode: 'SEARCH_STRICT_PLAN_REQUIRED',
+            message: UPGRADE_STRICT_SEARCH_MESSAGE,
+            step: 'search.strict.plan',
+            traceId,
+            meta: { plan: planId },
+          })
+        }
       }
     }
 
@@ -206,10 +210,7 @@ export async function POST(request: NextRequest) {
         target_business_type: p.target_business_type,
       })
 
-      const endDate = p.application_end_date
-      const daysLeft = endDate
-        ? Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-        : null
+      const daysLeft = computeDaysUntilDeadline(p.application_end_date)
 
       return {
         ...p,

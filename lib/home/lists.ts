@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
+import { computeDaysUntilDeadline } from '@/lib/programs/deadline'
 
 export type HomeProgramListItem = {
   id: string
@@ -35,8 +36,6 @@ export async function fetchClosingSoonList(
     organization: p.organization,
     application_end_date: p.application_end_date,
     source: p.source,
-    daysLeft: p.application_end_date
-      ? Math.ceil((new Date(p.application_end_date).getTime() - now) / 86400000)
-      : null,
+    daysLeft: computeDaysUntilDeadline(p.application_end_date, now),
   }))
 }

@@ -6,6 +6,7 @@ import {
   type PlanId,
 } from '@/lib/billing/plans'
 import { userBypassesPlanLimits } from '@/lib/auth/admin'
+import { betaGrantsFullAccess, isBetaOpenAccessEnabled } from '@/lib/billing/betaAccess'
 import { checkDailyUsageLimit, getPlanIdForUser } from '@/lib/billing/usage'
 import { getSessionUserId } from '@/lib/billing/usageGate'
 
@@ -17,6 +18,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const userId = await getSessionUserId()
   const adminBypass = userId ? await userBypassesPlanLimits(userId) : false
+  const betaFullAccess = betaGrantsFullAccess(userId)
   const planId: PlanId = userId ? await getPlanIdForUser(userId) : 'free'
   const plan = getPlan(planId)
 
@@ -31,9 +33,13 @@ export async function GET() {
     ok: true,
     logged_in: Boolean(userId),
     plan: planId,
+    beta_open_access: isBetaOpenAccessEnabled(),
+    beta_full_access: betaFullAccess,
     admin_plan_bypass: adminBypass,
-    allows_strict_search: adminBypass || planAllowsStrictSearch(planId),
-    allows_tabular_export: adminBypass || planAllowsTabularExport(planId),
+    allows_strict_search:
+      adminBypass || betaFullAccess || planAllowsStrictSearch(planId),
+    allows_tabular_export:
+      adminBypass || betaFullAccess || planAllowsTabularExport(planId),
     parse_daily: {
       used: parseDaily.used,
       limit: parseDaily.limit,

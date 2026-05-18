@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { formatDeadlineBadgeLabel } from '@/lib/programs/deadline'
 import type { RecommendedProgram } from '@/lib/home/recommendations'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import { formatProgramSupportAmount, boostDisplayMatchScore } from '@/lib/home/program-display'
@@ -60,9 +61,9 @@ export default function HomeProgramRichCard({
           <span className="text-sm font-black leading-none text-blue-600">{displayScore}</span>
           <span className="text-[9px] font-semibold text-blue-500">매칭</span>
         </div>
-        {program.days_left !== null && program.days_left <= 14 && (
+        {program.days_left !== null && program.days_left <= 14 && program.days_left >= 0 && (
           <span className="absolute left-3 top-3 rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-bold text-white">
-            D-{program.days_left}
+            {formatDeadlineBadgeLabel(program.days_left) ?? `D-${program.days_left}`}
           </span>
         )}
       </div>

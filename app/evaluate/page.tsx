@@ -279,7 +279,7 @@ export default function EvaluatePage() {
 
         {/* 내보내기 */}
         <div className="mt-6 bg-white rounded-xl border p-4">
-          <p className="text-sm font-medium text-gray-800 mb-3">심사 결과보내기 (CSV / XLSX)</p>
+          <p className="text-sm font-medium text-gray-800 mb-3">심사 결과 보내기 (CSV / XLSX)</p>
           <div className="flex gap-2">
             <button
               type="button"

@@ -6,6 +6,7 @@ import { rowsToCsv, rowsToXlsxBuffer } from '@/lib/export/table'
 import { EXPORT_FILE_PREFIX } from '@/lib/site-config'
 import { isBodyTooLarge } from '@/lib/security/requestBody'
 import { userBypassesPlanLimits } from '@/lib/auth/admin'
+import { isBetaOpenAccessEnabled } from '@/lib/billing/betaAccess'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     const adminBypass = await userBypassesPlanLimits(user.id)
     const planId = await getPlanIdForUser(user.id)
-    if (!adminBypass && !planAllowsTabularExport(planId)) {
+    if (!adminBypass && !isBetaOpenAccessEnabled() && !planAllowsTabularExport(planId)) {
       return Response.json(
         { error: 'CSV·XLSX 보내기는 Starter 이상 플랜에서 이용할 수 있습니다.' },
         { status: 403 }

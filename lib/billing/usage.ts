@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { userBypassesPlanLimits } from '@/lib/auth/admin'
+import { isBetaOpenAccessEnabled } from '@/lib/billing/betaAccess'
 import { getPlan, normalizePlanId, type PlanId } from './plans'
 
 const UNLIMITED_USAGE_GATE = {
@@ -49,6 +50,7 @@ function serviceSupabase() {
  */
 export async function getPlanIdForUser(userId: string): Promise<PlanId> {
   if (await userBypassesPlanLimits(userId)) return 'pro'
+  if (isBetaOpenAccessEnabled()) return 'pro'
 
   const supabase = serviceSupabase()
   const { data: sub } = await supabase
@@ -82,6 +84,7 @@ export async function checkUsageLimit(
   eventType: Exclude<UsageEventType, DailyUsageEventType>
 ): Promise<{ allowed: boolean; used: number; limit: number | null; plan: PlanId }> {
   if (await userBypassesPlanLimits(userId)) return UNLIMITED_USAGE_GATE
+  if (isBetaOpenAccessEnabled()) return UNLIMITED_USAGE_GATE
 
   const supabase = serviceSupabase()
 
@@ -109,6 +112,7 @@ export async function checkDailyUsageLimit(
   eventType: DailyUsageEventType
 ): Promise<{ allowed: boolean; used: number; limit: number | null; plan: PlanId }> {
   if (await userBypassesPlanLimits(userId)) return UNLIMITED_USAGE_GATE
+  if (isBetaOpenAccessEnabled()) return UNLIMITED_USAGE_GATE
 
   const supabase = serviceSupabase()
   const planId = await getPlanIdForUser(userId)

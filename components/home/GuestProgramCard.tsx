@@ -5,16 +5,19 @@ import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import { formatProgramSupportAmount, guestCardMatchScore } from '@/lib/home/program-display'
 import MatchScoreRing from '@/components/home/MatchScoreRing'
 import { cn } from '@/lib/utils'
+import {
+  deadlineBadgeClassName,
+  formatDeadlineBadgeLabel,
+  formatDeadlineRemainingMessage,
+} from '@/lib/programs/deadline'
 
 function deadlineBadge(daysLeft: number | null, status: string) {
   if (daysLeft === null) return null
-  if (daysLeft <= 7 || status === 'closing_soon') {
-    return { label: `D-${daysLeft} 마감임박`, className: 'bg-red-500 text-white' }
-  }
-  if (daysLeft <= 15) {
-    return { label: `D-${daysLeft}`, className: 'bg-orange-500 text-white' }
-  }
-  return { label: `D-${daysLeft}`, className: 'bg-slate-500 text-white' }
+  const label = formatDeadlineBadgeLabel(daysLeft, {
+    urgentSuffix: daysLeft <= 7 || status === 'closing_soon',
+  })
+  if (!label) return null
+  return { label, className: deadlineBadgeClassName(daysLeft) }
 }
 
 function metaLabel(program: RecommendedProgram): string | null {
@@ -50,9 +53,7 @@ export default function GuestProgramCard({
   const meta = metaLabel(program)
   const tags = buildTags(program)
   const deadlineLine =
-    program.days_left !== null
-      ? `마감이 ${program.days_left}일 남았습니다.`
-      : program.recommendReason
+    formatDeadlineRemainingMessage(program.days_left) ?? program.recommendReason
 
   return (
     <article className="flex h-full flex-col rounded-2xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-md">
