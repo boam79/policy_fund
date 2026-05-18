@@ -635,6 +635,7 @@ PAYMENT_SECRET_KEY=
 
 ## Executor's Feedback or Assistance Requests
 
+- **2026-05-17 (Executor)**: **실질적 전부 동기화 정책** — `syncPolicy.ts`, `runProgramSync.ts`, 로컬 `npm run sync` totCnt 전량·Vercel 출처별 상한(기본 10p)·검증 16p·관리자 `/admin/sync` UI. `npm run build` PASS. **미커밋**.
 - **2026-05-17 (Executor)**: **사업자번호 자동 채움 기능 제거** — FSC 15108168은 통계용(번호 단건 조회 불가). `BusinessLookupCard`, `lookup-business` API, FSC 클라이언트·문서·스크립트 삭제. 마이페이지는 수동 입력만.
 - **2026-05-18 (Executor)**: **Supabase MCP** — `phase14_alerts_rls` 원격 적용 완료(`20260518042619`). 컬럼·RLS 정책 확인. **Vercel MCP** — `441fc7c` 프로덕션 READY (`policyfund-zeta.vercel.app`). Production env에 `CRON_SECRET`·`PUBLIC_DATA_SERVICE_KEY`·`BIZINFO_API_KEY` 있음. `RESEND_API_KEY` 없음 → 알림 cron은 로그만.
 - **2026-05-17 (Planner)**: Phase 14 로드맵(사용자 공유 6항목) scratchpad 반영. **Executor 대기** — 사용자 승인·위 3가지 결정 후 **14-1-1** 착수. Phase 13 `13-P0-2` US-12-UX·GSC는 병행 가능(비개발).

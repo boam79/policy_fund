@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { RefreshCw, Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
+import { RefreshCw, Loader2, CheckCircle, XCircle, AlertTriangle, Terminal } from 'lucide-react'
 import { readApiError } from '@/lib/api/readApiError'
 import { AdminOpsPageShell } from '@/components/admin/AdminOpsPageShell'
+import { SYNC_POLICY } from '@/lib/gov-support/sync/syncPolicy'
 
 interface SyncLog {
   id: string
@@ -18,10 +19,12 @@ interface SyncLog {
   error_message: string | null
 }
 
+type SyncSourceKey = 'all' | 'bizinfo' | 'kstartup' | 'smes24'
+
 export default function AdminSyncPage() {
   const [logs, setLogs] = useState<SyncLog[]>([])
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
+  const [syncing, setSyncing] = useState<SyncSourceKey | null>(null)
   const [message, setMessage] = useState('')
   const [loadError, setLoadError] = useState('')
 
@@ -48,36 +51,75 @@ export default function AdminSyncPage() {
     loadLogs()
   }, [])
 
-  const handleSync = async () => {
-    setSyncing(true)
+  const handleSync = async (source: SyncSourceKey) => {
+    setSyncing(source)
     setMessage('')
     try {
-      const res = await fetch('/api/admin/sync', { method: 'POST' })
+      const res = await fetch(`/api/admin/sync?source=${source}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source }),
+      })
       const data = await res.json().catch(() => ({}))
-      setMessage(res.ok ? (data.message ?? '동기화가 요청되었습니다') : readApiError(data, '동기화 실패'))
-      setTimeout(loadLogs, 3000)
+      setMessage(res.ok ? String(data.message ?? '동기화 완료') : readApiError(data, '동기화 실패'))
+      setTimeout(loadLogs, 2000)
     } catch (e: unknown) {
       setMessage(e instanceof Error ? e.message : '오류 발생')
     } finally {
-      setSyncing(false)
+      setSyncing(null)
     }
   }
 
   return (
     <AdminOpsPageShell>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">공고 동기화</h1>
-          <p className="text-sm text-gray-500">기업마당·K-Startup·중소벤처24 공고를 수집합니다</p>
+          <p className="text-sm text-gray-500 mt-1">
+            실질적 전부: {SYNC_POLICY.bizinfo.description} · {SYNC_POLICY.kstartup.description} ·{' '}
+            {SYNC_POLICY.smes24.description}
+          </p>
         </div>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          지금 동기화
-        </button>
+      </div>
+
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4 text-sm text-emerald-900 space-y-2">
+        <p className="font-medium flex items-center gap-2">
+          <Terminal className="h-4 w-4" />
+          권장: 로컬에서 전량 수집 (Vercel·Supabase 무료 플랜)
+        </p>
+        <p className="text-emerald-800/90">
+          프로젝트 루트에서 <code className="bg-emerald-100/80 px-1 rounded">npm run sync</code> — 페이지
+          상한 없이 기업마당 totCnt까지 수집합니다. macOS launchd로 매일 09:00 자동 실행을 권장합니다.
+        </p>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4 mb-6">
+        <p className="text-xs font-medium text-gray-600 mb-3">Vercel에서 출처별 빠른 갱신 (페이지 상한 있음)</p>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { key: 'all' as const, label: '3출처 한번에' },
+              { key: 'bizinfo' as const, label: '기업마당만' },
+              { key: 'kstartup' as const, label: 'K-Startup만' },
+              { key: 'smes24' as const, label: '중소벤처24만' },
+            ] as const
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => void handleSync(key)}
+              disabled={syncing !== null}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {syncing === key ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {message && (
@@ -93,12 +135,15 @@ export default function AdminSyncPage() {
       )}
 
       {loadError && (
-        <div className="mb-4 p-3 rounded-lg text-sm border border-amber-200 bg-amber-50 text-amber-900">{loadError}</div>
+        <div className="mb-4 p-3 rounded-lg text-sm border border-amber-200 bg-amber-50 text-amber-900">
+          {loadError}
+        </div>
       )}
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-700">
-        💡 매일 오전 9시 macOS launchd로 자동 동기화됩니다. 수동 동기화는 위 버튼을 사용하세요.
-        Vercel Pro 플랜 전환 시 <code className="bg-blue-100 px-1 rounded">docs/upgrade-to-pro.md</code>를 참고하세요.
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
+        환경 변수: <code className="bg-blue-100 px-1 rounded">SYNC_SMES24_LOOKBACK_DAYS=730</code> (기본) ·
+        Vercel <code className="bg-blue-100 px-1 rounded">SYNC_VERCEL_SAFE_MAX_PAGES=10</code> · 검증{' '}
+        <code className="bg-blue-100 px-1 rounded">BIZINFO_VERIFY_MAX_PAGES=16</code>
       </div>
 
       {loading ? (
@@ -124,7 +169,9 @@ export default function AdminSyncPage() {
             <tbody>
               {logs.map((l) => (
                 <tr key={l.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2.5 text-xs text-gray-500">{new Date(l.started_at).toLocaleString('ko-KR')}</td>
+                  <td className="px-4 py-2.5 text-xs text-gray-500">
+                    {new Date(l.started_at).toLocaleString('ko-KR')}
+                  </td>
                   <td className="px-3 py-2.5 font-medium">{l.source}</td>
                   <td className="px-3 py-2.5">
                     {l.status === 'success' ? (
@@ -147,7 +194,9 @@ export default function AdminSyncPage() {
                   <td className="px-3 py-2.5 text-center">{l.requested_count}</td>
                   <td className="px-3 py-2.5 text-center text-blue-600">{l.inserted_count}</td>
                   <td className="px-3 py-2.5 text-center text-red-500">{l.failed_count}</td>
-                  <td className="px-3 py-2.5 text-xs text-gray-400 max-w-xs truncate">{l.error_message ?? '-'}</td>
+                  <td className="px-3 py-2.5 text-xs text-gray-400 max-w-xs truncate">
+                    {l.error_message ?? '-'}
+                  </td>
                 </tr>
               ))}
             </tbody>

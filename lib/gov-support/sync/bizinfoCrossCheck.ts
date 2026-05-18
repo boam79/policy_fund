@@ -1,4 +1,5 @@
 import { fetchBizinfo } from '@/lib/gov-support/clients/bizinfo'
+import { bizinfoVerifyMaxPages } from '@/lib/gov-support/sync/syncPolicy'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 
@@ -18,8 +19,7 @@ export type BizinfoCrossCheckResult = {
 }
 
 function verifyMaxPages(): number {
-  const n = Number(process.env.BIZINFO_VERIFY_MAX_PAGES ?? '8')
-  return Number.isFinite(n) && n > 0 ? Math.min(n, 40) : 8
+  return bizinfoVerifyMaxPages()
 }
 
 function pageDelayMs(): number {

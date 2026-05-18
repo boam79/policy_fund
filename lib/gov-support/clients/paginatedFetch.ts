@@ -9,26 +9,36 @@ import type { KStartupItem } from './kstartup'
 import { fetchKStartup } from './kstartup'
 import type { Smes24Item } from './smes24'
 import { fetchSmes24 } from './smes24'
+import { smes24LookbackDays, vercelMaxPagesPerSource } from '@/lib/gov-support/sync/syncPolicy'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 function pageDelayMs(): number {
-  return Math.max(0, Number(process.env.SYNC_PAGE_DELAY_MS ?? 400))
+  const onVercel = process.env.VERCEL === '1'
+  const fallback = onVercel ? 200 : 400
+  const n = Number(process.env.SYNC_PAGE_DELAY_MS ?? String(fallback))
+  return Math.max(0, Number.isFinite(n) ? n : fallback)
+}
+
+export type PaginatedFetchResult<T> = {
+  items: T[]
+  reportedTotal: number
+  pagesFetched: number
+  truncated: boolean
 }
 
 /**
  * 출처별 최대 페이지 수
- * - SYNC_MAX_PAGES>0 이면 그만큼 적용 (로컬·서버 동일 우선 적용)
- * - 미설정 + Vercel 런타임이면 SYNC_VERCEL_SAFE_MAX_PAGES 기본값(페이지 과다로 타임아웃 방지)
- * - 그 외(로컬 npm run sync 등): 무제한
+ * - SYNC_MAX_PAGES>0 이면 그만큼 적용
+ * - Vercel: vercelMaxPagesPerSource() (기본 10, Hobby 타임아웃 완화)
+ * - 로컬: 무제한 → totCnt까지
  */
 function maxPagesPerSource(): number {
   const explicit = Number(process.env.SYNC_MAX_PAGES ?? '')
   if (Number.isFinite(explicit) && explicit > 0) return explicit
 
   if (process.env.VERCEL === '1') {
-    const fallback = Number(process.env.SYNC_VERCEL_SAFE_MAX_PAGES ?? '48')
-    return Number.isFinite(fallback) && fallback > 0 ? fallback : 48
+    return vercelMaxPagesPerSource()
   }
 
   return Number.POSITIVE_INFINITY
@@ -37,7 +47,7 @@ function maxPagesPerSource(): number {
 /**
  * 기업마당 — 우선 분야 미지정(전체) 페이징, 0건이면 분야별 페이징 폴백 (pblancId 중복 제거)
  */
-export async function fetchAllBizinfoPages(): Promise<BizinfoItem[]> {
+export async function fetchAllBizinfoPages(): Promise<PaginatedFetchResult<BizinfoItem>> {
   const pageUnit = Math.min(100, Math.max(10, Number(process.env.SYNC_BIZINFO_PAGE_UNIT ?? 100)))
   const delay = pageDelayMs()
   const maxPages = maxPagesPerSource()
@@ -58,10 +68,19 @@ export async function fetchAllBizinfoPages(): Promise<BizinfoItem[]> {
   }
 
   if (globalList.length > 0) {
-    return globalList
+    const truncated =
+      Number.isFinite(maxPages) &&
+      reportedTotal > 0 &&
+      globalList.length < reportedTotal &&
+      pageIndex > maxPages
+    return {
+      items: globalList,
+      reportedTotal,
+      pagesFetched: pageIndex,
+      truncated,
+    }
   }
 
-  // 폴백: 분야별 페이지네이션 (동일 패턴 — 짧아질 때까지 페이지 증가)
   const merged: BizinfoItem[] = []
   const seenIds = new Set<string>()
 
@@ -86,11 +105,24 @@ export async function fetchAllBizinfoPages(): Promise<BizinfoItem[]> {
     if (delay > 0) await sleep(Math.min(delay, 500))
   }
 
-  return merged
+  const truncated =
+    Number.isFinite(maxPages) &&
+    merged.length > 0 &&
+    reportedTotal > 0 &&
+    merged.length < reportedTotal
+
+  return {
+    items: merged,
+    reportedTotal: reportedTotal || merged.length,
+    pagesFetched: pageIndex,
+    truncated,
+  }
 }
 
-/** K-Startup — totalCount 또는 마지막 짧은 페이지까지 */
-export async function fetchAllKStartupPages(rcrtPrgsYn: 'Y' | 'N' = 'Y'): Promise<KStartupItem[]> {
+/** K-Startup — totalCount 또는 마지막 짧은 페이지까지 (모집 중 Y) */
+export async function fetchAllKStartupPages(
+  rcrtPrgsYn: 'Y' | 'N' = 'Y'
+): Promise<PaginatedFetchResult<KStartupItem>> {
   const numOfRows = Math.min(100, Math.max(1, Number(process.env.SYNC_KSTARTUP_NUM_ROWS ?? 100)))
   const delay = pageDelayMs()
   const maxPages = maxPagesPerSource()
@@ -110,7 +142,15 @@ export async function fetchAllKStartupPages(rcrtPrgsYn: 'Y' | 'N' = 'Y'): Promis
     if (delay > 0) await sleep(delay)
   }
 
-  return acc
+  const truncated =
+    Number.isFinite(maxPages) && reportedTotal > 0 && acc.length < reportedTotal && pageNo > maxPages
+
+  return {
+    items: acc,
+    reportedTotal,
+    pagesFetched: pageNo,
+    truncated,
+  }
 }
 
 function formatSmesDate(d: Date): string {
@@ -121,9 +161,9 @@ function formatSmesDate(d: Date): string {
 }
 
 /**
- * 중소벤처24 — 동일 페이징 패턴 (조회 구간은 lookback 일수로 통일 기본값 730일).
+ * 중소벤처24 — 동일 페이징 패턴 (조회 구간: smes24LookbackDays 기본 730일)
  */
-export async function fetchAllSmes24Pages(): Promise<Smes24Item[]> {
+export async function fetchAllSmes24Pages(): Promise<PaginatedFetchResult<Smes24Item>> {
   const delay = pageDelayMs()
   const maxPages = maxPagesPerSource()
   const numOfRows = Math.min(
@@ -132,7 +172,7 @@ export async function fetchAllSmes24Pages(): Promise<Smes24Item[]> {
   )
   const now = new Date()
   const endDtDefault = formatSmesDate(now)
-  const lookbackDays = Math.min(3660, Math.max(1, Number(process.env.SYNC_SMES24_LOOKBACK_DAYS ?? 730)))
+  const lookbackDays = smes24LookbackDays()
   const startDate = new Date(now)
   startDate.setDate(startDate.getDate() - lookbackDays)
   const strDt = process.env.SMES24_SYNC_STRDT ?? formatSmesDate(startDate)
@@ -153,5 +193,13 @@ export async function fetchAllSmes24Pages(): Promise<Smes24Item[]> {
     if (delay > 0) await sleep(delay)
   }
 
-  return acc
+  const truncated =
+    Number.isFinite(maxPages) && reportedTotal > 0 && acc.length < reportedTotal && pageNo > maxPages
+
+  return {
+    items: acc,
+    reportedTotal,
+    pagesFetched: pageNo,
+    truncated,
+  }
 }

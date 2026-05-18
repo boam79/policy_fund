@@ -129,11 +129,14 @@ PRD 원칙에 따라, 검색 결과는 LLM이 생성하지 않고 실제 공공 
 - `SMES24_API_BASE` (optional)
 - `SMES24_DEFAULT_STRDT` (optional)
 - `SMES24_DEFAULT_ENDDT` (optional)
-- **동기화 페이지네이션 (optional)** 세 출처 모두 페이지를 넘겨 `totalCount` 또는 짧은 페이지에서 멈춥니다.
-  - `SYNC_PAGE_DELAY_MS`(기본 400)
-  - `SYNC_MAX_PAGES` 출처별 최대 페이지(양수)·로컬 미설정 시 무제한
-  - `VERCEL=1` 이면 `SYNC_VERCEL_SAFE_MAX_PAGES` 기본 48 (`SYNC_MAX_PAGES`가 우선)
-  - `SYNC_BIZINFO_PAGE_UNIT`(≤100), `SYNC_KSTARTUP_NUM_ROWS`(≤100), `SYNC_SMES24_PAGE_SIZE`(≤500), `SYNC_SMES24_LOOKBACK_DAYS`(기본 730), `SMES24_SYNC_STRDT` / `SMES24_SYNC_ENDDT`
+- **동기화 — 실질적 전부 (Vercel·Supabase 무료 플랜)** (`lib/gov-support/sync/syncPolicy.ts`)
+  - 기업마당: API `totCnt` 전부 · K-Startup: 모집 중(`Y`) 전부 · 중소벤처24: 최근 **730일**(기본)
+  - **전량 수집은 로컬** `npm run sync` 권장 (페이지 무제한). Vercel 관리자 동기화는 출처당 페이지 상한.
+  - `SYNC_PAGE_DELAY_MS` — 로컬 400ms, Vercel 기본 200ms
+  - `SYNC_MAX_PAGES` — 출처별 상한(양수). 로컬은 비우면 무제한.
+  - `SYNC_VERCEL_SAFE_MAX_PAGES` — Vercel 기본 **10** (Hobby 타임아웃 완화)
+  - `BIZINFO_VERIFY_MAX_PAGES` — 교차검증 샘플 기본 **16**
+  - `SYNC_BIZINFO_PAGE_UNIT`(≤100), `SYNC_KSTARTUP_NUM_ROWS`(≤100), `SYNC_SMES24_PAGE_SIZE`(≤500), `SYNC_SMES24_LOOKBACK_DAYS`(기본 730)
 
 ---
 

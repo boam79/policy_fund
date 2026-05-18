@@ -114,7 +114,7 @@ async function main() {
 
   const apiErrors: string[] = []
 
-  let bizRaw: Awaited<ReturnType<typeof fetchAllBizinfoPages>> = []
+  let bizRaw: Awaited<ReturnType<typeof fetchAllBizinfoPages>> | null = null
   try {
     bizRaw = await withRetry(() => fetchAllBizinfoPages())
   } catch (e: unknown) {
@@ -126,22 +126,29 @@ async function main() {
     withRetry(() => fetchAllSmes24Pages()),
   ])
 
-  let ksList: Awaited<ReturnType<typeof fetchAllKStartupPages>> = []
-  let smList: Awaited<ReturnType<typeof fetchAllSmes24Pages>> = []
+  let ksResult: Awaited<ReturnType<typeof fetchAllKStartupPages>> | null = null
+  let smResult: Awaited<ReturnType<typeof fetchAllSmes24Pages>> | null = null
 
-  if (pair[0].status === 'fulfilled') ksList = pair[0].value
+  if (pair[0].status === 'fulfilled') ksResult = pair[0].value
   else apiErrors.push(`kstartup ${pair[0].reason?.message ?? pair[0].reason}`)
 
-  if (pair[1].status === 'fulfilled') smList = pair[1].value
+  if (pair[1].status === 'fulfilled') smResult = pair[1].value
   else apiErrors.push(`smes24 ${pair[1].reason?.message ?? pair[1].reason}`)
 
-  console.log(`[기업마당] 원시 ${bizRaw.length}건`)
-  console.log(`[K-Startup] 원시 ${ksList.length}건`)
-  console.log(`[중소벤처24] 원시 ${smList.length}건`)
+  const bizItems = bizRaw?.items ?? []
+  const ksItems = ksResult?.items ?? []
+  const smItems = smResult?.items ?? []
 
-  const bizinfoNorm = bizRaw.map(normalizeBizinfoItem)
-  const kstartupNorm = ksList.map(normalizeKStartupItem)
-  const smes24Norm = smList.map(normalizeSmes24Item)
+  console.log(
+    `[기업마당] 원시 ${bizItems.length}건` +
+      (bizRaw?.reportedTotal ? ` (totCnt ${bizRaw.reportedTotal})` : '')
+  )
+  console.log(`[K-Startup] 원시 ${ksItems.length}건`)
+  console.log(`[중소벤처24] 원시 ${smItems.length}건`)
+
+  const bizinfoNorm = bizItems.map(normalizeBizinfoItem)
+  const kstartupNorm = ksItems.map(normalizeKStartupItem)
+  const smes24Norm = smItems.map(normalizeSmes24Item)
 
   const combined = [...bizinfoNorm, ...kstartupNorm, ...smes24Norm]
   const uniqueKeysBeforeDedup = uniqueExtIdsBySource(combined)
