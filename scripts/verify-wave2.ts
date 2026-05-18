@@ -64,13 +64,18 @@ async function main() {
 
   if (sessionPost.status === 200 && sessionPost.json.ok === true) {
     const sid = String(sessionPost.json.sid)
+    const token = String(sessionPost.json.token ?? '')
     assert(sid.length >= 8, 'sid length')
-    const sessionGet = await fetchJson(`/api/diagnosis/session?id=${encodeURIComponent(sid)}`)
+    assert(Boolean(token), 'session token')
+    const sessionGet = await fetchJson(
+      `/api/diagnosis/session?id=${encodeURIComponent(sid)}&token=${encodeURIComponent(token)}`
+    )
     assert(sessionGet.status === 200 && sessionGet.json.ok === true, 'session GET')
     const got = sessionGet.json.parsed as ParseNLResult
     assert(Number(got.conditions.business_age_years?.value) === 3, 'session roundtrip age')
 
-    const diagPage = await fetch(`${BASE}/diagnosis?sid=${encodeURIComponent(sid)}&q=${encodeURIComponent(parsed.raw_query)}`)
+    const diagQs = new URLSearchParams({ sid, token, q: parsed.raw_query })
+    const diagPage = await fetch(`${BASE}/diagnosis?${diagQs.toString()}`)
     assert(diagPage.status === 200, 'diagnosis page with sid 200')
     const html = await diagPage.text()
     assert(

@@ -1,5 +1,5 @@
 /**
- * GET /api/diagnosis/session?id=
+ * GET /api/diagnosis/session?id=&token=
  * POST /api/diagnosis/session — 진단 조건을 짧은 sid로 저장 (URL data= 대체)
  */
 import { NextRequest } from 'next/server'
@@ -8,6 +8,10 @@ import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
 import { requireServiceRoleClient } from '@/lib/supabase/serviceRole'
 import { isBodyTooLarge } from '@/lib/security/requestBody'
 import { takeRateLimit } from '@/lib/security/rateLimit'
+import {
+  issueDiagnosisSessionToken,
+  verifyDiagnosisSessionToken,
+} from '@/lib/security/diagnosisSessionToken'
 import { isUuid } from '@/lib/validation/uuid'
 
 export const dynamic = 'force-dynamic'
@@ -17,12 +21,34 @@ const MAX_POST_BODY = 96_000
 
 export async function GET(request: NextRequest) {
   const traceId = createTraceId()
+  const rate = takeRateLimit(request, 'api:diagnosis:session:get', { windowMs: 60_000, max: 40 })
+  if (!rate.ok) {
+    return apiError({
+      status: 429,
+      errorCode: 'DIAGNOSIS_SESSION_RATE_LIMITED',
+      message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+      step: 'diagnosis.session.get.rate_limit',
+      traceId,
+    })
+  }
+
   const id = request.nextUrl.searchParams.get('id')?.trim()
+  const token = request.nextUrl.searchParams.get('token')?.trim()
   if (!id) {
     return apiError({
       status: 400,
       errorCode: 'DIAGNOSIS_SESSION_ID_REQUIRED',
       message: '세션 ID가 필요합니다.',
+      step: 'diagnosis.session.get.validate',
+      traceId,
+    })
+  }
+
+  if (!token) {
+    return apiError({
+      status: 401,
+      errorCode: 'DIAGNOSIS_SESSION_TOKEN_REQUIRED',
+      message: '진단 세션 접근 토큰이 필요합니다.',
       step: 'diagnosis.session.get.validate',
       traceId,
     })
@@ -73,6 +99,16 @@ export async function GET(request: NextRequest) {
         errorCode: 'DIAGNOSIS_SESSION_EXPIRED',
         message: '진단 세션이 만료되었습니다. 홈에서 다시 검색해주세요.',
         step: 'diagnosis.session.get.expired',
+        traceId,
+      })
+    }
+
+    if (!verifyDiagnosisSessionToken(data.id, data.expires_at, token)) {
+      return apiError({
+        status: 403,
+        errorCode: 'DIAGNOSIS_SESSION_FORBIDDEN',
+        message: '진단 세션에 접근할 수 없습니다.',
+        step: 'diagnosis.session.get.forbidden',
         traceId,
       })
     }
@@ -164,9 +200,21 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    const accessToken = issueDiagnosisSessionToken(data.id, expiresAt)
+    if (!accessToken) {
+      return apiError({
+        status: 503,
+        errorCode: 'DIAGNOSIS_SESSION_UNAVAILABLE',
+        message: '진단 세션 토큰을 발급할 수 없습니다.',
+        step: 'diagnosis.session.post.token',
+        traceId,
+      })
+    }
+
     return Response.json({
       ok: true,
       sid: data.id,
+      token: accessToken,
       expires_at: expiresAt,
       trace_id: traceId,
     })

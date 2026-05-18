@@ -160,7 +160,16 @@ function DiagnosisContent() {
     ;(async () => {
       try {
         if (sid) {
-          const res = await fetch(`/api/diagnosis/session?id=${encodeURIComponent(sid)}`)
+          const token = searchParams.get('token')?.trim()
+          if (!token) {
+            if (!cancelled) {
+              setError('진단 링크가 만료되었거나 올바르지 않습니다. 홈에서 다시 검색해주세요.')
+            }
+            return
+          }
+          const res = await fetch(
+            `/api/diagnosis/session?id=${encodeURIComponent(sid)}&token=${encodeURIComponent(token)}`
+          )
           const json = (await res.json()) as { ok?: boolean; parsed?: ParseNLResult; message?: string }
           if (!res.ok || !json.parsed) {
             if (!cancelled) {
@@ -180,9 +189,10 @@ function DiagnosisContent() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ raw_query: data.raw_query, parsed: data }),
           })
-          const saveJson = (await saveRes.json()) as { sid?: string }
-          if (saveRes.ok && saveJson.sid) {
-            router.replace(`/diagnosis?sid=${encodeURIComponent(saveJson.sid)}`)
+          const saveJson = (await saveRes.json()) as { sid?: string; token?: string }
+          if (saveRes.ok && saveJson.sid && saveJson.token) {
+            const params = new URLSearchParams({ sid: saveJson.sid, token: saveJson.token })
+            router.replace(`/diagnosis?${params.toString()}`)
           }
         } catch {
           /* 레거시 ?data= URL 유지 */

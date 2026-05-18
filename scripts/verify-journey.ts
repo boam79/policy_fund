@@ -126,7 +126,11 @@ async function run() {
   })
   if (sessionPost.status === 200 && sessionPost.json.ok === true) {
     const sid = String(sessionPost.json.sid)
-    const sessionGet = await fetchJson(`/api/diagnosis/session?id=${encodeURIComponent(sid)}`)
+    const token = String(sessionPost.json.token ?? '')
+    assert(Boolean(token), 'Journey: diagnosis session token missing')
+    const sessionGet = await fetchJson(
+      `/api/diagnosis/session?id=${encodeURIComponent(sid)}&token=${encodeURIComponent(token)}`
+    )
     assert(sessionGet.status === 200, 'Journey: diagnosis session GET failed')
     const gotAge = (
       ((sessionGet.json.parsed as Json | undefined)?.conditions as Json | undefined)

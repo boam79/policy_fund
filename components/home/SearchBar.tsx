@@ -138,9 +138,14 @@ export default function SearchBar({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ raw_query: q, parsed }),
         })
-        const sessJson = (await sessRes.json()) as { ok?: boolean; sid?: string }
-        if (sessRes.ok && sessJson.ok === true && sessJson.sid) {
-          diagnosisPath = `/diagnosis?sid=${encodeURIComponent(sessJson.sid)}&q=${encodeURIComponent(q)}`
+        const sessJson = (await sessRes.json()) as { ok?: boolean; sid?: string; token?: string }
+        if (sessRes.ok && sessJson.ok === true && sessJson.sid && sessJson.token) {
+          const params = new URLSearchParams({
+            sid: sessJson.sid,
+            token: sessJson.token,
+            q,
+          })
+          diagnosisPath = `/diagnosis?${params.toString()}`
         }
       } catch {
         /* sid 저장 실패 시 data= URL 유지 */

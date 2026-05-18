@@ -129,7 +129,14 @@ function QuickReportContent() {
     ;(async () => {
       try {
         if (sid) {
-          const res = await fetch(`/api/diagnosis/session?id=${encodeURIComponent(sid)}`)
+          const token = searchParams.get('token')?.trim()
+          if (!token) {
+            if (!cancelled) setError('진단 링크가 만료되었거나 올바르지 않습니다.')
+            return
+          }
+          const res = await fetch(
+            `/api/diagnosis/session?id=${encodeURIComponent(sid)}&token=${encodeURIComponent(token)}`
+          )
           const json = (await res.json()) as { ok?: boolean; parsed?: ParseNLResult; message?: string }
           if (!res.ok || !json.parsed) {
             if (!cancelled) setError(String(json.message ?? '진단 세션을 불러올 수 없습니다.'))

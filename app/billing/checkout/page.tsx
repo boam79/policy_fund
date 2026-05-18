@@ -49,7 +49,7 @@ function CheckoutForm() {
     })
   }, [router])
 
-  const handleNaverPayment = () => {
+  const handleNaverPayment = async () => {
     if (!userId) return
     if (!naverEnabled) {
       setError('네이버페이가 아직 활성화되지 않았습니다.')
@@ -64,7 +64,23 @@ function CheckoutForm() {
     setError('')
 
     try {
-      const orderId = `JW-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+      const readyRes = await fetch('/api/billing/naver/ready', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planId }),
+      })
+      const readyData = (await readyRes.json().catch(() => ({}))) as {
+        orderId?: string
+        amount?: number
+        error?: string
+      }
+      if (!readyRes.ok || !readyData.orderId) {
+        setError(readyData.error ?? '결제 준비에 실패했습니다.')
+        setLoading(null)
+        return
+      }
+
+      const orderId = readyData.orderId
       const orderName = `${SITE_NAME} ${plan.name} 월 구독`
       const returnUrl = `${window.location.origin}/billing/success?plan=${planId}&merchantPayKey=${encodeURIComponent(orderId)}&amount=${plan.price}`
 

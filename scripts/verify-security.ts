@@ -96,6 +96,11 @@ async function main() {
   const badSid = await fetchJson('/api/diagnosis/session?id=not-uuid')
   assert(badSid.status === 400, `diagnosis bad id expected 400, got ${badSid.status}`)
 
+  const noToken = await fetchJson(
+    '/api/diagnosis/session?id=00000000-0000-4000-8000-000000000001'
+  )
+  assert(noToken.status === 401, `diagnosis missing token expected 401, got ${noToken.status}`)
+
   // billing confirm: 금액 불일치 (로그인 없으면 401 또는 CSRF 전 401 — Origin 없으면 CSRF 통과 가능)
   const badAmount = await fetchJson('/api/billing/confirm', {
     method: 'POST',

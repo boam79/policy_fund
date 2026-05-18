@@ -296,6 +296,14 @@ async function main() {
       'GET invalid sid → 400 DIAGNOSIS_SESSION_INVALID_ID'
     )
 
+    const getNoToken = await fetchJson(
+      '/api/diagnosis/session?id=00000000-0000-4000-8000-000000000001'
+    )
+    assert(
+      getNoToken.status === 401 && getNoToken.json.error_code === 'DIAGNOSIS_SESSION_TOKEN_REQUIRED',
+      'GET without token → 401'
+    )
+
     const postEmpty = await fetchJson('/api/diagnosis/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -338,7 +346,10 @@ async function main() {
     })
     if (session.status === 200 && session.json.ok === true) {
       const sid = String(session.json.sid)
-      const diagPage = await fetchPage(`/diagnosis?sid=${encodeURIComponent(sid)}`)
+      const token = String(session.json.token ?? '')
+      assert(Boolean(token), 'journey A session token')
+      const diagQs = new URLSearchParams({ sid, token })
+      const diagPage = await fetchPage(`/diagnosis?${diagQs.toString()}`)
       assert(diagPage.status === 200, 'diagnosis?sid page 200')
       assert(
         !diagPage.text.includes('진단 세션을 불러올 수 없습니다'),
