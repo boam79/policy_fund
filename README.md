@@ -135,7 +135,10 @@ PRD 원칙에 따라, 검색 결과는 LLM이 생성하지 않고 실제 공공 
   - `SYNC_PAGE_DELAY_MS` — 로컬 400ms, Vercel 기본 200ms
   - `SYNC_MAX_PAGES` — 출처별 상한(양수). 로컬은 비우면 무제한.
   - `SYNC_VERCEL_SAFE_MAX_PAGES` — Vercel 기본 **10** (Hobby 타임아웃 완화)
-  - `BIZINFO_VERIFY_MAX_PAGES` — 교차검증 샘플 기본 **16**
+  - `SYNC_VERIFY_AFTER=1` — `npm run sync` 후 자동 검증 (기본 켜짐, `0`으로 끔)
+  - `SYNC_HEAL_AFTER=1` — 검증 후 미저장 갭 자동 보강 (로컬 권장)
+  - `SYNC_HEAL_MAX_IDS` — 보강 upsert 상한 (Vercel 기본 50, 로컬 500)
+  - `npm run sync:verify` — 3출처 API↔DB 검증만 (동기화와 동일 기준)
   - `SYNC_BIZINFO_PAGE_UNIT`(≤100), `SYNC_KSTARTUP_NUM_ROWS`(≤100), `SYNC_SMES24_PAGE_SIZE`(≤500), `SYNC_SMES24_LOOKBACK_DAYS`(기본 730)
 
 ---

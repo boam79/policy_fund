@@ -12,6 +12,8 @@
 import { config } from 'dotenv'
 import path from 'path'
 import { createProgramSyncClient, runProgramSync } from '../lib/gov-support/sync/runProgramSync'
+import { runSyncVerify } from '../lib/gov-support/sync/syncVerify'
+import { runSyncHeal, healMessage } from '../lib/gov-support/sync/syncHeal'
 import { smes24LookbackDays, SYNC_POLICY } from '../lib/gov-support/sync/syncPolicy'
 
 config({ path: path.resolve(process.cwd(), '.env.local') })
@@ -55,6 +57,22 @@ async function main() {
   if (result.totalFetched === 0) {
     console.warn('\n⚠️  수집 0건 — API 키·네트워크를 확인하세요.')
     process.exit(1)
+  }
+
+  const runVerify = process.env.SYNC_VERIFY_AFTER !== '0'
+  if (runVerify) {
+    console.log('\n🔍 동기화 검증…')
+    const verify = result.verify ?? (await runSyncVerify(supabase, { source: 'all' }))
+    for (const s of verify.sources) {
+      console.log(
+        `   ${s.label}: ${s.health} | 미저장(모집중) ${s.missing_open.length}+ | 마감생략 ${s.skipped_closed}`
+      )
+    }
+    if (verify.overall_health === 'gaps' && process.env.SYNC_HEAL_AFTER === '1') {
+      console.log('\n🔧 보강 동기화…')
+      const heal = await runSyncHeal(supabase, { source: 'all' })
+      console.log(`   ${healMessage(heal)}`)
+    }
   }
 
   console.log('\n✅ 완료\n')

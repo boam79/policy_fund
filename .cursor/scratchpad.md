@@ -3,8 +3,8 @@
 **역할**: Planner 주도 계획 / Executor는 사용자 승인 후 단계별 실행  
 **기준 문서**: `policyfund_v2_prd_v2_0_free_plan_db_switch_ready.md` (PF-WEB-001 v2.0, 2026-05-11) — 문서 내 과거 명칭 PolicyFund AI는 제품 코드명 참고용이며, **사용자 노출 브랜드는 지원둥지**로 통일함 (2026-05-16).  
 **UI 목업 기준**: `KakaoTalk_Photo_2026-05-11-18-15-52 001.png` (관리자 대시보드), `KakaoTalk_Photo_2026-05-11-18-15-53 002.png` (사용자 홈)  
-**Planner 최종 갱신**: 2026-05-17 (Phase 14 공공데이터·신뢰 로드맵 — Planner)  
-**현재 모드**: **Planner** — Executor 착수 전 사용자 승인 대기
+**Planner 최종 갱신**: 2026-05-18 (14-3b 3출처 동기화 검증·보강 파이프라인 — Planner)  
+**현재 모드**: **Planner** — 14-3b 승인 후 Executor 단계별 착수
 
 ### 홈 UI 목업 정합 (2026-05-17 Executor)
 - 사용자 피드백: 배포/로컬 화면이 제안 목업(안 A / B+C)과 시각적으로 크게 다름
@@ -89,6 +89,85 @@ PolicyFund AI v2는 기존 GitHub Pages 단일페이지 MVP(`policyfundapp`)의 
 4. **알림(14-2)**: `alert_profiles` 테이블은 PRD·`database.types`에 존재. Cron 일 1회 배치가 Free 한도에 안전. 이메일 1차(Resend/Supabase Auth 메일 재사용 검토).
 5. **상권·청년·R&D(14-4~6)**: 검색 핵심 경로에 넣지 말고 **보조 신호·랜딩·Pro 기능**으로 격리 — 500MB·latency 방지.
 6. **Phase 13과 순서 충돌**: 13-P0-2(US-12-UX 수동), GSC는 유지. **Executor 첫 착수 권장 = 14-1-1**(스파이크) 또는 사용자가 고른 14-x-1.
+
+### Phase 14-3b — 3출처 동기화 후 검증·보강 (Planner, 2026-05-18)
+
+**배경**: 사용자 질문 — 「API에는 있는데 DB에 없음」은 오류인가? → **모집·노출 대상 기준으로는 갭**. 현재 검증은 기업마당만·동기화 정책(마감 생략·Vercel 페이지 상한)과 기준이 어긋나 **오탐**이 많음. 3출처 `runProgramSync` 직후 **같은 기준으로 검증 → 미흡 시 보강**이 필요.
+
+**설계 원칙**
+
+| 원칙 | 내용 |
+|------|------|
+| **동기화와 동일 스코프** | 검증 API 집합 = `paginatedFetch` + `normalize` + `dedup` 후, 출처별 **저장 대상**만 비교 |
+| **출처별 기준 분리** | 기업마당 totCnt·K-Startup `rcrtPrgsYn=Y`·중소벤처24 lookback 730일 — orphan 정의도 출처별 |
+| **마감은 별도 버킷** | `closed` 신규 미저장은 `missing`이 아니라 `skipped_closed` (의도) |
+| **Vercel ≠ 전량 PASS** | `truncated: true`면 **불완전 동기화**로 표시, 자동 보강은 로컬·누락 ID만 |
+| **무료 플랜** | 보강은 **누락 ID 배치 upsert** 우선, 전량 재동기화는 로컬/Cron |
+
+**검증 스코프 (저장 대상 집합 `expectedUpsertIds`)**
+
+| 출처 | API 수집 | DB 비교 대상 | orphan (유령) |
+|------|----------|--------------|---------------|
+| bizinfo | `fetchAllBizinfoPages` totCnt | `source=bizinfo`, `status != inactive`, **행 존재** | API 집합(전량·동일 페이지 상한)에 없고 DB에만 있음 → 후보 |
+| kstartup | `fetchAllKStartupPages('Y')` | `source=kstartup`, 모집중·비 inactive | API는 모집중만 → DB `closed`는 orphan 아님 |
+| smes24 | `fetchAllSmes24Pages` (lookback) | `source=smes24`, `synced_at` 또는 `application_end_date`가 lookback 내 | lookback 밖 DB 행은 orphan 제외 |
+
+**판정 등급 (`sync_health`)**
+
+- `ok` — 누락 0건(또는 허용치 이하), truncated 없음  
+- `incomplete_sync` — `truncated` 또는 API건수 ≪ totCnt (페이지 상한)  
+- `gaps` — 저장 대상인데 DB 행 없음 (`missing_open`)  
+- `stale` — DB 행은 있으나 `synced_at` > 48h (출처별)  
+- `orphans` — 유령 후보 (자동 삭제 금지, 관리자 확인)
+
+**보강(Heal) 단계 — 자동화 수준**
+
+1. **L0 자동 (동기화 직후, Vercel 가능)**  
+   - `missing_open` ID만 API 재조회(단건/소배치) → `openItems` upsert (최대 N건, env `SYNC_HEAL_MAX_IDS=50`)  
+   - `truncated`면 L0 스킵, UI에 「로컬 전량 동기화 필요」  
+2. **L1 관리자 「보강 동기화」**  
+   - 출처 1개 또는 3개, `missing_open` 전부(상한 500) upsert  
+3. **L2 로컬 `npm run sync` + `npm run sync:verify`**  
+   - 페이지 무제한 → `gaps` 해소 기대  
+4. **L3 유령 처리 (수동)**  
+   - orphan 목록 → `visibility_status=hidden` 일괄 또는 삭제(정책 확정 후)
+
+**권장 플로우 (운영)**
+
+```mermaid
+flowchart TD
+  A[runProgramSync 3출처] --> B{truncated?}
+  B -->|yes| C[상태: incomplete_sync]
+  B -->|no| D[runSyncVerify 출처별]
+  D --> E{missing_open > 0?}
+  E -->|yes| F[L0 heal 또는 L1 버튼]
+  E -->|no| G[상태: ok]
+  C --> H[안내: npm run sync 로컬]
+  F --> D
+  G --> I[api_sync_logs + verify_report 저장]
+```
+
+**구현 단계 (Executor, 1태스크씩)**
+
+| ID | 작업 | 성공 기준 |
+|----|------|-----------|
+| 14-3b-1 | `lib/gov-support/sync/syncVerify.ts` — `runSyncVerify(supabase, { sources, syncMeta })` 출처별 리포트 타입 통합 | 단위: bizinfo만 mock, `missing_open`/`skipped_closed` 분리 |
+| 14-3b-2 | `syncHeal.ts` — `healMissingPrograms(supabase, { source, externalIds })` | 누락 ID 10건 upsert 후 verify 재실행 시 0 |
+| 14-3b-3 | `runProgramSync` 반환값에 `verify?: SyncVerifySummary` 옵션 (`SYNC_VERIFY_AFTER=1`) | 로컬 sync 후 콘솔에 gaps 건수 |
+| 14-3b-4 | Admin API `POST /api/admin/sync/verify` · `POST /api/admin/sync/heal` | 관리자만, rate limit |
+| 14-3b-5 | UI: `/admin/sync` 검증 탭 3출처 탭·보강 버튼·truncated 경고 | 스크린샷 케이스(1340 vs 1000)에서 incomplete 표시 |
+| 14-3b-6 | CLI `npm run sync:verify` · README | `verify:strict` 선택 포함 여부는 후순위 |
+
+**PASS 기준 (전량 로컬 1회 후)**
+
+- 기업마당: `missing_open` = 0, `skipped_closed`는 별도 카드만 표시  
+- K-Startup / smes24: 동일, 출처별 API unique ≈ DB stored(open) ± dedup  
+- `orphan` > 0 이면 **WARN** (자동 heal 대상 아님)
+
+**비용·한도**
+
+- 검증 1회 ≈ 동기화와 동일 API 호출(이중 비용) → **동기화 직후 1회만** 또는 주 1회 Cron  
+- Supabase: heal은 upsert만, orphan hidden은 UPDATE만
 
 ### 반복 오류 방지 전략 (Planner 확정)
 
@@ -526,6 +605,15 @@ PAYMENT_SECRET_KEY=
 - [x] 14-3-1 API 페이지 샘플 수집 (`collectBizinfoApiIds`, `BIZINFO_VERIFY_MAX_PAGES`)
 - [x] 14-3-2 admin API diff (`runBizinfoCrossCheck`)
 - [x] 14-3-3 `/admin/programs?view=sync-verify` 「동기화 검증」탭
+- [ ] **14-3b** 3출처 동기화 후 검증·보강 파이프라인 (Planner 2026-05-18, 아래 단계)
+
+**Wave C-2 — 14-3b Project Status Board (Planner)**
+- [x] 14-3b-1 `syncVerify.ts` 출처별 통합 검증
+- [x] 14-3b-2 `syncHeal.ts` · `programUpsert.ts`
+- [x] 14-3b-3 `SYNC_VERIFY_AFTER` · 동기화 API `verify` 옵션
+- [x] 14-3b-4 `GET/POST /api/admin/sync/verify` · `POST /api/admin/sync/heal`
+- [x] 14-3b-5 `/admin/sync`·공고관리 검증 UI 3출처 + 보강
+- [x] 14-3b-6 `npm run sync:verify` · README — Executor 2026-05-18, build PASS, **커밋·푸시 대기→완료 예정**
 
 **Wave D~F — 확장 (14-4~6, 사용자 승인 후)**
 - [ ] 14-4-1 상권정보: API 스파이크 → 지역 검색 결과 **참고 카드** 1블록(비동기)
@@ -635,6 +723,7 @@ PAYMENT_SECRET_KEY=
 
 ## Executor's Feedback or Assistance Requests
 
+- **2026-05-18 (Executor)**: **14-3b 전체 완료** — `syncVerify`·`syncHeal`·`programUpsert`, Admin `/api/admin/sync/verify|heal`, `/admin/sync` 검증·보강 UI, `SYNC_VERIFY_AFTER`·`SYNC_HEAL_AFTER`, `npm run sync:verify`. Planner 사용자 프로덕션 테스트 대기.
 - **2026-05-17 (Executor)**: **실질적 전부 동기화 정책** — `syncPolicy.ts`, `runProgramSync.ts`, 로컬 `npm run sync` totCnt 전량·Vercel 출처별 상한(기본 10p)·검증 16p·관리자 `/admin/sync` UI. `npm run build` PASS. **미커밋**.
 - **2026-05-17 (Executor)**: **사업자번호 자동 채움 기능 제거** — FSC 15108168은 통계용(번호 단건 조회 불가). `BusinessLookupCard`, `lookup-business` API, FSC 클라이언트·문서·스크립트 삭제. 마이페이지는 수동 입력만.
 - **2026-05-18 (Executor)**: **Supabase MCP** — `phase14_alerts_rls` 원격 적용 완료(`20260518042619`). 컬럼·RLS 정책 확인. **Vercel MCP** — `441fc7c` 프로덕션 READY (`policyfund-zeta.vercel.app`). Production env에 `CRON_SECRET`·`PUBLIC_DATA_SERVICE_KEY`·`BIZINFO_API_KEY` 있음. `RESEND_API_KEY` 없음 → 알림 cron은 로그만.

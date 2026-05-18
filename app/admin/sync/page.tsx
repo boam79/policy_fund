@@ -5,6 +5,7 @@ import { RefreshCw, Loader2, CheckCircle, XCircle, AlertTriangle, Terminal } fro
 import { readApiError } from '@/lib/api/readApiError'
 import { AdminOpsPageShell } from '@/components/admin/AdminOpsPageShell'
 import { SYNC_POLICY } from '@/lib/gov-support/sync/syncPolicy'
+import { ProgramsSyncVerifyPanel } from '@/components/admin/ProgramsSyncVerifyPanel'
 
 interface SyncLog {
   id: string
@@ -27,6 +28,7 @@ export default function AdminSyncPage() {
   const [syncing, setSyncing] = useState<SyncSourceKey | null>(null)
   const [message, setMessage] = useState('')
   const [loadError, setLoadError] = useState('')
+  const [verifyAfterSync, setVerifyAfterSync] = useState(true)
 
   const loadLogs = async () => {
     setLoadError('')
@@ -58,7 +60,7 @@ export default function AdminSyncPage() {
       const res = await fetch(`/api/admin/sync?source=${source}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source }),
+        body: JSON.stringify({ source, verify: verifyAfterSync }),
       })
       const data = await res.json().catch(() => ({}))
       setMessage(res.ok ? String(data.message ?? '동기화 완료') : readApiError(data, '동기화 실패'))
@@ -95,6 +97,15 @@ export default function AdminSyncPage() {
 
       <div className="bg-white border rounded-xl p-4 mb-6">
         <p className="text-xs font-medium text-gray-600 mb-3">Vercel에서 출처별 빠른 갱신 (페이지 상한 있음)</p>
+        <label className="flex items-center gap-2 text-sm text-gray-600 mb-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={verifyAfterSync}
+            onChange={(e) => setVerifyAfterSync(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          동기화 직후 검증 실행
+        </label>
         <div className="flex flex-wrap gap-2">
           {(
             [
@@ -143,7 +154,12 @@ export default function AdminSyncPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
         환경 변수: <code className="bg-blue-100 px-1 rounded">SYNC_SMES24_LOOKBACK_DAYS=730</code> (기본) ·
         Vercel <code className="bg-blue-100 px-1 rounded">SYNC_VERCEL_SAFE_MAX_PAGES=10</code> · 검증{' '}
-        <code className="bg-blue-100 px-1 rounded">BIZINFO_VERIFY_MAX_PAGES=16</code>
+        <code className="bg-blue-100 px-1 rounded">SYNC_HEAL_MAX_IDS=50</code> (Vercel 보강 상한)
+      </div>
+
+      <div className="bg-white border rounded-xl p-4 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">동기화 검증 · 보강</h2>
+        <ProgramsSyncVerifyPanel />
       </div>
 
       {loading ? (
