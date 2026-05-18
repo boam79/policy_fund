@@ -250,8 +250,8 @@ function CheckoutForm() {
           </div>
 
           <p className="text-xs text-gray-400 text-center mt-4">
-            결제 시 <Link href="/terms" className="underline">이용약관</Link>과{' '}
-            <Link href="/refund-policy" className="underline">환불정책</Link>에 동의합니다.
+            결제 시 <Link href="/terms" className="underline">이용약관</Link> 및{' '}
+            <Link href="/privacy" className="underline">개인정보처리방침</Link>에 동의합니다.
           </p>
         </div>
       </div>

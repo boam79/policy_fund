@@ -23,7 +23,6 @@ const PUBLIC_PATHS: {
   { path: '/terms', priority: 0.4, changeFrequency: 'yearly' },
   { path: '/privacy', priority: 0.4, changeFrequency: 'yearly' },
   { path: '/disclaimer', priority: 0.5, changeFrequency: 'yearly' },
-  { path: '/refund-policy', priority: 0.35, changeFrequency: 'yearly' },
 ]
 
 export default function sitemap(): MetadataRoute.Sitemap {

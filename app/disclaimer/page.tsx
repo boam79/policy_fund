@@ -80,11 +80,8 @@ export default function DisclaimerPage() {
             <h2 className="text-lg font-bold text-gray-900 mb-3">6. 결제·유료 서비스</h2>
             <p>
               유료 기능이 제공되는 경우 결제는 토스페이먼츠 등 결제대행사(PG)를 통해 이루어질 수 있으며, 결제
-              승인·취소·환불의 기술적 처리는 PG 정책 및 API(예: 결제 취소 요청)에 따릅니다. 청약철회·환불 조건은{' '}
-              <Link href="/refund-policy" className="text-blue-600 underline hover:text-blue-800">
-                환불정책
-              </Link>
-              및 <Link href="/terms" className="text-blue-600 underline hover:text-blue-800">이용약관</Link>을
+              승인·취소·환불의 기술적 처리는 PG 정책 및 API(예: 결제 취소 요청)에 따릅니다. 청약철회·환불 등은{' '}
+              <Link href="/terms" className="text-blue-600 underline hover:text-blue-800">이용약관</Link>을
               참고하시기 바랍니다.
             </p>
           </section>
