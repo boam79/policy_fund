@@ -3,7 +3,7 @@
 실제 공공 데이터(기업마당, K-Startup, 중소벤처24)를 기반으로 정부지원사업을 검색/매칭하고,  
 자격판정 및 신청 준비 문서(체크리스트, 타임라인, 사업계획서 초안)를 생성하는 웹서비스입니다.
 
-- 저장소 버전: `0.2.0`
+- 저장소 버전: `0.2.1`
 - 기준 문서: `policyfund_v2_prd_v2_0_free_plan_db_switch_ready.md` (PF-WEB-001 v2.0)
 - 배포 URL: [https://policyfund-zeta.vercel.app](https://policyfund-zeta.vercel.app)
 
@@ -23,7 +23,11 @@
 - 자격판정 이후 다음 단계 CTA 여정 연결 완료
   - 자격판정 결과 → 체크리스트/타임라인/사업계획서 이동
   - 특정 공고 선택 → 신청 준비 바로가기
-- 관리자 핵심 페이지(`admin/*`) 및 수동 동기화(`/api/admin/sync`) 구현
+- 관리자 콘솔(`admin/*`): 대시보드·공고·동기화·문의·**회원 관리(플랜·이용량·접속자)**·결제·설정
+- 회원 **현재 접속** 표시: 로그인 사용자 heartbeat → 관리자 회원 관리 화면(최근 3분 활동)
+- 관리자 UI: 서비스용 상단 메뉴 제거, 사이드바+콘텐츠 전용 레이아웃
+- 공고 동기화 검증·보강(`sync:verify`, `SYNC_HEAL_*`) 및 3출처 `smes24` 출처 코드 통일
+- 베타: 로그인 회원 전 기능 이용(`BETA_ALL_ACCESS`), 사업계획서 페이지 로그인 유도
 - 결제 기능은 `PAYMENT_PG_ENABLED` 플래그 기반으로 안전하게 비활성/활성 처리
 
 ---
@@ -82,7 +86,11 @@ PRD 원칙에 따라, 검색 결과는 LLM이 생성하지 않고 실제 공공 
   - `GET /api/admin/dashboard`
   - `GET|PATCH /api/admin/inquiries`
   - `GET /api/admin/billing`
+  - `GET /api/admin/users` · `GET /api/admin/users/summary` · `GET /api/admin/users/online` · `GET /api/admin/users/export` · `GET|PATCH /api/admin/users/[id]`
+  - `GET /api/admin/nav-badges`
   - `GET /api/feedback`
+- 접속 추적(로그인 사용자)
+  - `POST /api/presence/heartbeat`
 
 ---
 
@@ -199,6 +207,32 @@ npm run sync
 ---
 
 ## 변경 이력
+
+### 2026-05-18 (v0.2.1)
+
+**관리자·운영**
+
+- 관리자 화면에서 서비스용 헤더/푸터/베타 팝업 제거, **콘텐츠 영역 전용 상단 바**·스크롤 분리
+- **회원 관리** 보강: KPI 카드, 플랜·구독·세그먼트 필터, CSV보내기, 회원 상세 드로어, 관리자 플랜 수동 변경
+- **현재 접속 회원**: `user_presence` 테이블 + 클라이언트 heartbeat(45초) → 회원 관리 「현재 접속 N명」·목록(20초 갱신)
+- 사이드바 배지: 문의·동기화 실패·중복 공고·구독 연체 등
+- `/admin` 진입 시 `/admin/dashboard` 리다이렉트, `verify:admin`·`verify:journey-exhaustive` 확장
+
+**동기화·데이터**
+
+- 중소벤처24 출처 코드 **`smes24` 통일**(레거시 `smba` 호환)
+- 동기화 후 **API↔DB 검증**(`npm run sync:verify`) 및 선택적 **자동 보강**(`SYNC_HEAL_*`)
+- Vercel 관리자 동기화: 출처당 페이지 상한·지연으로 Hobby 타임아웃 완화
+
+**검색·문서·베타 UX**
+
+- `POST /api/query/parse`: LLM이 반환한 **영문 지역·지원목적을 한글로 정규화**, parse 캐시 v3
+- `/documents/plan`: 비로그인 시 **로그인 유도 배너**·`next` 복귀, `verify:journey-documents` 추가
+- 베타 안내 팝업(`NEXT_PUBLIC_BETA_NOTICE`), 베타 기간 로그인 회원 한도 완화(`BETA_ALL_ACCESS`)
+
+**Phase 14 (이전 스프린트 포함)**
+
+- 사업자 진위확인 API·UI, 공고 알림(`alert_profiles`), 기업마당 교차검증
 
 ### 2026-05-15
 
