@@ -24,6 +24,10 @@ import GeoSourceSummary from '@/components/geo/GeoSourceSummary'
 import { toCanonicalIndustry } from '@/lib/industry/canonical'
 import { fetchMyBusinessProfileDefaults } from '@/lib/profile/fetch-my-business-profile'
 import { buildSearchUrlFromProfile } from '@/lib/profile/business-profile-defaults'
+import SearchEmptyStatePanel from '@/components/search/SearchEmptyState'
+import type { SearchEmptyState, SearchFilterSnapshot } from '@/lib/search/emptyResult'
+import { buildSearchEmptyState, lowConfidenceFieldKeys } from '@/lib/search/emptyResult'
+import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 
 interface EligibilityResult {
   status: EligibilityStatus
@@ -52,17 +56,20 @@ const FALLBACK_LABELS: Record<string, string> = {
 const REGION_FILTER_HINT =
   '선택한 지역·전국 단위 공고만 표시합니다. 지역 미기재 공고는 제외됩니다.'
 
-interface AppliedFilters {
-  region: string | null
-  city: string | null
-  industry: string | null
-  industry_match?: IndustryMatchMode | null
-  keyword: string | null
-  support_purpose: string | null
-  business_age_years?: number | null
-  employee_count?: number | null
-  text_terms: string[]
-  include_closed?: boolean
+type AppliedFilters = SearchFilterSnapshot & { text_terms?: string[] }
+
+function readParseLowConfidenceFields(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem('pf:last_parsed')
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as ParseNLResult
+    return lowConfidenceFieldKeys(
+      parsed.conditions as Record<string, { confidence?: number } | undefined>
+    )
+  } catch {
+    return []
+  }
 }
 
 const REGION_NORMALIZE_MAP: Record<string, string> = {
@@ -172,7 +179,8 @@ function SearchContent() {
     normalizeIndustryMatchMode(searchParams.get('industry_match'))
   )
   const [responseSearchMode, setResponseSearchMode] = useState<ProgramSearchMode | null>(null)
-  const [strictEmptyHint, setStrictEmptyHint] = useState<string | null>(null)
+  const [searchEmptyState, setSearchEmptyState] = useState<SearchEmptyState | null>(null)
+  const [requestedFilters, setRequestedFilters] = useState<AppliedFilters | null>(null)
   const LIMIT = 20
   const [exporting, setExporting] = useState<'csv' | 'xlsx' | null>(null)
   const [allowsStrictSearch, setAllowsStrictSearch] = useState(false)
@@ -282,7 +290,8 @@ function SearchContent() {
     setLoading(true)
     setSearched(true)
     setSearchError('')
-    setStrictEmptyHint(null)
+    setSearchEmptyState(null)
+    setRequestedFilters(null)
     setFallbackApplied([])
     setAppliedFilters(null)
     try {
@@ -357,16 +366,47 @@ function SearchContent() {
           return
         }
         if (code === 'SEARCH_NO_RESULTS_STRICT') {
-          const meta = data.meta as { hint?: string; applied_filters?: AppliedFilters } | undefined
-          setStrictEmptyHint(typeof meta?.hint === 'string' ? meta.hint : null)
+          const meta = data.meta as {
+            applied_filters?: AppliedFilters
+            requested_filters?: AppliedFilters
+            empty_state?: SearchEmptyState
+          } | undefined
+          setRequestedFilters(meta?.requested_filters ?? meta?.applied_filters ?? null)
           setAppliedFilters(meta?.applied_filters ?? null)
+          setSearchEmptyState(
+            meta?.empty_state ??
+              buildSearchEmptyState({
+                search_mode: 'strict',
+                fallback_applied: [],
+                requested_filters: meta?.requested_filters ?? meta?.applied_filters ?? {
+                  region: null,
+                  city: null,
+                  industry: null,
+                  keyword: null,
+                  support_purpose: null,
+                },
+                applied_filters: meta?.applied_filters ?? {
+                  region: null,
+                  city: null,
+                  industry: null,
+                  keyword: null,
+                  support_purpose: null,
+                },
+              })
+          )
           setResponseSearchMode('strict')
+          setPrograms([])
+          setTotal(0)
+          setPage(1)
+          setFallbackApplied([])
+          return
         }
         setSearchError(readApiError(data, '검색에 실패했습니다. 잠시 후 다시 시도해 주세요.'))
         setPrograms([])
         setTotal(0)
         setPage(1)
         setFallbackApplied([])
+        setSearchEmptyState(null)
         return
       }
       setPrograms(data.programs ?? [])
@@ -374,7 +414,26 @@ function SearchContent() {
       setPage(p)
       setResultSource(data.source === 'api_fallback' ? 'api_fallback' : 'db')
       setFallbackApplied(Array.isArray(data.fallback_applied) ? data.fallback_applied : [])
+      setRequestedFilters(data.requested_filters ?? null)
       setAppliedFilters(data.applied_filters ?? null)
+      setSearchEmptyState(
+        (data.total ?? 0) === 0
+          ? (data.empty_state as SearchEmptyState | null) ??
+              (data.requested_filters && data.applied_filters
+                ? buildSearchEmptyState({
+                    search_mode:
+                      data.search_mode === 'strict' || data.search_mode === 'relaxed'
+                        ? data.search_mode
+                        : mode,
+                    fallback_applied: Array.isArray(data.fallback_applied)
+                      ? data.fallback_applied
+                      : [],
+                    requested_filters: data.requested_filters,
+                    applied_filters: data.applied_filters,
+                  })
+                : null)
+          : null
+      )
       setResponseSearchMode(
         data.search_mode === 'strict' || data.search_mode === 'relaxed' ? data.search_mode : mode
       )
@@ -401,6 +460,8 @@ function SearchContent() {
   })
 
   const activeSearchMode = responseSearchMode ?? searchMode
+  const rawQuery = (searchParams.get('q') || searchParams.get('keyword') || '').trim()
+  const parseLowConfidence = readParseLowConfidenceFields()
 
   // diagnosis·URL 쿼리 진입 시 자동 검색 (빈 화면 깜빡임 방지)
   useLayoutEffect(() => {
@@ -464,7 +525,7 @@ function SearchContent() {
             </button>
           </div>
 
-          {searchError && (
+          {searchError && !searchEmptyState && (
             <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {searchError}
             </div>
@@ -579,7 +640,7 @@ function SearchContent() {
         </details>
 
         {/* 결과 요약 */}
-        {searched && !loading && (
+        {searched && !loading && total > 0 && (
           <div className="mb-4 space-y-2">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <p className="text-sm text-gray-600 flex items-center gap-2 flex-wrap">
@@ -717,26 +778,24 @@ function SearchContent() {
           </div>
         )}
 
-        {/* 결과 없음 */}
-        {searched && !loading && programs.length === 0 && (
+        {/* 결과 없음 — 공고 없음 vs 조건 해석 문제 구분 */}
+        {searched && !loading && programs.length === 0 && searchEmptyState && (
+          <SearchEmptyStatePanel
+            empty={searchEmptyState}
+            requestedFilters={requestedFilters}
+            appliedFilters={appliedFilters}
+            rawQuery={rawQuery || null}
+            lowConfidenceFields={parseLowConfidence}
+            allowsStrictSearch={allowsStrictSearch}
+            onRelaxedSearch={() => void handleSearch(1, { mode: 'relaxed' })}
+            onStrictSearch={() => void handleSearch(1, { mode: 'strict' })}
+          />
+        )}
+        {searched && !loading && programs.length === 0 && !searchEmptyState && (
           <div className="bg-white rounded-xl border p-12 text-center space-y-3">
             <Search className="h-10 w-10 text-gray-300 mx-auto" />
-            <p className="text-gray-500">{searchError || '검색 결과가 없습니다.'}</p>
-            {strictEmptyHint && (
-              <p className="text-sm text-amber-800 max-w-md mx-auto">{strictEmptyHint}</p>
-            )}
-            {strictEmptyHint && (
-              <button
-                type="button"
-                onClick={() => void handleSearch(1, { mode: 'relaxed' })}
-                className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                조건 완화 검색으로 다시 찾기
-              </button>
-            )}
-            {!strictEmptyHint && (
-              <p className="text-sm text-gray-400">조건을 변경하거나 키워드를 수정해보세요.</p>
-            )}
+            <p className="text-gray-500">{searchError || '검색 결과를 불러오지 못했습니다.'}</p>
+            <p className="text-sm text-gray-400">잠시 후 다시 시도하거나 홈에서 조건을 다시 입력해 보세요.</p>
           </div>
         )}
 

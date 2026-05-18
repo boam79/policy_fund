@@ -576,6 +576,7 @@ PAYMENT_SECRET_KEY=
 
 ## Executor's Feedback or Assistance Requests
 
+- **2026-05-17 (Executor)**: **검색 0건 UX** — `empty_state`·`requested_filters` API, `SearchEmptyState` UI(입력 vs 실제 조건·진단 링크), 진단 사전 경고 배너, `q` URL 전달. `npm run build` PASS.
 - **2026-05-17 (Executor)**: **오타·문구 점검** — `폴리시펀드`→`지원둥지`(면책), parse `IT으로`→`IT로`(`pickEuroParticle`), 요금제·심사 `CSV·XLSX 보내기` 띄어쓰기. `verify:journey-exhaustive` 44/44 PASS.
 - **2026-05-17 (Executor)**: **유저 여정 UX 버그 수정** — `lib/programs/deadline.ts` 공통화, parse 요약 `년로`→`년으로`·`buildParseSummaryFromParts`, 홈/검색/상세/북마크 마감 `0일`→`오늘 마감`. `verify:journey-exhaustive` 42/42·`verify:journey` PASS. **미커밋** — 프로덕션 배포·수동 스모크(홈 카드·진단 요약·검색 D-0) 요청.
 - **2026-05-17 (Executor)**: **Supabase MCP 전수 점검** — `get_advisors` security 1건(유출 비밀번호 보호, **Free 플랜이라 Pro 이상에서만 활성화 가능**), performance 다수(INFO/WARN, 당장 차단 아님). `execute_sql`: public 25테이블 RLS ON, 위험 anon INSERT/UPDATE 정책 없음, `handle_new_user` anon/auth EXECUTE 없음, `update_updated_at_column` search_path=public. anon REST INSERT `support_programs`·`customer_inquiries` → RLS 42501 차단 확인. 마이그레이션 `010_security_hardening` 원격 적용됨.

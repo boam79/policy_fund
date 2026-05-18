@@ -248,6 +248,12 @@ function DiagnosisContent() {
     )
   }, [parsed, editValues])
 
+  const uncertainExtractedKeys = useMemo(() => {
+    return effectiveEntries
+      .filter(([, c]) => c.confidence < 0.4)
+      .map(([k]) => MISSING_LABELS[k] ?? k)
+  }, [effectiveEntries])
+
   if (error) {
     const q = searchParams.get('q') ?? ''
     const searchHref = q ? `/search?keyword=${encodeURIComponent(q)}` : '/search'
@@ -476,6 +482,19 @@ function DiagnosisContent() {
       )}
 
       <DiagnosisConfirmChips parsed={parsed} editValues={editValues} onSearch={navigateToSearch} />
+
+      {(stillMissingImportant.length > 0 || uncertainExtractedKeys.length > 0) && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-medium">검색 전에 확인해 주세요</p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-900/90">
+            {stillMissingImportant.length > 0 &&
+              '중요 조건이 비어 있으면 검색 결과가 없거나 엉뚱할 수 있습니다. '}
+            {uncertainExtractedKeys.length > 0 &&
+              `AI가 확신하지 못한 항목: ${uncertainExtractedKeys.join(', ')}. `}
+            결과가 없으면 조건 해석 문제인지, 해당 공고가 없는 것인지 구분하기 어렵습니다.
+          </p>
+        </div>
+      )}
 
       {/* 법적 고지 */}
       <p className="mb-8 rounded-lg bg-gray-50 px-4 py-3 text-xs text-muted-foreground">

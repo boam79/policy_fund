@@ -135,6 +135,45 @@ async function main() {
     assert(!itSummary.includes('IT으로'), 'IT-only parse summary particle')
   })
 
+  await section('[exhaustive] search empty_state·requested_filters', async () => {
+    const { buildSearchEmptyState } = await import('../lib/search/emptyResult')
+    const sample = buildSearchEmptyState({
+      search_mode: 'relaxed',
+      fallback_applied: ['drop_industry'],
+      requested_filters: {
+        region: '서울',
+        city: null,
+        industry: '제조업',
+        keyword: null,
+        support_purpose: null,
+      },
+      applied_filters: {
+        region: '서울',
+        city: null,
+        industry: null,
+        keyword: null,
+        support_purpose: null,
+      },
+    })
+    assert(sample.kind === 'relaxed_zero_after_fallback', 'empty_state kind after fallback')
+    assert(sample.filtersRelaxed === true, 'filtersRelaxed flag')
+
+    const search = await fetchJson('/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ region: '서울', industry: '제조업', limit: 3 }),
+    })
+    assert(search.status === 200 && search.json.ok === true, 'search 200')
+    assert(
+      (search.json.requested_filters as { region?: string })?.region === '서울',
+      'requested_filters on success'
+    )
+    if (Number(search.json.total) === 0) {
+      const empty = search.json.empty_state as { title?: string } | null
+      assert(Boolean(empty?.title), 'empty_state when total=0')
+    }
+  })
+
   await section('search 엣지', async () => {
     const noBody = await fetchJson('/api/search', {
       method: 'POST',

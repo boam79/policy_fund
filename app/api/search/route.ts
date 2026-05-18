@@ -23,6 +23,10 @@ import {
 import { isBetaOpenAccessEnabled } from '@/lib/billing/betaAccess'
 import { computeDaysUntilDeadline } from '@/lib/programs/deadline'
 import {
+  buildSearchEmptyState,
+  buildSearchFilterSnapshot,
+} from '@/lib/search/emptyResult'
+import {
   planAllowsStrictSearch,
   UPGRADE_STRICT_SEARCH_MESSAGE,
 } from '@/lib/billing/plans'
@@ -156,7 +160,19 @@ export async function POST(request: NextRequest) {
       keyword: effectiveSearch.keyword,
     })
 
-    const applied_filters = {
+    const requested_filters = buildSearchFilterSnapshot({
+      region: region ?? null,
+      city: city ?? null,
+      industry: industry ?? null,
+      industry_match,
+      keyword: keyword ?? null,
+      support_purpose: support_purpose ?? null,
+      business_age_years: business_age_years ?? null,
+      employee_count: employee_count ?? null,
+      include_closed,
+    })
+
+    const applied_filters = buildSearchFilterSnapshot({
       region: effectiveSearch.region ?? null,
       city: effectiveSearch.city ?? null,
       industry: effectiveSearch.industry ?? null,
@@ -165,8 +181,19 @@ export async function POST(request: NextRequest) {
       support_purpose: effectiveSearch.support_purpose ?? null,
       business_age_years: business_age_years ?? null,
       employee_count: employee_count ?? null,
-      text_terms: appliedTextTerms,
-    }
+      include_closed,
+    })
+    applied_filters.text_terms = appliedTextTerms
+
+    const empty_state =
+      result.total === 0
+        ? buildSearchEmptyState({
+            search_mode,
+            fallback_applied: fallbackApplied,
+            requested_filters,
+            applied_filters,
+          })
+        : null
 
     if (search_mode === 'strict' && result.total === 0) {
       return apiError({
@@ -177,7 +204,9 @@ export async function POST(request: NextRequest) {
         traceId,
         meta: {
           search_mode,
+          requested_filters,
           applied_filters,
+          empty_state,
           hint: STRICT_NO_RESULTS_HINT,
         },
       })
@@ -248,7 +277,9 @@ export async function POST(request: NextRequest) {
       search_mode,
       industry_match: effectiveSearch.industry_match ?? industry_match,
       fallback_applied: fallbackApplied.length > 0 ? fallbackApplied : null,
-      applied_filters: { ...applied_filters, include_closed },
+      requested_filters,
+      applied_filters,
+      empty_state,
       trace_id: traceId,
     })
   } catch (e: unknown) {

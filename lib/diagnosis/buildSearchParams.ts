@@ -37,6 +37,9 @@ export function buildSearchQueryFromDiagnosis(
   if (typeof taxArrears === 'boolean') params.set('tax_arrears', taxArrears ? 'yes' : 'no')
   if (supportPurpose) params.set('support_purpose', String(supportPurpose))
 
+  const rawQuery = parsed.raw_query?.trim()
+  if (rawQuery) params.set('q', rawQuery)
+
   return params.toString()
 }
 
