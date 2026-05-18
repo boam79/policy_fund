@@ -1,8 +1,9 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { FileText, Calendar, CheckSquare, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { FileText, Calendar, CheckSquare, ChevronDown, ChevronUp, Download, Loader2, LogIn } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import { readApiError } from '@/lib/api/readApiError'
@@ -61,7 +62,14 @@ const LEGAL_DISCLAIMER = '본 문서 초안은 AI가 생성한 참고용 자료�
 
 function DocumentPlanContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const supabase = createClient()
+  const loginNext = useMemo(() => {
+    const q = searchParams.toString()
+    return q ? `/documents/plan?${q}` : '/documents/plan'
+  }, [searchParams])
+  const [authChecked, setAuthChecked] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [tab, setTab] = useState<Tab>('plan')
   const [template, setTemplate] = useState<'gov' | 'psst'>('gov')
   const [loading, setLoading] = useState(false)
@@ -128,6 +136,10 @@ function DocumentPlanContent() {
 
         const { data: auth } = await supabase.auth.getUser()
         const user = auth.user
+        if (!cancelled) {
+          setIsLoggedIn(Boolean(user))
+          setAuthChecked(true)
+        }
         if (user) {
           const [profileRes, searchRes] = await Promise.all([
             supabase
@@ -153,6 +165,10 @@ function DocumentPlanContent() {
         }
       } catch {
         // 클라이언트 초기화 실패는 무시하고 localStorage 폴백 사용
+        if (!cancelled) {
+          setIsLoggedIn(false)
+          setAuthChecked(true)
+        }
       }
 
       let localQuery = ''
@@ -265,6 +281,10 @@ function DocumentPlanContent() {
   }, [searchKey, supabase])
 
   const handleGenerate = async () => {
+    if (!isLoggedIn) {
+      router.push(`/login?next=${encodeURIComponent(loginNext)}`)
+      return
+    }
     if (!title) {
       setGenerateError('공고명을 입력하세요.')
       return
@@ -295,6 +315,10 @@ function DocumentPlanContent() {
           }),
         })
         const data = await res.json()
+        if (res.status === 401) {
+          router.push(`/login?next=${encodeURIComponent(loginNext)}`)
+          return
+        }
         if (!res.ok || data.ok === false) {
           throw new Error(readApiError(data, '사업계획서 생성에 실패했습니다.'))
         }
@@ -313,6 +337,10 @@ function DocumentPlanContent() {
           body: JSON.stringify({ program_id: programId || undefined, announcementTitle: title, announcementText, deadline, businessType }),
         })
         const data = await res.json()
+        if (res.status === 401) {
+          router.push(`/login?next=${encodeURIComponent(loginNext)}`)
+          return
+        }
         if (!res.ok || data.ok === false) {
           throw new Error(readApiError(data, '서류 체크리스트 생성에 실패했습니다.'))
         }
@@ -333,6 +361,10 @@ function DocumentPlanContent() {
           }),
         })
         const data = await res.json()
+        if (res.status === 401) {
+          router.push(`/login?next=${encodeURIComponent(loginNext)}`)
+          return
+        }
         if (!res.ok || data.ok === false) {
           throw new Error(readApiError(data, '신청 타임라인 생성에 실패했습니다.'))
         }
@@ -370,6 +402,24 @@ function DocumentPlanContent() {
           {journeyHint && (
             <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
               <p className="text-xs text-blue-700">{journeyHint}</p>
+            </div>
+          )}
+          {authChecked && !isLoggedIn && (
+            <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+              <p className="text-sm font-medium text-indigo-900">
+                문서 AI 생성은 로그인 후 이용할 수 있어요
+              </p>
+              <p className="text-xs text-indigo-700 mt-1 leading-relaxed">
+                베타 기간에는 로그인만 하시면 사업계획서 초안·서류 체크리스트·신청 타임라인을 모두 사용할 수
+                있습니다. 아래에서 내용을 확인한 뒤 로그인해 주세요.
+              </p>
+              <Link
+                href={`/login?next=${encodeURIComponent(loginNext)}`}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+              >
+                <LogIn className="h-4 w-4" />
+                로그인하고 생성하기
+              </Link>
             </div>
           )}
           <div className="grid gap-3">
@@ -456,8 +506,24 @@ function DocumentPlanContent() {
           )}
 
           <button onClick={handleGenerate} disabled={loading}
-            className="mt-4 w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
-            {loading ? <><Loader2 className="h-4 w-4 animate-spin" />생성 중...</> : '생성하기'}
+            className={`mt-4 w-full py-3 rounded-lg font-medium disabled:opacity-50 transition-colors flex items-center justify-center gap-2 ${
+              authChecked && !isLoggedIn
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                생성 중...
+              </>
+            ) : authChecked && !isLoggedIn ? (
+              <>
+                <LogIn className="h-4 w-4" />
+                로그인 후 생성하기
+              </>
+            ) : (
+              '생성하기'
+            )}
           </button>
         </div>
 

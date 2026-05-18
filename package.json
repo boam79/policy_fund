@@ -14,6 +14,7 @@
     "verify:hard": "tsx scripts/verify-story-hard.ts",
     "verify:journey": "tsx scripts/verify-journey.ts",
     "verify:journey-exhaustive": "tsx scripts/verify-journey-exhaustive.ts",
+    "verify:journey-documents": "tsx scripts/verify-journey-documents.ts",
     "verify:wave2": "tsx scripts/verify-wave2.ts",
     "verify:wave3": "tsx scripts/verify-wave3.ts",
     "verify:wave4": "tsx scripts/verify-wave4.ts",
