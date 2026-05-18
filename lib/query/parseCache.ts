@@ -5,7 +5,7 @@ import type { BusinessConditions } from '@/types'
 const TTL_MS = 24 * 60 * 60 * 1000
 const MAX_ENTRIES = 500
 /** 요약 문구 형식 변경 시 bump → 기존 in-memory 캐시 무효화 */
-const CACHE_VERSION = 'v2'
+const CACHE_VERSION = 'v3'
 
 type ParseCacheEntry = {
   parsed: ParseNLResult

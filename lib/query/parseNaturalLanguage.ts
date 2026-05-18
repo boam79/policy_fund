@@ -11,6 +11,7 @@ import { geminiJSON, Type } from '@/lib/llm/gemini'
 import type { Schema } from '@google/genai'
 import type { BusinessConditions } from '@/types'
 import { toCanonicalIndustry } from '@/lib/industry/canonical'
+import { canonicalizeParsedConditions } from '@/lib/query/canonicalizeParseConditions'
 
 export interface ExtractedCondition<T = unknown> {
   value: T
@@ -105,7 +106,7 @@ function domainValidateConditions(
   conditions: ParsedConditions,
   missingImportant: string[]
 ): { conditions: ParsedConditions; missing_important: string[] } {
-  const validated: ParsedConditions = { ...conditions }
+  const validated: ParsedConditions = canonicalizeParsedConditions({ ...conditions })
   const extraMissing: string[] = []
 
   // region 검증
@@ -176,6 +177,7 @@ const INDUSTRY_KEYWORDS = [
 
 const PURPOSE_KEYWORDS = [
   '운전자금',
+  '운영자금',
   '시설자금',
   '사업화',
   '마케팅',
@@ -320,12 +322,13 @@ export function buildSummaryPartsFromConditions(conditions: ParsedConditions): s
 
 /** 캐시·LLM 응답 포함 — 조건 기반 요약으로 통일 (조사 오류·형식 불일치 방지) */
 export function finalizeParseResult(parsed: ParseNLResult): ParseNLResult {
-  const summaryParts = buildSummaryPartsFromConditions(parsed.conditions)
+  const conditions = canonicalizeParsedConditions(parsed.conditions)
+  const summaryParts = buildSummaryPartsFromConditions(conditions)
   const summary =
     summaryParts.length > 0
       ? buildParseSummaryFromParts(summaryParts)
       : normalizeParseSummaryText(parsed.summary)
-  return { ...parsed, summary }
+  return { ...parsed, conditions, summary }
 }
 
 /** 문장 끝(마지막 음절·약어)에 맞는 「으로/로」 선택 */
@@ -474,15 +477,12 @@ export function parseNaturalLanguageFallback(query: string): ParseNLResult {
   const { conditions: validatedConditions, missing_important: validatedMissing } =
     domainValidateConditions(conditions, missing_important)
 
-  const summaryParts = buildSummaryPartsFromConditions(validatedConditions)
-  const summary = buildParseSummaryFromParts(summaryParts)
-
-  return {
+  return finalizeParseResult({
     conditions: validatedConditions,
-    summary,
+    summary: '',
     missing_important: validatedMissing,
     raw_query: query,
-  }
+  })
 }
 
 /**

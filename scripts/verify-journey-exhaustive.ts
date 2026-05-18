@@ -63,14 +63,77 @@ async function main() {
   console.log(`[verify-journey-exhaustive] base=${BASE}`)
 
   await section('홈·공개 페이지', async () => {
-    for (const p of ['/', '/search', '/diagnosis', '/guide', '/pricing', '/faq', '/login', '/signup']) {
+    for (const p of [
+      '/',
+      '/search',
+      '/diagnosis',
+      '/eligibility',
+      '/evaluate',
+      '/documents/plan',
+      '/report/quick',
+      '/guide',
+      '/pricing',
+      '/faq',
+      '/about',
+      '/contact',
+      '/login',
+      '/signup',
+      '/terms',
+      '/privacy',
+    ]) {
       const { status } = await fetchPage(p)
       assert(status === 200, `${p} → 200 (got ${status})`)
+    }
+    for (const p of ['/mypage', '/manage', '/mypage/alerts', '/billing/checkout']) {
+      const res = await fetchPage(p, 'manual')
+      assert(
+        [301, 302, 303, 307, 308].includes(res.status),
+        `${p} redirects guest to login (got ${res.status})`
+      )
     }
     const diagNoParams = await fetchPage('/diagnosis')
     assert(diagNoParams.status === 200, '/diagnosis without params loads (client shows guidance)')
     const diagProgram = await fetchPage('/diagnosis?program_id=00000000-0000-4000-8000-000000000001')
     assert(diagProgram.status === 200, '/diagnosis?program_id loads (client redirects to eligibility)')
+  })
+
+  await section('parse 지역·지원목적 한글 정규화', async () => {
+    const seoul = await fetchJson('/api/query/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: '서울 IT 스타트업 업력 3년 운영자금' }),
+    })
+    assert(seoul.status === 200, 'parse 서울·운영자금 200')
+    const parsed = (seoul.json.data as Json)?.parsed as Json | undefined
+    const conds = (parsed?.conditions as Json) ?? {}
+    const summary = String(parsed?.summary ?? '')
+    assert(!/\bSeoul\b/i.test(summary), 'summary must not show English region Seoul')
+    assert(!/Operating funds/i.test(summary), 'summary must not show English purpose')
+    const region = (conds.region as Json | undefined)?.value
+    const city = (conds.city as Json | undefined)?.value
+    const purpose = (conds.support_purpose as Json | undefined)?.value
+    if (region) assert(String(region) === '서울', `region should be 서울 (got ${region})`)
+    if (city) assert(String(city) !== 'Seoul', 'city must not remain English Seoul')
+    if (purpose) {
+      assert(
+        ['운전자금', '운영자금', '시설자금', '사업화', '마케팅', '수출', '고용', '인력', '연구개발', 'R&D', '창업'].some(
+          (p) => String(purpose).includes(p)
+        ),
+        `support_purpose should be Korean keyword (got ${purpose})`
+      )
+    }
+    const { buildSearchQueryFromDiagnosis } = await import('../lib/diagnosis/buildSearchParams')
+    const qs = buildSearchQueryFromDiagnosis(
+      {
+        conditions: conds as import('../lib/query/parseNaturalLanguage').ParsedConditions,
+        summary,
+        missing_important: [],
+        raw_query: '서울 IT 스타트업 업력 3년 운영자금',
+      },
+      {}
+    )
+    assert(qs.includes('region=%EC%84%9C%EC%9A%B8') || qs.includes('region=서울'), 'search qs should use region=서울')
+    assert(!qs.includes('city=Seoul'), 'search qs must not use city=Seoul')
   })
 
   await section('parse 업력 「N년 미만」', async () => {
