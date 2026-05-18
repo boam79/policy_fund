@@ -39,9 +39,22 @@ export const SITE_BOT_USER_AGENT = 'JiwondungjiBot/1.0'
 /**보내기 파일명 접두어 (ASCII) */
 export const EXPORT_FILE_PREFIX = 'jiwondungji'
 
-/** 후원하기 외부 링크 (토스·카카오페이 송금 등). 없으면 `/support` 안내 페이지만 사용 */
+/** 후원용 토스 QR (토스 앱 「사진으로 송금」용, toss.me 아님) */
+export const DONATE_QR_IMAGE_PATH = '/support/toss-donate-qr.png'
+
+/** QR 디코딩 결과: 토스 앱 딥링크 (카카오뱅크 계좌 송금 화면) */
+export const DEFAULT_DONATE_DEEP_LINK =
+  'supertoss://send?amount=0&bank=%EC%B9%B4%EC%B9%B4%EC%98%A4%EB%B1%85%ED%81%AC&accountNo=3333122240666&origin=qr'
+
+/** 선택: https 외부 후원 링크 (없으면 QR·딥링크만 사용) */
 export function getDonateUrl(): string | null {
   const url = process.env.NEXT_PUBLIC_DONATE_URL?.trim()
   if (!url) return null
   return /^https?:\/\//i.test(url) ? url : `https://${url}`
+}
+
+/** 토스 앱 송금 딥링크 (환경 변수 `NEXT_PUBLIC_DONATE_DEEP_LINK`로 덮어쓰기 가능) */
+export function getDonateDeepLink(): string {
+  const link = process.env.NEXT_PUBLIC_DONATE_DEEP_LINK?.trim()
+  return link || DEFAULT_DONATE_DEEP_LINK
 }

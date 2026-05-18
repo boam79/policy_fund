@@ -16,16 +16,14 @@ const sizeClass = {
   lg: 'px-6 py-3 text-base',
 }
 
+/** 후원 안내 페이지(`/support`, QR 표시)로 이동 */
 export function DonateButton({
   className,
   size = 'md',
   variant = 'primary',
   showIcon = true,
 }: DonateButtonProps) {
-  const externalUrl = getDonateUrl()
-  const href = externalUrl ?? '/support'
-  const isExternal = Boolean(externalUrl)
-
+  const httpsUrl = getDonateUrl()
   const base = cn(
     'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-colors',
     sizeClass[size],
@@ -35,9 +33,9 @@ export function DonateButton({
     className
   )
 
-  if (isExternal) {
+  if (httpsUrl) {
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className={base}>
+      <a href={httpsUrl} target="_blank" rel="noopener noreferrer" className={base}>
         {showIcon && <Heart className="h-4 w-4 fill-current" />}
         후원하기
       </a>
@@ -45,7 +43,7 @@ export function DonateButton({
   }
 
   return (
-    <Link href={href} className={base}>
+    <Link href="/support" className={base}>
       {showIcon && <Heart className="h-4 w-4 fill-current" />}
       후원하기
     </Link>

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 import { Heart, Coffee, ArrowLeft } from 'lucide-react'
-import { DonateButton } from '@/components/support/DonateButton'
-import { SITE_NAME, getDonateUrl } from '@/lib/site-config'
+import { OpenInTossButton } from '@/components/support/OpenInTossButton'
+import { SITE_NAME, DONATE_QR_IMAGE_PATH } from '@/lib/site-config'
 
 export const metadata: Metadata = {
   title: '후원하기',
@@ -10,8 +11,6 @@ export const metadata: Metadata = {
 }
 
 export default function SupportPage() {
-  const donateUrl = getDonateUrl()
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-rose-50/80 via-white to-gray-50">
       <div className="container mx-auto max-w-2xl px-4 py-12">
@@ -39,24 +38,32 @@ export default function SupportPage() {
         <div className="rounded-2xl border border-rose-100 bg-white p-8 shadow-sm text-center space-y-6">
           <div className="flex items-center justify-center gap-2 text-rose-700">
             <Coffee className="h-5 w-5" />
-            <p className="text-sm font-medium">한 잔의 커피 값으로도 충분해요</p>
+            <p className="text-sm font-medium">토스로 후원하기</p>
           </div>
 
-          <DonateButton size="lg" className="w-full sm:w-auto min-w-[200px]" />
+          <div className="mx-auto w-fit rounded-2xl border border-gray-100 bg-white p-4 shadow-inner">
+            <Image
+              src={DONATE_QR_IMAGE_PATH}
+              alt="지원둥지 토스 후원 QR 코드"
+              width={220}
+              height={220}
+              className="h-[220px] w-[220px] object-contain"
+              priority
+              unoptimized
+            />
+          </div>
 
-          {donateUrl ? (
-            <p className="text-xs text-gray-500">
-              후원하기를 누르면 외부 결제·송금 페이지로 이동합니다.
-            </p>
-          ) : (
-            <p className="text-xs text-gray-500 leading-relaxed">
-              운영자가 후원 링크를 설정하는 중입니다.{' '}
-              <Link href="/contact" className="text-rose-600 underline underline-offset-2">
-                고객센터
-              </Link>
-              로 문의해 주셔도 됩니다.
-            </p>
-          )}
+          <p className="text-sm text-gray-600 leading-relaxed">
+            토스 앱 <strong className="text-gray-800">전체 → 사진으로 송금</strong>에서 위 QR을
+            스캔하거나, 모바일에서 아래 버튼으로 송금 화면을 열어 주세요.
+          </p>
+
+          <OpenInTossButton className="w-full sm:w-auto min-w-[200px]" />
+
+          <p className="text-xs text-gray-500 leading-relaxed">
+            예전 <strong className="text-gray-600">toss.me(토스아이디 송금)</strong> 링크는 2024년 8월
+            1일 종료되었습니다. 이 QR은 토스 앱 계좌 송금용입니다.
+          </p>
         </div>
 
         <ul className="mt-10 space-y-3 text-sm text-gray-600">
@@ -67,6 +74,10 @@ export default function SupportPage() {
           <li className="flex gap-2">
             <span className="text-rose-500 font-bold">·</span>
             후원금은 서버·공공 API·AI API 등 운영 비용에 사용됩니다.
+          </li>
+          <li className="flex gap-2">
+            <span className="text-rose-500 font-bold">·</span>
+            토스 앱이 설치되어 있어야 QR·링크로 송금할 수 있습니다.
           </li>
           <li className="flex gap-2">
             <span className="text-rose-500 font-bold">·</span>
