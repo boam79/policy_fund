@@ -27,7 +27,10 @@ import { buildSearchUrlFromProfile } from '@/lib/profile/business-profile-defaul
 import SearchEmptyStatePanel from '@/components/search/SearchEmptyState'
 import type { SearchEmptyState, SearchFilterSnapshot } from '@/lib/search/emptyResult'
 import { buildSearchEmptyState, lowConfidenceFieldKeys } from '@/lib/search/emptyResult'
-import { isSearchBrowseEntry } from '@/lib/search/browse'
+import {
+  hasDefaultBrowseIntent,
+  hasSearchFilterParams,
+} from '@/lib/search/browse'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 
 interface EligibilityResult {
@@ -210,15 +213,8 @@ function SearchContent() {
   }, [])
 
   useEffect(() => {
-    const hasParams =
-      isSearchBrowseEntry(searchParams) ||
-      searchParams.get('region') ||
-      searchParams.get('industry') ||
-      searchParams.get('keyword') ||
-      searchParams.get('q') ||
-      searchParams.get('support_purpose') ||
-      searchParams.get('business_age_years')
-    if (hasParams || profilePrefillDoneRef.current) return
+    if (hasDefaultBrowseIntent(searchParams) || hasSearchFilterParams(searchParams)) return
+    if (profilePrefillDoneRef.current) return
     profilePrefillDoneRef.current = true
     let cancelled = false
     void (async () => {
@@ -468,19 +464,9 @@ function SearchContent() {
   // diagnosis·URL 쿼리 진입 시 자동 검색 (빈 화면 깜빡임 방지)
   useLayoutEffect(() => {
     const key = searchParams.toString()
-    const hasParams =
-      isSearchBrowseEntry(searchParams) ||
-      searchParams.get('region') ||
-      searchParams.get('industry') ||
-      searchParams.get('keyword') ||
-      searchParams.get('q') ||
-      searchParams.get('support_purpose') ||
-      searchParams.get('business_age_years') ||
-      searchParams.get('employee_count') ||
-      searchParams.get('tax_arrears') ||
-      searchParams.get('search_mode') ||
-      searchParams.get('include_closed')
-    if (!hasParams || autoSearchKeyRef.current === key) return
+    const shouldAutoSearch =
+      hasDefaultBrowseIntent(searchParams) || hasSearchFilterParams(searchParams)
+    if (!shouldAutoSearch || autoSearchKeyRef.current === key) return
     if (searchParams.get('include_closed') === '1') {
       setIncludeClosed(true)
     }

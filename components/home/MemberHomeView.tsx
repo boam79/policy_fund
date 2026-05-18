@@ -8,6 +8,7 @@ import MemberProfileCard from '@/components/home/MemberProfileCard'
 import DiagnosisStepPreview from '@/components/home/DiagnosisStepPreview'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import type { MemberHomeData } from '@/lib/home/member-feed'
+import { SEARCH_LIST_HREF } from '@/lib/search/browse'
 import { Clock, Sparkles, BookOpen } from 'lucide-react'
 
 function profileSubtitle(profile: MemberHomeData['profile']): string | null {
@@ -54,7 +55,7 @@ export default function MemberHomeView({
                   3분 맞춤 진단 {profile ? '다시하기' : '시작하기'}
                 </Link>
                 <Link
-                  href={profileSearchUrl ?? '/search'}
+                  href={profileSearchUrl ?? SEARCH_LIST_HREF}
                   className={cn(buttonVariants({ variant: 'outline', size: 'lg' }))}
                 >
                   조건으로 검색

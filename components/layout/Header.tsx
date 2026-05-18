@@ -7,11 +7,12 @@ import { createClient } from '@/lib/supabase/client'
 import { User, LogOut, Star, CreditCard, Bookmark } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { SITE_NAME } from '@/lib/site-config'
+import { SEARCH_LIST_HREF } from '@/lib/search/browse'
 
 /** 비로그인·로그인 공통 상단 메뉴 */
 const mainNavLinks = [
   { href: '/about', label: '서비스 소개' },
-  { href: '/search', label: '지원사업 찾기' },
+  { href: SEARCH_LIST_HREF, label: '지원사업 찾기' },
   { href: '/documents/plan', label: '사업계획서' },
   { href: '/guide', label: '이용안내' },
   { href: '/faq', label: '자주 묻는 질문' },

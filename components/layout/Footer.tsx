@@ -2,13 +2,14 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { DonateButton } from '@/components/support/DonateButton'
 import { SITE_NAME } from '@/lib/site-config'
+import { SEARCH_LIST_HREF } from '@/lib/search/browse'
 
 const footerSections = [
   {
     title: '서비스',
     links: [
       { href: '/about', label: '서비스 소개' },
-      { href: '/search', label: '지원사업 찾기' },
+      { href: SEARCH_LIST_HREF, label: '지원사업 찾기' },
       { href: '/documents/plan', label: '사업계획서 생성' },
       { href: '/guide', label: '이용안내' },
     ],

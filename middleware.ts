@@ -20,6 +20,13 @@ export async function middleware(request: NextRequest) {
   const oauthExchange = await exchangeOAuthCodeIfPresent(request)
   if (oauthExchange) return oauthExchange
 
+  /** 검색 목록: 빈 `/search`는 모집 공고 목록으로 */
+  if (method === 'GET' && path === '/search' && request.nextUrl.search === '') {
+    const url = request.nextUrl.clone()
+    url.searchParams.set('browse', '1')
+    return NextResponse.redirect(url)
+  }
+
   /** 공개 GET API — IP별 남용 방지 */
   if (method === 'GET' && path === '/api/home/recommendations') {
     const rate = takeRateLimit(request, 'api:home:recommendations', { windowMs: 60_000, max: 120 })

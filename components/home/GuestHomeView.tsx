@@ -8,7 +8,7 @@ import Image from 'next/image'
 import type { HomeStats } from '@/lib/home/stats'
 import type { RecommendedProgram } from '@/lib/home/recommendations'
 import { HOME_GUEST_PROGRAM_LIMIT } from '@/lib/home/program-display'
-import { SEARCH_BROWSE_QUERY } from '@/lib/search/browse'
+import { SEARCH_LIST_HREF } from '@/lib/search/browse'
 
 export default function GuestHomeView({
   stats,
@@ -71,7 +71,7 @@ export default function GuestHomeView({
               <Info className="h-4 w-4 text-slate-400" aria-hidden />
             </h2>
             <Link
-              href={`/search?${SEARCH_BROWSE_QUERY}`}
+              href={SEARCH_LIST_HREF}
               className="relative z-10 shrink-0 rounded-sm px-1 text-sm font-medium text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               aria-label="모집 중 지원사업 전체 목록 보기"
             >
