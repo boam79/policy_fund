@@ -19,6 +19,7 @@ import {
 import { readApiError } from '@/lib/api/readApiError'
 import { getPlan, type PlanId } from '@/lib/billing/plans'
 import { UserDetailDrawer } from '@/components/admin/users/UserDetailDrawer'
+import { OnlineUsersPanel } from '@/components/admin/users/OnlineUsersPanel'
 
 interface UserRow {
   id: string
@@ -254,6 +255,8 @@ export default function AdminUsersPage() {
           </button>
         </div>
       </div>
+
+      <OnlineUsersPanel onSelectUser={(id) => openUser(id)} />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
         {[

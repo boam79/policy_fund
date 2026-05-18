@@ -3,6 +3,7 @@ import { Geist_Mono, Noto_Sans_KR } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/layout/Header'
 import ConditionalMain from '@/components/layout/ConditionalMain'
+import PresenceHeartbeat from '@/components/presence/PresenceHeartbeat'
 import ConditionalFooter from '@/components/layout/ConditionalFooter'
 import { Toaster } from '@/components/ui/sonner'
 import SiteWideJsonLd from '@/components/seo/SiteWideJsonLd'
@@ -95,6 +96,7 @@ export default function RootLayout({
         <SiteWideJsonLd />
         <OAuthReturnHandlerBoundary />
         <BetaNoticeDialog />
+        <PresenceHeartbeat />
         <Header />
         <ConditionalMain>{children}</ConditionalMain>
         <ConditionalFooter />
