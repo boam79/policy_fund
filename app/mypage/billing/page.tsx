@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CreditCard, Zap, Calendar, Receipt, Loader2, AlertCircle } from 'lucide-react'
 import { getPlan, type PlanId } from '@/lib/billing/plans'
+import { DonateButton } from '@/components/support/DonateButton'
 import { SITE_NAME } from '@/lib/site-config'
 import { createClient } from '@/lib/supabase/client'
 
@@ -91,12 +92,7 @@ export default function BillingPage() {
               )}
             </div>
             <div className="flex flex-col gap-2">
-              <Link
-                href="/support"
-                className="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700 transition-colors text-center"
-              >
-                후원하기
-              </Link>
+              <DonateButton size="md" className="w-full" />
               {!adminBypass && currentPlan.id !== 'free' && !sub?.cancel_at_period_end && (
                 <button onClick={handleCancel} disabled={canceling}
                   className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition-colors">
@@ -131,7 +127,11 @@ export default function BillingPage() {
           </div>
           <p className="text-xs text-gray-400 mt-3">
             {SITE_NAME}이 도움이 되셨다면{' '}
-            <Link href="/support" className="text-rose-600 hover:underline">
+            <Link
+              href="/support"
+              className="text-rose-600 underline-offset-2 hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              aria-label="후원하기, 토스 QR 안내 페이지로 이동"
+            >
               후원하기
             </Link>
             로 운영을 응원해 주세요.

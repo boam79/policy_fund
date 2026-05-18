@@ -245,8 +245,13 @@ export default function SearchBar({
         <div className="mt-2 space-y-1">
           <p className="text-sm text-destructive">{error}</p>
           {error.includes('AI 조건 분석') || error.includes('AI 분석') ? (
-            <Link href="/support" className="text-xs font-medium text-rose-600 hover:underline">
-              후원하기 →
+            <Link
+              href="/support"
+              className="inline-flex min-h-11 items-center text-xs font-medium text-rose-600 underline-offset-2 hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              aria-label="후원하기, 토스 QR 안내 페이지로 이동"
+            >
+              후원하기
+              <span aria-hidden> →</span>
             </Link>
           ) : null}
         </div>

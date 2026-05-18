@@ -11,7 +11,6 @@ const footerSections = [
       { href: '/search', label: '지원사업 찾기' },
       { href: '/documents/plan', label: '사업계획서 생성' },
       { href: '/guide', label: '이용안내' },
-      { href: '/support', label: '후원하기' },
     ],
   },
   {
@@ -52,9 +51,9 @@ export default function Footer() {
             <p className="mt-2 text-sm text-muted-foreground">
               정부지원사업 공고 검색·매칭과 참고용 자격 확인·문서 초안을 돕는 서비스
             </p>
-            <div className="mt-4">
+            <nav className="mt-4" aria-label="후원">
               <DonateButton size="sm" variant="outline" />
-            </div>
+            </nav>
           </div>
           {footerSections.map((section) => (
             <div key={section.title}>
