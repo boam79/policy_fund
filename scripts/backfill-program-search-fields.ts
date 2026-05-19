@@ -11,6 +11,7 @@ import {
   inferRegionFromProgramText,
   pickBestApplicationUrl,
 } from '@/lib/gov-support/core/enrichProgram'
+import { buildProgramSearchText } from '@/lib/gov-support/core/buildProgramSearchText'
 
 const BATCH = 200
 
@@ -44,9 +45,16 @@ async function main() {
         row.region?.trim() || inferRegionFromProgramText(row.title ?? '', row.organization)
       const nextUrl = pickBestApplicationUrl(raw, row.application_url) || row.application_url
 
-      const patch: { region?: string; application_url?: string } = {}
+      const patch: { region?: string; application_url?: string; search_text?: string | null } = {}
       if (nextRegion && nextRegion !== (row.region ?? '')) patch.region = nextRegion
       if (nextUrl && nextUrl !== row.application_url) patch.application_url = nextUrl
+
+      const nextSearchText = buildProgramSearchText({
+        external_id: row.external_id ?? '',
+        application_url: nextUrl ?? row.application_url,
+        raw_content: raw,
+      })
+      if (nextSearchText) patch.search_text = nextSearchText
 
       if (Object.keys(patch).length === 0) continue
 

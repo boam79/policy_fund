@@ -15,6 +15,7 @@ export interface RecommendedProgram {
   title: string
   organization: string | null
   region: string | null
+  industry: string | null
   support_type: string | null
   support_amount: string | null
   support_amount_min_krw: number | null
@@ -35,6 +36,7 @@ type ProgramRow = Pick<
   | 'title'
   | 'organization'
   | 'region'
+  | 'industry'
   | 'support_type'
   | 'support_amount'
   | 'support_amount_min_krw'
@@ -47,7 +49,7 @@ type ProgramRow = Pick<
 >
 
 const PROGRAM_SELECT =
-  'id, source, title, organization, region, support_type, support_amount, support_amount_min_krw, support_amount_max_krw, application_end_date, application_url, status, recommendation_score, summary_text' as const
+  'id, source, title, organization, region, industry, support_type, support_amount, support_amount_min_krw, support_amount_max_krw, application_end_date, application_url, status, recommendation_score, summary_text' as const
 
 export function mapRowsToRecommendedPrograms(rows: ProgramRow[]): RecommendedProgram[] {
   const now = Date.now()
@@ -75,6 +77,7 @@ export function mapRowsToRecommendedPrograms(rows: ProgramRow[]): RecommendedPro
       title: p.title,
       organization: p.organization,
       region: p.region,
+      industry: p.industry,
       support_type: p.support_type,
       support_amount: p.support_amount,
       support_amount_min_krw: p.support_amount_min_krw,

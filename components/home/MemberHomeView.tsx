@@ -1,13 +1,17 @@
+'use client'
+
 import Link from 'next/link'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import SearchBar from '@/components/home/SearchBar'
-import HomeProgramRichCard from '@/components/home/HomeProgramRichCard'
 import RecentSearchChips from '@/components/home/RecentSearchChips'
 import MemberProfileCard from '@/components/home/MemberProfileCard'
+import MemberProfileInlineForm from '@/components/home/MemberProfileInlineForm'
+import MemberSpotlightSection, { refreshMemberSpotlight } from '@/components/home/MemberSpotlightSection'
 import DiagnosisStepPreview from '@/components/home/DiagnosisStepPreview'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import type { MemberHomeData } from '@/lib/home/member-feed'
+import { isProfileCompleteForRecommendations } from '@/lib/home/recommendReason'
 import { SEARCH_LIST_HREF } from '@/lib/search/browse'
 import { Clock, Sparkles, BookOpen } from 'lucide-react'
 
@@ -23,14 +27,17 @@ function profileSubtitle(profile: MemberHomeData['profile']): string | null {
 
 export default function MemberHomeView({
   displayName,
+  userId,
   memberData,
 }: {
   displayName: string
+  userId: string
   memberData: MemberHomeData
 }) {
   const { profile, profileSearchUrl, personalizedFromProfile, closingSoon, spotlightPrograms } =
     memberData
   const subtitle = profileSubtitle(profile)
+  const profileComplete = isProfileCompleteForRecommendations(profile)
 
   return (
     <div className="flex flex-col bg-gray-50">
@@ -72,11 +79,18 @@ export default function MemberHomeView({
         </div>
       </section>
 
-      <section className="px-4 py-8">
+      <section className="px-4 py-8 pb-24 md:pb-8">
         <div className="container mx-auto max-w-7xl">
           <div className="grid gap-6 lg:grid-cols-12">
             <div className="space-y-6 lg:col-span-4">
               <MemberProfileCard profile={profile} />
+              {!profileComplete && (
+                <MemberProfileInlineForm
+                  initialProfile={profile}
+                  userId={userId}
+                  onSaved={() => refreshMemberSpotlight()}
+                />
+              )}
 
               <div className="rounded-2xl border bg-white p-5 shadow-sm">
                 <h2 className="mb-3 flex items-center gap-2 text-base font-bold">
@@ -113,47 +127,28 @@ export default function MemberHomeView({
                   <Sparkles className="h-4 w-4 text-blue-500" />
                   최근 검색
                 </h2>
-                <RecentSearchChips />
+                <p className="mb-2 text-xs text-muted-foreground">탭하면 추천 공고가 갱신됩니다.</p>
+                <RecentSearchChips mode="home" />
               </div>
+
+              <Link
+                href="/mypage/alerts"
+                className={cn(
+                  buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'w-full justify-center'
+                )}
+              >
+                마감·신규 알림 설정
+              </Link>
             </div>
 
             <div className="lg:col-span-8">
-              <div className="mb-4 flex items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-lg font-bold">
-                    {personalizedFromProfile ? '진단·프로필 기반 추천' : '추천 공고'}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {personalizedFromProfile
-                      ? '저장된 프로필 조건으로 찾은 공고입니다.'
-                      : '프로필을 저장하거나 진단을 완료하면 맞춤 추천이 표시됩니다.'}
-                  </p>
-                </div>
-                <Link
-                  href={profileSearchUrl ?? '/search?browse=1'}
-                  className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
-                >
-                  더 보기 →
-                </Link>
-              </div>
-
-              {spotlightPrograms.length === 0 ? (
-                <div className="rounded-2xl border border-dashed bg-white p-10 text-center text-sm text-muted-foreground">
-                  조건에 맞는 공고가 없습니다. 진단을 다시 하거나 검색 조건을 넓혀 보세요.
-                </div>
-              ) : (
-                <div className="grid gap-5 md:grid-cols-2">
-                  {spotlightPrograms.map((prog, i) => (
-                    <HomeProgramRichCard
-                      key={prog.id}
-                      program={prog}
-                      variant="member"
-                      rankIndex={i}
-                      personalized={personalizedFromProfile}
-                    />
-                  ))}
-                </div>
-              )}
+              <MemberSpotlightSection
+                initialPrograms={spotlightPrograms}
+                initialPersonalized={personalizedFromProfile}
+                profile={profile}
+                profileSearchUrl={profileSearchUrl}
+              />
             </div>
           </div>
         </div>

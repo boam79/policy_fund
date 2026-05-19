@@ -22,6 +22,7 @@ type EligibilityResponse = {
   failed: string[]
   unknown: string[]
   explanation?: string
+  alternatives?: { id: string; title: string; region: string | null; application_end_date: string | null }[]
 }
 
 function pickString(searchParams: URLSearchParams, key: string): string {
@@ -237,6 +238,27 @@ function EligibilityContent() {
 
             <ResultList title="충족 조건" items={result.passed} icon={<CheckCircle2 className="h-4 w-4 text-green-600" />} emptyText="없음" />
             <ResultList title="미충족/검토 필요" items={result.failed} icon={<AlertTriangle className="h-4 w-4 text-yellow-600" />} emptyText="없음" />
+
+            {result.alternatives && result.alternatives.length > 0 && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-gray-900">비슷한 조건의 다른 공고</p>
+                <ul className="mt-2 space-y-2">
+                  {result.alternatives.map((alt) => (
+                    <li key={alt.id}>
+                      <Link
+                        href={`/search/${alt.id}`}
+                        className="text-sm text-blue-700 hover:underline line-clamp-2"
+                      >
+                        {alt.title}
+                      </Link>
+                      {alt.region && (
+                        <p className="text-xs text-muted-foreground">{alt.region}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
               <p className="text-sm font-semibold text-blue-900">다음 단계 진행</p>

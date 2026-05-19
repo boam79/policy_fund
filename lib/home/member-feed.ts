@@ -10,6 +10,10 @@ import { getServiceRoleClient } from '@/lib/supabase/serviceRole'
 import { mapRowsToRecommendedPrograms, fetchRecommendedPrograms } from '@/lib/home/recommendations'
 import { fetchClosingSoonList, type HomeProgramListItem } from '@/lib/home/lists'
 import { HOME_MEMBER_PROGRAM_LIMIT } from '@/lib/home/program-display'
+import {
+  buildGenericRecommendReason,
+  buildPersonalizedRecommendReason,
+} from '@/lib/home/recommendReason'
 
 const PROFILE_SELECT =
   'region,city,industry,business_age_years,employee_count,company_name,support_purpose' as const
@@ -88,6 +92,7 @@ async function fetchPersonalizedFromProfile(
         title: p.title,
         organization: p.organization,
         region: p.region,
+        industry: p.industry ?? null,
         support_type: p.support_type,
         summary_text: p.summary_text ?? null,
         support_amount: p.support_amount ?? null,
@@ -101,7 +106,7 @@ async function fetchPersonalizedFromProfile(
     ).map((p, index) => ({
       ...p,
       matchScore: Math.min(98, Math.max(p.matchScore, 92 - index * 4)),
-      recommendReason: '프로필 조건에 맞는 공고입니다.',
+      recommendReason: buildPersonalizedRecommendReason(p, profile),
     }))
   } catch {
     return []
@@ -132,7 +137,7 @@ export async function fetchMemberHomeData(userId: string): Promise<MemberHomeDat
 
   const spotlightPrograms = mergeSpotlightPrograms(
     personalizedPrograms,
-    generic,
+    generic.map((g) => ({ ...g, recommendReason: buildGenericRecommendReason(g) })),
     HOME_MEMBER_PROGRAM_LIMIT
   )
 

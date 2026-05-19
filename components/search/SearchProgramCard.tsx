@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Building2, MapPin, Calendar, ExternalLink } from 'lucide-react'
+import SavedProgramToggle from '@/components/SavedProgramToggle'
 import {
   eligibilityLabel,
   eligibilityColor,
@@ -28,9 +29,11 @@ export type SearchProgramWithEligibility = SupportProgram & {
 export default function SearchProgramCard({
   program: p,
   listQuery,
+  showDuplicateHint = false,
 }: {
   program: SearchProgramWithEligibility
   listQuery: string
+  showDuplicateHint?: boolean
 }) {
   const status = p.eligibility?.status ?? 'unknown'
   const colorClass = eligibilityColor(status)
@@ -55,16 +58,22 @@ export default function SearchProgramCard({
   const detailHref = `/search/${p.id}${returnSuffix}`
 
   return (
-    <Link
-      href={detailHref}
-      className="block bg-white rounded-xl border hover:border-blue-300 hover:shadow-md transition-all p-5 group"
-    >
+    <div className="relative bg-white rounded-xl border hover:border-blue-300 hover:shadow-md transition-all group">
+      <div className="absolute top-3 right-3 z-10">
+        <SavedProgramToggle programId={p.id} compact />
+      </div>
+      <Link href={detailHref} className="block p-5 pr-12">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
               {label}
             </span>
+            {showDuplicateHint && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100">
+                다른 출처에도 있음
+              </span>
+            )}
             {isClosed && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
                 마감
@@ -120,6 +129,7 @@ export default function SearchProgramCard({
           </p>
         </div>
       )}
-    </Link>
+      </Link>
+    </div>
   )
 }

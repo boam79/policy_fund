@@ -7,6 +7,7 @@ import type { NextRequest } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role-client'
 import { isCronBearerAuthorized } from '@/lib/security/cronAuth'
 import { matchProgramsForAlert, type AlertProfileInput } from '@/lib/alerts/matchPrograms'
+import { getSiteUrl } from '@/lib/site-config'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -80,14 +81,17 @@ export async function GET(request: NextRequest) {
       const email = userRow?.user?.email
       if (email) {
         const subject = `[지원둥지] 맞춤 공고 ${matches.length}건`
+        const siteUrl = getSiteUrl()
+        const manageUrl = `${siteUrl}/mypage/alerts`
         const lines = matches
           .slice(0, 15)
           .map((m) => {
             const tag = m.reason === 'new_program' ? '신규' : `마감 D-${m.days_until_deadline ?? '?'}`
-            return `· [${tag}] ${m.title} (${m.source})`
+            const href = `${siteUrl}/search/${m.program_id}`
+            return `· [${tag}] <a href="${href}">${m.title}</a> (${m.source})`
           })
-          .join('\n')
-        const html = `<p>조건에 맞는 공고 ${matches.length}건입니다.</p><pre>${lines}</pre>`
+          .join('<br/>')
+        const html = `<p>조건에 맞는 공고 ${matches.length}건입니다.</p><p>${lines}</p><p style="margin-top:16px;font-size:12px;color:#666"><a href="${manageUrl}">알림 설정 변경</a> · 수신을 원치 않으시면 마이페이지에서 알림을 끄거나 <a href="${manageUrl}">여기</a>에서 설정을 변경해 주세요.</p>`
 
         try {
           const res = await fetch('https://api.resend.com/emails', {

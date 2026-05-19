@@ -16,6 +16,7 @@ import type { SearchEmptyState, SearchFilterSnapshot } from '@/lib/search/emptyR
 import { buildSearchEmptyState } from '@/lib/search/emptyResult'
 import { hasDefaultBrowseIntent, hasSearchFilterParams } from '@/lib/search/browse'
 import { buildSearchQueryString, parseSearchParams } from '@/lib/search/queryParams'
+import type { DroppableFilterKey } from '@/lib/search/dropFilter'
 import type { SearchProgramWithEligibility } from '@/components/search/SearchProgramCard'
 
 type AppliedFilters = SearchFilterSnapshot & { text_terms?: string[] }
@@ -39,10 +40,10 @@ export function useSearchPageState() {
   const initial = parseSearchParams(searchParams)
 
   const [region, setRegion] = useState(initial.region)
-  const [city] = useState(initial.city)
+  const [city, setCity] = useState(initial.city)
   const [industry, setIndustry] = useState(initial.industry)
   const [keyword, setKeyword] = useState(initial.keyword)
-  const [supportPurpose] = useState(initial.supportPurpose)
+  const [supportPurpose, setSupportPurpose] = useState(initial.supportPurpose)
   const [businessAge, setBusinessAge] = useState(initial.businessAge)
   const [employeeCount, setEmployeeCount] = useState(initial.employeeCount)
   const [annualRevenue] = useState(initial.annualRevenue)
@@ -288,6 +289,39 @@ export function useSearchPageState() {
   const activeSearchMode = responseSearchMode ?? searchMode
   const totalPages = Math.ceil(total / LIMIT)
 
+  const dropFilter = useCallback(
+    (key: DroppableFilterKey) => {
+      switch (key) {
+        case 'region':
+          setRegion('')
+          break
+        case 'city':
+          setCity('')
+          break
+        case 'industry':
+          setIndustry('')
+          break
+        case 'industry_match':
+          setIndustryMatch('match')
+          break
+        case 'keyword':
+          setKeyword('')
+          break
+        case 'support_purpose':
+          setSupportPurpose('')
+          break
+        case 'business_age_years':
+          setBusinessAge('')
+          break
+        case 'employee_count':
+          setEmployeeCount('')
+          break
+      }
+      void handleSearch(1)
+    },
+    [handleSearch]
+  )
+
   return {
     region,
     setRegion,
@@ -329,6 +363,7 @@ export function useSearchPageState() {
     setIncludeClosed,
     resultSource,
     handleSearch,
+    dropFilter,
     listQueryString,
     totalPages,
     limit: LIMIT,

@@ -17,6 +17,7 @@ import { takeRateLimit } from '@/lib/security/rateLimit'
 import { apiError, createTraceId, logApiError } from '@/lib/errors/apiError'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { checkUsageLimit, recordUsage } from '@/lib/billing/usage'
+import { fetchEligibilityAlternatives } from '@/lib/eligibility/alternatives'
 
 export const dynamic = 'force-dynamic'
 
@@ -204,6 +205,16 @@ export async function POST(request: NextRequest) {
       await recordUsage(billingUserId, 'eligibility_check')
     }
 
+    const alternatives =
+      eligibility.status === 'likely_ineligible' || eligibility.status === 'review_needed'
+        ? await fetchEligibilityAlternatives({
+            program_id,
+            region: profile.region ?? program.region ?? undefined,
+            industry: profile.industry ?? program.industry ?? undefined,
+            limit: 3,
+          })
+        : []
+
     return Response.json({
       ok: true,
       program_id,
@@ -214,6 +225,7 @@ export async function POST(request: NextRequest) {
       failed: eligibility.failed,
       unknown: eligibility.unknown,
       explanation,
+      alternatives,
       trace_id: traceId,
     })
   } catch (e: unknown) {

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { getSiteUrl } from '@/lib/site-config'
+import { PROVINCE_OPTIONS } from '@/lib/geo/regions'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +12,7 @@ const PUBLIC_PATHS: {
 }[] = [
   { path: '/', priority: 1, changeFrequency: 'daily' },
   { path: '/search', priority: 0.95, changeFrequency: 'hourly' },
+  { path: '/programs/closing-soon', priority: 0.9, changeFrequency: 'hourly' },
   { path: '/diagnosis', priority: 0.9, changeFrequency: 'weekly' },
   { path: '/guide', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/about', priority: 0.8, changeFrequency: 'monthly' },
@@ -28,10 +30,17 @@ const PUBLIC_PATHS: {
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = getSiteUrl()
   const now = new Date()
-  return PUBLIC_PATHS.map(({ path, priority, changeFrequency }) => ({
+  const staticEntries = PUBLIC_PATHS.map(({ path, priority, changeFrequency }) => ({
     url: `${base}${path}`,
     lastModified: now,
     changeFrequency,
     priority,
   }))
+  const regionEntries = PROVINCE_OPTIONS.map((slug) => ({
+    url: `${base}/programs/region/${encodeURIComponent(slug)}`,
+    lastModified: now,
+    changeFrequency: 'daily' as const,
+    priority: 0.85,
+  }))
+  return [...staticEntries, ...regionEntries]
 }

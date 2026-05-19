@@ -5,6 +5,7 @@ import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 import DiagnosisConfirmChips from '@/components/diagnosis/DiagnosisConfirmChips'
+import { DiagnosisSaveProfileButton } from '@/components/diagnosis/DiagnosisSaveProfileButton'
 import { buildDiagnosisQuickReportHref } from '@/lib/diagnosis/navigate'
 
 type Props = {
@@ -80,6 +81,7 @@ export function DiagnosisActionBar({
             약 10~20초 · 실제 공공 데이터 기반 공고 목록
           </span>
         </button>
+        <DiagnosisSaveProfileButton parsed={parsed} editValues={editValues} />
       </div>
     </>
   )

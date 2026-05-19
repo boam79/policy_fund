@@ -1,5 +1,6 @@
 import type { BizinfoItem } from '../clients/bizinfo'
 import type { NormalizedProgram } from './normalizer'
+import { buildProgramSearchText } from './buildProgramSearchText'
 
 /** 제목 `[경기]` 등 광역 표기 */
 const BRACKET_REGION = /\[([가-힣]{2,4})\]/
@@ -163,13 +164,22 @@ export function inferRegionFromProgramText(
 }
 
 /** 동기화·upsert 직전 region·application_url 보강 */
-export function enrichNormalizedProgram(p: NormalizedProgram): NormalizedProgram {
+export function enrichNormalizedProgram(p: NormalizedProgram): NormalizedProgram & {
+  search_text?: string | null
+} {
   const raw = p.raw_content as Record<string, unknown>
   const region = p.region?.trim() || inferRegionFromProgramText(p.title, p.organization)
+  const application_url = pickBestApplicationUrl(raw, p.application_url) || p.application_url
+  const search_text = buildProgramSearchText({
+    external_id: p.external_id,
+    application_url,
+    raw_content: raw,
+  })
 
   return {
     ...p,
     region: region || p.region,
-    application_url: pickBestApplicationUrl(raw, p.application_url) || p.application_url,
+    application_url,
+    search_text,
   }
 }

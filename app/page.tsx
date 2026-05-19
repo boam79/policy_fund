@@ -59,5 +59,5 @@ export default async function HomePage() {
   const memberData = await fetchMemberHomeData(user.id)
   const displayName = resolveDisplayName(user, memberData.profile?.company_name)
 
-  return <MemberHomeView displayName={displayName} memberData={memberData} />
+  return <MemberHomeView displayName={displayName} userId={user.id} memberData={memberData} />
 }

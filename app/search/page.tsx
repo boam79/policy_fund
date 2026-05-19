@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, Suspense } from 'react'
+import { useCallback, Suspense, useMemo } from 'react'
 import Link from 'next/link'
 import { Search, Filter, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import FeedbackWidget from '@/components/FeedbackWidget'
@@ -13,6 +13,7 @@ import SearchEmptyStatePanel from '@/components/search/SearchEmptyState'
 import SearchFiltersPanel from '@/components/search/SearchFiltersPanel'
 import SearchProgramCard from '@/components/search/SearchProgramCard'
 import { lowConfidenceFieldKeys } from '@/lib/search/emptyResult'
+import { buildDuplicateHintMap } from '@/lib/programs/duplicateHint'
 import { useSearchPageState } from '@/hooks/useSearchPageState'
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 
@@ -54,6 +55,13 @@ function SearchContent() {
   const s = useSearchPageState()
   const rawQuery = (s.searchParams.get('q') || s.searchParams.get('keyword') || '').trim()
   const parseLowConfidence = readParseLowConfidenceFields()
+  const duplicateHints = useMemo(
+    () =>
+      buildDuplicateHintMap(
+        s.programs.map((p) => ({ id: p.id, title: p.title, source: p.source }))
+      ),
+    [s.programs]
+  )
 
   const exportSearchResults = useCallback(
     async (format: 'csv' | 'xlsx') => {
@@ -322,6 +330,7 @@ function SearchContent() {
             allowsStrictSearch={s.allowsStrictSearch}
             onRelaxedSearch={() => void s.handleSearch(1, { mode: 'relaxed' })}
             onStrictSearch={() => void s.handleSearch(1, { mode: 'strict' })}
+            onDropFilter={s.dropFilter}
           />
         )}
         {s.searched && !s.loading && s.programs.length === 0 && !s.searchEmptyState && (
@@ -345,7 +354,12 @@ function SearchContent() {
         {!s.loading && s.programs.length > 0 && (
           <div className="space-y-3">
             {s.programs.map((p) => (
-              <SearchProgramCard key={p.id} program={p} listQuery={s.listQueryString} />
+              <SearchProgramCard
+                key={p.id}
+                program={p}
+                listQuery={s.listQueryString}
+                showDuplicateHint={duplicateHints.get(p.id) ?? false}
+              />
             ))}
           </div>
         )}

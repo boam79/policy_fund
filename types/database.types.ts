@@ -1083,6 +1083,7 @@ export type Database = {
           recommendation_score: number | null
           region: string | null
           required_docs: Json | null
+          search_text: string | null
           source: string
           status: string
           summary_text: string | null
@@ -1119,6 +1120,7 @@ export type Database = {
           recommendation_score?: number | null
           region?: string | null
           required_docs?: Json | null
+          search_text?: string | null
           source: string
           status?: string
           summary_text?: string | null
@@ -1155,6 +1157,7 @@ export type Database = {
           recommendation_score?: number | null
           region?: string | null
           required_docs?: Json | null
+          search_text?: string | null
           source?: string
           status?: string
           summary_text?: string | null

@@ -1,41 +1,74 @@
 'use client'
 
 import Link from 'next/link'
-import { Search, AlertCircle, FileSearch, ArrowLeft } from 'lucide-react'
+import { Search, AlertCircle, FileSearch, ArrowLeft, X } from 'lucide-react'
 import type { SearchEmptyState as EmptyStateModel } from '@/lib/search/emptyResult'
 import type { SearchFilterSnapshot } from '@/lib/search/emptyResult'
+import type { DroppableFilterKey } from '@/lib/search/dropFilter'
 import { INDUSTRY_MATCH_LABELS } from '@/lib/gov-support/tools/industryMatch'
 
-function FilterChip({ label, value }: { label: string; value: string }) {
+function FilterChip({
+  label,
+  value,
+  filterKey,
+  onDrop,
+}: {
+  label: string
+  value: string
+  filterKey?: DroppableFilterKey
+  onDrop?: (key: DroppableFilterKey) => void
+}) {
+  const droppable = filterKey && onDrop
   return (
-    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-800">
+    <button
+      type="button"
+      disabled={!droppable}
+      onClick={() => filterKey && onDrop?.(filterKey)}
+      className={
+        droppable
+          ? 'inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-800 hover:bg-slate-200 transition-colors'
+          : 'rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-800'
+      }
+      title={droppable ? '이 조건을 빼고 다시 검색' : undefined}
+    >
       {label}: {value}
-    </span>
+      {droppable && <X className="h-3 w-3 opacity-60" />}
+    </button>
   )
 }
 
 function FilterList({
   title,
   filters,
+  onDropFilter,
+  droppable = false,
 }: {
   title: string
   filters: SearchFilterSnapshot | null
+  onDropFilter?: (key: DroppableFilterKey) => void
+  droppable?: boolean
 }) {
   if (!filters) return null
-  const chips: { label: string; value: string }[] = []
-  if (filters.region) chips.push({ label: '지역', value: filters.region })
-  if (filters.city) chips.push({ label: '시·군', value: filters.city })
-  if (filters.industry) chips.push({ label: '업종', value: filters.industry })
+  const chips: { label: string; value: string; key?: DroppableFilterKey }[] = []
+  if (filters.region) chips.push({ label: '지역', value: filters.region, key: 'region' })
+  if (filters.city) chips.push({ label: '시·군', value: filters.city, key: 'city' })
+  if (filters.industry) chips.push({ label: '업종', value: filters.industry, key: 'industry' })
   if (filters.industry_match && filters.industry_match !== 'match') {
-    chips.push({ label: '업종범위', value: INDUSTRY_MATCH_LABELS[filters.industry_match] })
+    chips.push({
+      label: '업종범위',
+      value: INDUSTRY_MATCH_LABELS[filters.industry_match],
+      key: 'industry_match',
+    })
   }
-  if (filters.support_purpose) chips.push({ label: '지원목적', value: filters.support_purpose })
-  if (filters.keyword) chips.push({ label: '검색어', value: filters.keyword })
+  if (filters.support_purpose) {
+    chips.push({ label: '지원목적', value: filters.support_purpose, key: 'support_purpose' })
+  }
+  if (filters.keyword) chips.push({ label: '검색어', value: filters.keyword, key: 'keyword' })
   if (filters.business_age_years != null) {
-    chips.push({ label: '업력', value: `${filters.business_age_years}년` })
+    chips.push({ label: '업력', value: `${filters.business_age_years}년`, key: 'business_age_years' })
   }
   if (filters.employee_count != null) {
-    chips.push({ label: '직원', value: `${filters.employee_count}명` })
+    chips.push({ label: '직원', value: `${filters.employee_count}명`, key: 'employee_count' })
   }
   ;(filters.text_terms ?? []).forEach((t) => chips.push({ label: '텍스트', value: t }))
 
@@ -47,7 +80,13 @@ function FilterList({
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {chips.map((c) => (
-            <FilterChip key={`${c.label}-${c.value}`} label={c.label} value={c.value} />
+            <FilterChip
+              key={`${c.label}-${c.value}`}
+              label={c.label}
+              value={c.value}
+              filterKey={droppable ? c.key : undefined}
+              onDrop={onDropFilter}
+            />
           ))}
         </div>
       )}
@@ -63,6 +102,7 @@ export interface SearchEmptyStateProps {
   lowConfidenceFields?: string[]
   onRelaxedSearch?: () => void
   onStrictSearch?: () => void
+  onDropFilter?: (key: DroppableFilterKey) => void
   allowsStrictSearch?: boolean
 }
 
@@ -81,9 +121,11 @@ export default function SearchEmptyState({
   lowConfidenceFields = [],
   onRelaxedSearch,
   onStrictSearch,
+  onDropFilter,
   allowsStrictSearch = false,
 }: SearchEmptyStateProps) {
   const showDualFilters = empty.filtersRelaxed && requestedFilters && appliedFilters
+  const activeFilters = appliedFilters ?? requestedFilters
 
   return (
     <div className="bg-white rounded-xl border p-8 sm:p-10 text-center space-y-5">
@@ -110,14 +152,30 @@ export default function SearchEmptyState({
       {showDualFilters && (
         <div className="mx-auto max-w-xl grid gap-3 sm:grid-cols-2 text-left">
           <FilterList title="처음 입력·추출한 조건" filters={requestedFilters} />
-          <FilterList title="실제로 검색에 사용된 조건" filters={appliedFilters} />
+          <FilterList
+            title="실제로 검색에 사용된 조건"
+            filters={appliedFilters}
+            droppable={!!onDropFilter}
+            onDropFilter={onDropFilter}
+          />
         </div>
       )}
 
       {!showDualFilters && requestedFilters && (
         <div className="mx-auto max-w-md">
-          <FilterList title="검색에 사용한 조건" filters={requestedFilters} />
+          <FilterList
+            title="검색에 사용한 조건"
+            filters={requestedFilters}
+            droppable={!!onDropFilter}
+            onDropFilter={onDropFilter}
+          />
         </div>
+      )}
+
+      {onDropFilter && activeFilters && (
+        <p className="text-xs text-muted-foreground max-w-md mx-auto">
+          조건 칩을 누르면 해당 항목만 빼고 다시 검색합니다.
+        </p>
       )}
 
       {(empty.checkConditionsHint || lowConfidenceFields.length > 0) && (

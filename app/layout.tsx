@@ -5,6 +5,7 @@ import Header from '@/components/layout/Header'
 import ConditionalMain from '@/components/layout/ConditionalMain'
 import PresenceHeartbeat from '@/components/presence/PresenceHeartbeat'
 import ConditionalFooter from '@/components/layout/ConditionalFooter'
+import MobileBottomNav from '@/components/layout/MobileBottomNav'
 import { Toaster } from '@/components/ui/sonner'
 import SiteWideJsonLd from '@/components/seo/SiteWideJsonLd'
 import OAuthReturnHandlerBoundary from '@/components/auth/OAuthReturnHandlerBoundary'
@@ -100,6 +101,7 @@ export default function RootLayout({
         <Header />
         <ConditionalMain>{children}</ConditionalMain>
         <ConditionalFooter />
+        <MobileBottomNav />
         <Toaster richColors position="top-right" />
       </body>
     </html>

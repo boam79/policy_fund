@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { refreshMemberSpotlight } from '@/components/home/MemberSpotlightSection'
 
 const STORAGE_KEY = 'pf:recent_searches'
 const MAX = 6
@@ -32,7 +33,7 @@ export function pushRecentSearch(query: string) {
   localStorage.setItem('pf:last_query', q)
 }
 
-export default function RecentSearchChips() {
+export default function RecentSearchChips({ mode = 'search' }: { mode?: 'search' | 'home' }) {
   const [items, setItems] = useState<string[]>([])
   const router = useRouter()
 
@@ -52,13 +53,25 @@ export default function RecentSearchChips() {
           type="button"
           onClick={() => {
             localStorage.setItem('pf:last_query', q)
+            if (mode === 'home') {
+              refreshMemberSpotlight(q)
+              return
+            }
             router.push(`/search?q=${encodeURIComponent(q)}`)
           }}
-          className="rounded-full border border-border/60 bg-white px-3 py-1.5 text-xs text-gray-700 hover:border-blue-300 hover:text-blue-700 transition-colors"
+          className="rounded-full border border-border/60 bg-white px-3 py-1.5 text-xs text-gray-700 transition-colors hover:border-blue-300 hover:text-blue-700"
         >
           {q.length > 28 ? `${q.slice(0, 28)}…` : q}
         </button>
       ))}
+      {mode === 'home' && (
+        <Link
+          href="/search?browse=1"
+          className="rounded-full border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:border-blue-300 hover:text-blue-700"
+        >
+          전체 검색 →
+        </Link>
+      )}
     </div>
   )
 }

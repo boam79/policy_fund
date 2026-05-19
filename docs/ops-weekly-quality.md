@@ -33,6 +33,10 @@ curl -s -H "Authorization: Bearer $ADMIN_SYNC_SECRET" \
 
 - 최근 48h 동기화 실패: 관리자 사이드바 배지 확인  
 - 실패 시: `POST /api/admin/sync` 또는 로컬 `npm run sync` (기업마당·K-Startup)
+- **주간 교차검증** (관리자):
+  1. `POST /api/admin/sync/verify` — DB·소스 불일치 목록 확인  
+  2. 이슈 있으면 `POST /api/admin/sync/heal` — 자동 보정 (운영 시간 외 권장)  
+  3. `npm run backfill:search-fields` — `region`·`application_url`·`search_text` 백필
 
 ## 4. SEO (월 1회 또는 배포 후)
 

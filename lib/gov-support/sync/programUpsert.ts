@@ -29,6 +29,7 @@ export function programToUpsertRow(p: NormalizedProgram) {
     exclusion_text: enriched.exclusion_text,
     required_docs: enriched.required_docs,
     application_url: enriched.application_url,
+    search_text: enriched.search_text ?? null,
     raw_content: JSON.stringify(enriched.raw_content),
     status: enriched.status,
     visibility_status: 'visible' as const,
@@ -48,9 +49,17 @@ export async function upsertOpenPrograms(
   for (let i = 0; i < openItems.length; i += BATCH) {
     const batch = openItems.slice(i, i + BATCH)
     const rows = batch.map(programToUpsertRow)
-    const { error } = await supabase
+    let { error } = await supabase
       .from('support_programs')
       .upsert(rows, { onConflict: 'source,external_id' })
+
+    if (error?.message?.includes('search_text')) {
+      const rowsWithoutSearchText = rows.map(({ search_text: _st, ...rest }) => rest)
+      const retry = await supabase
+        .from('support_programs')
+        .upsert(rowsWithoutSearchText, { onConflict: 'source,external_id' })
+      error = retry.error
+    }
 
     if (error) {
       errors.push(`upsert 배치 ${i}-${i + BATCH}: ${error.message}`)

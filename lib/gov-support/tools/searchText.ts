@@ -46,10 +46,10 @@ export function collectSearchTextTerms(params: {
   return terms
 }
 
-/** 제목·기관·URL·외부ID·raw JSON 등 텍스트 검색 */
+/** 제목·기관·URL·외부ID·raw JSON 등 텍스트 검색 (`SUPPORT_PROGRAMS_SEARCH_TEXT=1` 시 search_text 컬럼 포함) */
 export function buildTextSearchPredicateOr(term: string): string {
   const t = sanitizeSearchTerm(term)
-  return [
+  const fields = [
     `industry.ilike.%${t}%`,
     `title.ilike.%${t}%`,
     `organization.ilike.%${t}%`,
@@ -59,5 +59,9 @@ export function buildTextSearchPredicateOr(term: string): string {
     `external_id.ilike.%${t}%`,
     `application_url.ilike.%${t}%`,
     `raw_content.ilike.%${t}%`,
-  ].join(',')
+  ]
+  if (process.env.SUPPORT_PROGRAMS_SEARCH_TEXT === '1') {
+    fields.splice(fields.length - 1, 0, `search_text.ilike.%${t}%`)
+  }
+  return fields.join(',')
 }
