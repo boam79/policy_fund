@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { User, Building2, FileText, Search, LogOut, Loader2, Save, CreditCard, Bell } from 'lucide-react'
-import { BusinessVerifyCard } from '@/components/profile/BusinessVerifyCard'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { SITE_NAME } from '@/lib/site-config'
@@ -165,11 +164,6 @@ export default function MyPage() {
                   업종·업력·직원 수 등을 저장해 두면 이후 검색·진단·문서 작성의 기본값으로 사용됩니다.
                 </p>
               </div>
-
-              <BusinessVerifyCard
-                companyName={profile.company_name}
-                onCompanyNameHint={(name) => set('company_name', name)}
-              />
 
               <section className="space-y-4">
                 <h3 className="text-sm font-medium text-gray-800 border-b pb-2">사업자·회사</h3>
