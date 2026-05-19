@@ -2,33 +2,35 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import type { NormalizedProgram } from '@/lib/gov-support/core/normalizer'
 import { inferIndustryTags } from '@/lib/industry/inferIndustryTags'
+import { enrichNormalizedProgram } from '@/lib/gov-support/core/enrichProgram'
 
 export function programToUpsertRow(p: NormalizedProgram) {
+  const enriched = enrichNormalizedProgram(p)
   const industry_tags = inferIndustryTags({
-    title: p.title,
-    industry: p.industry,
-    eligibility_text: p.eligibility_text,
-    support_type: p.support_type,
+    title: enriched.title,
+    industry: enriched.industry,
+    eligibility_text: enriched.eligibility_text,
+    support_type: enriched.support_type,
   })
   return {
-    source: p.source,
-    external_id: p.external_id,
-    title: p.title,
-    organization: p.organization,
-    region: p.region,
-    industry: p.industry,
+    source: enriched.source,
+    external_id: enriched.external_id,
+    title: enriched.title,
+    organization: enriched.organization,
+    region: enriched.region,
+    industry: enriched.industry,
     industry_tags: industry_tags.length > 0 ? industry_tags : null,
-    support_type: p.support_type,
-    support_amount_min_krw: p.support_amount_min_krw,
-    support_amount_max_krw: p.support_amount_max_krw,
-    application_start_date: p.application_start_date,
-    application_end_date: p.application_end_date,
-    eligibility_text: p.eligibility_text,
-    exclusion_text: p.exclusion_text,
-    required_docs: p.required_docs,
-    application_url: p.application_url,
-    raw_content: JSON.stringify(p.raw_content),
-    status: p.status,
+    support_type: enriched.support_type,
+    support_amount_min_krw: enriched.support_amount_min_krw,
+    support_amount_max_krw: enriched.support_amount_max_krw,
+    application_start_date: enriched.application_start_date,
+    application_end_date: enriched.application_end_date,
+    eligibility_text: enriched.eligibility_text,
+    exclusion_text: enriched.exclusion_text,
+    required_docs: enriched.required_docs,
+    application_url: enriched.application_url,
+    raw_content: JSON.stringify(enriched.raw_content),
+    status: enriched.status,
     visibility_status: 'visible' as const,
     synced_at: new Date().toISOString(),
   }

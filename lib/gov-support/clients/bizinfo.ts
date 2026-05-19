@@ -25,6 +25,8 @@ export interface BizinfoItem {
   rqDocuCont?: string                  // 필요서류
   reqstMthPapersCn?: string            // 필요서류 (실제 필드명)
   refrncNm?: string                    // 참고기관명
+  /** 지역 포털(경기기업비서 등) 신청 URL */
+  rceptEngnHmpgUrl?: string
   totCnt?: number                      // 전체 건수
 }
 

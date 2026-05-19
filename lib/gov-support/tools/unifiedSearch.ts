@@ -12,6 +12,10 @@ import {
   normalizeIndustryMatchMode,
 } from './industryMatch'
 import {
+  buildTextSearchPredicateOr,
+  collectSearchTextTerms,
+} from './searchText'
+import {
   programSearchPoolEndDateOr,
   searchPoolStatuses,
   todayISODate,
@@ -126,23 +130,6 @@ function buildRegionPredicateOr(normalizedRegionalKey: string): string {
   return [...regionCols, 'region.ilike.%전국%', 'title.ilike.%전국%'].join(',')
 }
 
-/** PostgREST `.or()` 구문에 콤마가 들어가면 깨지므로 제거 */
-function sanitizeSearchTerm(term: string): string {
-  return term.replace(/,/g, ' ').trim()
-}
-
-/** 업종·키워드·지원목적 — 동일 컬럼 집합에서 검색 (드롭다운 vs 검색창 결과 일치) */
-export function buildTextSearchPredicateOr(term: string): string {
-  const t = sanitizeSearchTerm(term)
-  return [
-    `industry.ilike.%${t}%`,
-    `title.ilike.%${t}%`,
-    `organization.ilike.%${t}%`,
-    `support_type.ilike.%${t}%`,
-    `eligibility_text.ilike.%${t}%`,
-  ].join(',')
-}
-
 /** 업종 필터 — industry_tags @> 표준 태그 OR 기존 텍스트 ilike (12-3-3) */
 export function buildIndustrySearchPredicateOr(rawIndustry: string): string {
   const canonical = toCanonicalIndustry(rawIndustry)
@@ -151,24 +138,11 @@ export function buildIndustrySearchPredicateOr(rawIndustry: string): string {
   return [tagFilter, ...buildTextSearchPredicateOr(t).split(',')].join(',')
 }
 
-/** 중복·공백 제거 후 AND로 각각 적용할 검색어 목록 */
-export function collectSearchTextTerms(params: {
-  industry?: string
-  support_purpose?: string | null
-  keyword?: string | null
-}): string[] {
-  const seen = new Set<string>()
-  const terms: string[] = []
-  for (const raw of [params.industry, params.support_purpose, params.keyword]) {
-    const t = raw?.trim()
-    if (!t) continue
-    const key = t.toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
-    terms.push(t)
-  }
-  return terms
+function sanitizeSearchTerm(term: string): string {
+  return term.replace(/,/g, ' ').trim()
 }
+
+export { collectSearchTextTerms } from './searchText'
 
 export async function unifiedSearch(params: SearchParams): Promise<SearchResult> {
   const {

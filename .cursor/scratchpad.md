@@ -1283,6 +1283,7 @@ flowchart TD
   3. 마이페이지 업종 드롭다운 = 검색 필터 목록(CANONICAL_INDUSTRIES) 일치
   4. Wave 3: 네이버·카카오 샌드박스 결제 1회(confirm 플로우)
   5. `npm run verify:security` (dev 서버 필요)
+- **2026-05-19 (Executor)**: API 소스별 검색 보강 — `enrichProgram` URL 후보 확장(기업마당·중소벤처24·K-Startup 필드 + HTML 본문), `raw_content` ilike, 검색 풀에 `status=unknown` 포함(867건), 백필 스크립트 추가.
 - **2026-05-19 (Planner)**: Phase RF 계획 수립 완료.
 
 ### Lessons (Phase RF — Planner)

@@ -18,6 +18,8 @@ export interface Smes24Item {
   areaNm?: string
   sportTrget?: string
   pblancDtlUrl?: string
+  reqstLinkInfo?: string
+  refrncUrl?: string
   reqstRcept?: string
 
   // 구형/호환 필드

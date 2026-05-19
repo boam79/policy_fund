@@ -6,6 +6,12 @@
 import type { BizinfoItem } from '../clients/bizinfo'
 import type { KStartupItem } from '../clients/kstartup'
 import type { Smes24Item } from '../clients/smes24'
+import {
+  enrichNormalizedProgram,
+  inferRegionFromProgramText,
+  pickBizinfoApplicationUrl,
+  portalApplicationUrlFromRaw,
+} from './enrichProgram'
 
 export interface NormalizedProgram {
   source: 'bizinfo' | 'kstartup' | 'smes24'
@@ -72,12 +78,12 @@ export function normalizeBizinfoItem(item: BizinfoItem): NormalizedProgram {
   // 필요서류
   const docs = item.reqstMthPapersCn ?? item.rqDocuCont ?? null
 
-  return {
+  return enrichNormalizedProgram({
     source: 'bizinfo',
     external_id: item.pblancId,
     title: item.pblancNm?.trim() ?? '',
     organization,
-    region: null,
+    region: inferRegionFromProgramText(item.pblancNm ?? '', organization),
     industry,
     support_type: supportContent ?? industry,
     support_amount_min_krw: null,
@@ -87,10 +93,10 @@ export function normalizeBizinfoItem(item: BizinfoItem): NormalizedProgram {
     eligibility_text: eligibility,
     exclusion_text: null,
     required_docs: docs,
-    application_url: item.pblancUrl ?? null,
+    application_url: pickBizinfoApplicationUrl(item),
     raw_content: item as unknown as Record<string, unknown>,
     status: deriveStatus(endDate),
-  }
+  })
 }
 
 export function normalizeKStartupItem(item: KStartupItem): NormalizedProgram {
@@ -102,7 +108,7 @@ export function normalizeKStartupItem(item: KStartupItem): NormalizedProgram {
   const startDate = toISODate(item.pbanc_rcpt_bgng_dt ?? item.rcritBgnDe)
   const endDate = toISODate(item.pbanc_rcpt_end_dt ?? item.rcritEndDe)
 
-  return {
+  return enrichNormalizedProgram({
     source: 'kstartup',
     external_id: externalId ? String(externalId) : `kstartup-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     title: title.trim(),
@@ -120,7 +126,7 @@ export function normalizeKStartupItem(item: KStartupItem): NormalizedProgram {
     application_url: item.detl_pg_url ?? item.pbancUrl ?? null,
     raw_content: item as unknown as Record<string, unknown>,
     status: deriveStatus(endDate),
-  }
+  })
 }
 
 export function normalizeSmes24Item(item: Smes24Item): NormalizedProgram {
@@ -132,12 +138,18 @@ export function normalizeSmes24Item(item: Smes24Item): NormalizedProgram {
   const startDate = toISODate(item.pblancBgnDt ?? item.reqstBgnDt)
   const endDate = toISODate(item.pblancEndDt ?? item.reqstEndDt)
 
-  return {
+  const portalUrl =
+    portalApplicationUrlFromRaw(item as unknown as Record<string, unknown>) ??
+    item.pblancDtlUrl ??
+    item.pbancUrl ??
+    null
+
+  return enrichNormalizedProgram({
     source: 'smes24',
     external_id: externalId ? String(externalId) : `smes24-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     title: title.trim(),
     organization: organization.trim(),
-    region,
+    region: region?.trim() || inferRegionFromProgramText(title, organization),
     industry,
     support_type: industry,
     support_amount_min_krw: null,
@@ -147,8 +159,8 @@ export function normalizeSmes24Item(item: Smes24Item): NormalizedProgram {
     eligibility_text: item.sportTrget ?? item.tgtEntrpNm ?? null,
     exclusion_text: item.excluTrgetNm ?? null,
     required_docs: item.reqstRcept ?? item.reqstDocuNm ?? null,
-    application_url: item.pblancDtlUrl ?? item.pbancUrl ?? null,
+    application_url: portalUrl,
     raw_content: item as unknown as Record<string, unknown>,
     status: deriveStatus(endDate),
-  }
+  })
 }
