@@ -9,9 +9,28 @@ import {
 import { getServiceRoleClient } from '@/lib/supabase/serviceRole'
 import { mapRowsToRecommendedPrograms, fetchRecommendedPrograms } from '@/lib/home/recommendations'
 import { fetchClosingSoonList, type HomeProgramListItem } from '@/lib/home/lists'
+import { HOME_MEMBER_PROGRAM_LIMIT } from '@/lib/home/program-display'
 
 const PROFILE_SELECT =
   'region,city,industry,business_age_years,employee_count,company_name,support_purpose' as const
+
+function mergeSpotlightPrograms(
+  personalized: RecommendedProgram[],
+  generic: RecommendedProgram[],
+  limit: number
+): RecommendedProgram[] {
+  const seen = new Set<string>()
+  const merged: RecommendedProgram[] = []
+
+  for (const program of [...personalized, ...generic]) {
+    if (merged.length >= limit) break
+    if (seen.has(program.id)) continue
+    seen.add(program.id)
+    merged.push(program)
+  }
+
+  return merged
+}
 
 export type MemberHomeData = {
   profile: SavedBusinessProfileDefaults | null
@@ -54,7 +73,7 @@ async function fetchPersonalizedFromProfile(
         business_age_years: profile.business_age_years ?? undefined,
         employee_count: profile.employee_count ?? undefined,
         support_purpose: profile.support_purpose?.trim() || undefined,
-        limit: 4,
+        limit: HOME_MEMBER_PROGRAM_LIMIT,
         page: 1,
       },
       'relaxed'
@@ -98,7 +117,7 @@ export async function fetchMemberHomeData(userId: string): Promise<MemberHomeDat
   const [profile, closingSoon, generic] = await Promise.all([
     fetchBusinessProfile(userId),
     fetchClosingSoonList(publicClient, 5),
-    fetchRecommendedPrograms(publicClient, 8),
+    fetchRecommendedPrograms(publicClient, HOME_MEMBER_PROGRAM_LIMIT),
   ])
 
   const profileSearchUrl = profile ? buildSearchUrlFromProfile(profile) : null
@@ -111,10 +130,11 @@ export async function fetchMemberHomeData(userId: string): Promise<MemberHomeDat
     personalizedFromProfile = personalizedPrograms.length > 0
   }
 
-  const spotlightPrograms =
-    personalizedPrograms.length > 0
-      ? personalizedPrograms.slice(0, 2)
-      : generic.slice(0, 2)
+  const spotlightPrograms = mergeSpotlightPrograms(
+    personalizedPrograms,
+    generic,
+    HOME_MEMBER_PROGRAM_LIMIT
+  )
 
   return {
     profile,

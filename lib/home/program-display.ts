@@ -30,6 +30,9 @@ export function guestCardMatchScore(rankIndex: number): number {
 /** 비로그인 홈 추천 공고 노출 개수 */
 export const HOME_GUEST_PROGRAM_LIMIT = 8
 
+/** 로그인 홈 추천·스포트라이트 노출 개수 (비로그인과 동일) */
+export const HOME_MEMBER_PROGRAM_LIMIT = HOME_GUEST_PROGRAM_LIMIT
+
 /** 프로필 맞춤·스포트라이트 등 UI용 표시 점수 */
 export function boostDisplayMatchScore(
   program: RecommendedProgram,

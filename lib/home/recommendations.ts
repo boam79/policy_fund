@@ -4,6 +4,11 @@ import {
   computeDaysUntilDeadline,
   formatDeadlineRemainingMessage,
 } from '@/lib/programs/deadline'
+import {
+  PROGRAM_SEARCH_POOL_STATUSES,
+  programSearchPoolEndDateOr,
+  todayISODate,
+} from '@/lib/gov-support/tools/programSearchPool'
 export interface RecommendedProgram {
   id: string
   source: string
@@ -89,13 +94,13 @@ export async function fetchRecommendedPrograms(
   supabase: SupabaseClient<Database>,
   limit = 8
 ): Promise<RecommendedProgram[]> {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISODate()
   const { data, error } = await supabase
     .from('support_programs')
     .select(PROGRAM_SELECT)
     .eq('visibility_status', 'visible')
-    .in('status', ['active', 'closing_soon'])
-    .gte('application_end_date', today)
+    .in('status', [...PROGRAM_SEARCH_POOL_STATUSES])
+    .or(programSearchPoolEndDateOr(today))
     .not('application_url', 'is', null)
     .order('recommendation_score', { ascending: false })
     .order('application_end_date', { ascending: true })
