@@ -27,3 +27,9 @@ export function normalizeProgramSourceList(sources: string[]): string[] {
   }
   return [...out]
 }
+
+/** 공고 source 코드 → 표시 라벨 */
+export function getProgramSourceLabel(source: string | null | undefined): string {
+  if (!source) return ''
+  return PROGRAM_SOURCE_LABEL[source] ?? source
+}

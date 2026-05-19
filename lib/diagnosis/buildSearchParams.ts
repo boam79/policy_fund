@@ -1,14 +1,13 @@
 import type { ParseNLResult } from '@/lib/query/parseNaturalLanguage'
 import { toCanonicalIndustry } from '@/lib/industry/canonical'
 import { getDiagnosisConditionValue, normalizeRegionForFilter } from './coerce'
+import { buildSearchQueryString } from '@/lib/search/queryParams'
 
 /** 진단 화면 조건 → `/search` 쿼리 문자열 */
 export function buildSearchQueryFromDiagnosis(
   parsed: ParseNLResult,
   editValues: Record<string, string>
 ): string {
-  const params = new URLSearchParams()
-
   const region = getDiagnosisConditionValue(parsed, editValues, 'region')
   const city = getDiagnosisConditionValue(parsed, editValues, 'city')
   const industry = getDiagnosisConditionValue(parsed, editValues, 'industry')
@@ -20,27 +19,28 @@ export function buildSearchQueryFromDiagnosis(
   const supportPurpose = getDiagnosisConditionValue(parsed, editValues, 'support_purpose')
 
   const normalizedRegion = normalizeRegionForFilter(region)
-  if (normalizedRegion) params.set('region', normalizedRegion)
-  if (city) params.set('city', String(city))
-  if (industry) params.set('industry', toCanonicalIndustry(String(industry)))
+  let businessAgeStr = ''
   if (businessAge != null) {
     const ageMeta = parsed.conditions.business_age_years
     const isUnderOnly =
       ageMeta?.source_text?.includes('미만') && Number(businessAge) === 0
     if (!isUnderOnly) {
-      params.set('business_age_years', String(businessAge))
+      businessAgeStr = String(businessAge)
     }
   }
-  if (employeeCount != null) params.set('employee_count', String(employeeCount))
-  if (annualRevenue != null) params.set('annual_revenue_krw', String(annualRevenue))
-  if (creditScore != null) params.set('credit_score', String(creditScore))
-  if (typeof taxArrears === 'boolean') params.set('tax_arrears', taxArrears ? 'yes' : 'no')
-  if (supportPurpose) params.set('support_purpose', String(supportPurpose))
 
-  const rawQuery = parsed.raw_query?.trim()
-  if (rawQuery) params.set('q', rawQuery)
-
-  return params.toString()
+  return buildSearchQueryString({
+    region: normalizedRegion ?? undefined,
+    city: city ? String(city) : undefined,
+    industry: industry ? toCanonicalIndustry(String(industry)) : undefined,
+    businessAge: businessAgeStr || undefined,
+    employeeCount: employeeCount != null ? String(employeeCount) : undefined,
+    annualRevenue: annualRevenue != null ? String(annualRevenue) : undefined,
+    creditScore: creditScore != null ? String(creditScore) : undefined,
+    taxArrears: typeof taxArrears === 'boolean' ? (taxArrears ? 'yes' : 'no') : undefined,
+    supportPurpose: supportPurpose ? String(supportPurpose) : undefined,
+    q: parsed.raw_query?.trim() || undefined,
+  })
 }
 
 export function saveProfileDraftFromDiagnosis(

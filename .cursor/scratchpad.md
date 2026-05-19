@@ -3,8 +3,8 @@
 **역할**: Planner 주도 계획 / Executor는 사용자 승인 후 단계별 실행  
 **기준 문서**: `policyfund_v2_prd_v2_0_free_plan_db_switch_ready.md` (PF-WEB-001 v2.0, 2026-05-11) — 문서 내 과거 명칭 PolicyFund AI는 제품 코드명 참고용이며, **사용자 노출 브랜드는 지원둥지**로 통일함 (2026-05-16).  
 **UI 목업 기준**: `KakaoTalk_Photo_2026-05-11-18-15-52 001.png` (관리자 대시보드), `KakaoTalk_Photo_2026-05-11-18-15-53 002.png` (사용자 홈)  
-**Planner 최종 갱신**: 2026-05-18 (14-3b 3출처 동기화 검증·보강 파이프라인 — Planner)  
-**현재 모드**: **Planner** — 14-3b 승인 후 Executor 단계별 착수
+**Planner 최종 갱신**: 2026-05-19 (Phase RF 코드베이스 리팩터링 계획 — Planner)  
+**현재 모드**: **Planner** — Phase RF 승인 후 Executor는 **RF-x-1 태스크 1개씩**만 착수
 
 ### 홈 UI 목업 정합 (2026-05-17 Executor)
 - 사용자 피드백: 배포/로컬 화면이 제안 목업(안 A / B+C)과 시각적으로 크게 다름
@@ -1162,3 +1162,131 @@ flowchart LR
 
 **Planner → Executor 인계 (승인 후)**  
 「**14-1-1**만 수행. `docs/phase14-business-verify-spike.md` 작성, API 후보 2개 이하로 좁히기, env 이름 제안. 코드 구현은 14-1-2부터. 완료 시 scratchpad [x]·사용자에게 스파이크 요약 전달.」
+
+---
+
+## Phase RF — 코드베이스 리팩터링 (Planner, 2026-05-19)
+
+> **배경**: 홈·검색·후원·보안 패치(네이버 결제·진단 세션 토큰) 이후 **기능 추가보다 유지보수·불일치·회귀 비용**이 커짐. 사용자 요청으로 Planner가 우선순위·태스크·성공 기준을 확정함.  
+> **원칙**: over-engineering 금지 — **한 PR = 한 RF-x-1 태스크**, 동작 변경 최소, `npm run build` + 해당 verify PASS 후 사용자 확인.
+
+### Background and Motivation (Phase RF)
+
+| 동기 | 설명 |
+|------|------|
+| **거대 파일** | `app/search/page.tsx` ~967줄 — 필터·fetch·카드·export·URL이 한 컴포넌트 |
+| **URL drift** | 검색 쿼리 빌더가 4곳(`search/page`, diagnosis, profile, SearchBar), 지역 정규화 중복 |
+| **결제 중복** | 카카오/네이버 confirm·ready가 auth·pending·구독 upsert 반복 (보안 패치 후에도 구조적 중복) |
+| **Supabase 혼선** | service role 팩토리 3종, billing API 인라인 `createClient(SERVICE_ROLE)` |
+| **상수 drift** | `SOURCE_LABEL`·`REGIONS`·`INDUSTRIES`가 화면마다 재정의 |
+| **verify 스크립트** | `scripts/verify-*.ts` 18개에 `assert`/`fetchJson` 복붙 |
+
+**비범위 (Phase RF에서 하지 않음)**  
+- Next/postcss `npm audit` major 업그레이드 (별도 PR)  
+- Phase 14-4~6 신기능  
+- 전체 `lib/` 디렉터리 rename
+
+### Key Challenges and Analysis (Phase RF)
+
+1. **검색 URL 통합** — `browse=1`, 프로필 prefill, 진단→검색 deep link가 깨지기 쉬움 → RF-2와 RF-1은 **연속 PR** 또는 RF-2 선행 권장.
+2. **결제 finalize** — 프로덕션 PG; RF-4는 **샌드박스 + `verify:security`** 필수, 카카오·네이버 각 1회 스모크.
+3. **Supabase env** — `SUPABASE_URL` vs `NEXT_PUBLIC_SUPABASE_URL` 통일 시 스테이징·Vercel env 점검 필요.
+4. **Executor 규칙** — 한 번에 RF-x-1만; 완료 후 사용자 수동 확인 전 `[x]` 금지(Planner만 최종 완료 선언).
+
+### High-level Task Breakdown (Phase RF)
+
+Executor는 **아래 표에서 한 ID만** 착수. 성공 기준을 스스로 검증 후 사용자에게 보고.
+
+#### Wave 1 — 낮은 리스크·즉시 효과 (권장 첫 착수)
+
+| ID | 작업 | 성공 기준 | 예상 영향 | 리스크 |
+|----|------|-----------|-----------|--------|
+| **RF-1-1** | **상수·라벨 중앙화** — `PROGRAM_SOURCE_LABEL` 단일 import; `lib/geo/regions.ts`·`CANONICAL_INDUSTRIES`를 검색/마이페이지/알림/카드에서 공통 사용 | (1) 로컬 `SOURCE_LABEL`/`REGIONS`/`INDUSTRIES` 중복 제거 (2) `npm run build` PASS (3) 검색 필터·마이페이지 업종 옵션 목록 일치 | 중 | 낮 |
+| **RF-1-2** | **검색 URL lib** — `lib/search/queryParams.ts`: `parseSearchParams`, `buildSearchQueryString`, `normalizeRegionForFilter`(coerce re-export) | (1) diagnosis/profile/SearchBar가 lib 호출 (2) `verify:journey`·`verify:journey-exhaustive` PASS (3) `/search?browse=1`·`?region=서울&…` 북마크 동작 | 높 | 중 |
+| **RF-1-3** | **verify HTTP 공통화** — `scripts/lib/verify-http.ts` (`assert`, `fetchJson`, `STORY_BASE_URL`) + `verify-security`·`verify-journey` 2개 이상 마이그레이션 | (1) 중복 helper 제거 (2) `npm run verify:security` PASS | 중 | 낮 |
+
+#### Wave 2 — 검색 UI 분할 (RF-1-2 완료 후)
+
+| ID | 작업 | 성공 기준 | 예상 영향 | 리스크 |
+|----|------|-----------|-----------|--------|
+| **RF-2-1** | `SearchProgramCard` 추출 (`app/search/page.tsx` 인라인 카드) | 카드 UI·링크·배지 동일, `search/page` 150줄 이상 감소, build PASS | 중 | 낮 |
+| **RF-2-2** | `SearchFiltersPanel` + `useSearchPageState` hook (state·fetch·router.replace) | `search/page` ~300줄 이하, browse 자동검색·프로필 prefill 회귀 없음, `verify:journey-exhaustive` 검색 섹션 PASS | 높 | 중 |
+| **RF-2-3** | `SearchBar` parse/submit을 hook 또는 lib로 분리 | `SearchBar.tsx` 250줄 이하, 홈→진단 `sid+token` URL 유지 | 중 | 낮 |
+
+#### Wave 3 — 인프라·결제 (사용자 승인·PG env 확인 후)
+
+| ID | 작업 | 성공 기준 | 예상 영향 | 리스크 |
+|----|------|-----------|-----------|--------|
+| **RF-3-1** | **Supabase service role 통합** — `serviceRole.ts` 단일 진입점, billing/admin 인라인 `createClient` 제거 | (1) billing·admin API가 `requireServiceRoleClient()`만 사용 (2) build PASS (3) README env 한 줄 정리 | 높 | 중 |
+| **RF-3-2** | **`lib/billing/finalizeSubscription.ts`** — pending 조회·done·subscriptions upsert 공통화 | (1) kakao/naver confirm 라우트 50% 이상 감소 (2) `verify:security` PASS (3) 샌드박스 confirm 1회(사용자) | 높 | **높** |
+| **RF-3-3** | **`lib/billing/createPendingOrder.ts`** — ready 라우트 공통 (orderId·plan·insert) | kakao/naver ready 중복 제거, build PASS | 중 | 중 |
+| **RF-3-4** | checkout/success — `usePaymentConfirm`·`PaymentMethodButtons` | checkout 200줄 이하, 네이버·카카오 플로우 유지 | 중 | 중 |
+
+#### Wave 4 — UI·페이지 (여유 시)
+
+| ID | 작업 | 성공 기준 | 예상 영향 | 리스크 |
+|----|------|-----------|-----------|--------|
+| **RF-4-1** | 홈 카드 — `ProgramCardShell` + variant (Guest/Rich/Banner 통합 검토) | 홈 4카드 컴포넌트 중 2개 이상 shell 공유, 시각 diff 없음 | 중 | 낮 |
+| **RF-4-2** | `app/diagnosis/page.tsx` 단계 UI → `components/diagnosis/*` | page 400줄 이하, sid+token 플로우 유지 | 중 | 낮 |
+| **RF-4-3** | `app/documents/plan/page.tsx` 폼/미리보기 분리 | page 500줄 이하 | 중 | 낮 |
+| **RF-4-4** | `app/admin/users/page.tsx` 테이블·드로어 분리 | page 400줄 이하 | 낮 | 낮 |
+
+### Phase RF — Project Status Board
+
+**Wave 1**
+- [ ] RF-1-1 상수·라벨 중앙화 — Executor 완료(2026-05-19), build PASS, **사용자 확인 대기**
+- [ ] RF-1-2 검색 URL lib (`queryParams.ts`) — Executor 완료, **사용자 확인 대기**
+- [ ] RF-1-3 verify HTTP 공통화 — Executor 완료, **사용자 확인 대기**
+
+**Wave 2**
+- [ ] RF-2-1 SearchProgramCard 추출 — Executor 완료, **사용자 확인 대기**
+- [ ] RF-2-2 Filters + useSearchPageState — Executor 완료, **사용자 확인 대기**
+- [ ] RF-2-3 SearchBar 분리 — Executor 완료, **사용자 확인 대기**
+
+**Wave 3**
+- [ ] RF-3-1 Supabase service role 통합 — Executor 완료, **사용자 확인 대기**
+- [ ] RF-3-2 billing finalizeSubscription — Executor 완료, **PG 샌드박스 테스트 필요**
+- [ ] RF-3-3 createPendingOrder — Executor 완료, **사용자 확인 대기**
+- [ ] RF-3-4 checkout/success hooks — Executor 완료, **사용자 확인 대기**
+
+**Wave 4**
+- [ ] RF-4-1 홈 카드 shell — Executor 완료, **사용자 확인 대기**
+- [ ] RF-4-2 diagnosis 분할 — Executor 완료, **사용자 확인 대기**
+- [ ] RF-4-3 documents/plan 분할 — Executor 완료, **사용자 확인 대기**
+- [ ] RF-4-4 admin/users 분할 — Executor 완료, **사용자 확인 대기**
+
+### Phase RF — 권장 실행 순서
+
+```mermaid
+flowchart TD
+  A[RF-1-1 상수·라벨] --> B[RF-1-2 검색 URL lib]
+  B --> C[RF-2-1 ProgramCard]
+  C --> D[RF-2-2 useSearchPageState]
+  E[RF-1-3 verify-http]
+  F[RF-3-1 Supabase] --> G[RF-3-2 finalizeSubscription]
+  G --> H[RF-3-3 createPendingOrder]
+```
+
+| 순서 | ID | 이유 |
+|------|-----|------|
+| 1 | RF-1-1 | 리스크 최소, UI 라벨 drift 즉시 해소 |
+| 2 | RF-1-2 | 더보기·browse·진단 링크 안정화의 기반 |
+| 3 | RF-2-1 → RF-2-2 | URL lib 위에서 search page 분할 |
+| 4 | RF-1-3 | 앱 무관, CI 유지보수 |
+| 5 | RF-3-x | 결제·env — 사용자 PG 테스트 동반 |
+
+### Executor's Feedback or Assistance Requests (Phase RF)
+
+- **2026-05-19 (Executor)**: Wave 1~4 일괄 구현 완료. `npm run build` PASS. **사용자 수동 확인 요청**:
+  1. `/search?browse=1`, `/search?region=서울&industry=제조업` 북마크·자동검색
+  2. 홈 SearchBar → 진단 `sid+token` URL
+  3. 마이페이지 업종 드롭다운 = 검색 필터 목록(CANONICAL_INDUSTRIES) 일치
+  4. Wave 3: 네이버·카카오 샌드박스 결제 1회(confirm 플로우)
+  5. `npm run verify:security` (dev 서버 필요)
+- **2026-05-19 (Planner)**: Phase RF 계획 수립 완료.
+
+### Lessons (Phase RF — Planner)
+
+- 거대 `search/page.tsx`는 기능 추가마다 browse·prefill 회귀 원인 — **URL lib 선행**이 분할보다 안전.
+- 결제 confirm 보안 패치(5ab5abf)는 **로직 중복을 줄이지 않음** — RF-3-2에서 구조 정리 필요하나 PG 테스트 필수.
+- `verify-*.ts` 18개는 신규 시나리오 추가 시 **RF-1-3 선행**하면 유지비 감소.

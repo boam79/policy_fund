@@ -5,22 +5,13 @@ import { cn } from '@/lib/utils'
 import type { RecommendedProgram } from '@/app/api/home/recommendations/route'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import { Building2, Calendar } from 'lucide-react'
-
-const SOURCE_LABEL: Record<string, string> = {
-  bizinfo: '기업마당',
-  kstartup: 'K-Startup',
-  smes24: '중소벤처24',
-}
+import { ProgramCardShell, ProgramSourceBadge } from '@/components/home/ProgramCardShell'
 
 export default function MatchSpotlightCard({ program }: { program: RecommendedProgram }) {
-  const sourceLabel = SOURCE_LABEL[program.source] ?? program.source
-
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-border/60 bg-white p-5 shadow-sm">
+    <ProgramCardShell className="p-5 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-3">
-        <Badge variant="outline" className="text-xs font-normal">
-          {sourceLabel}
-        </Badge>
+        <ProgramSourceBadge source={program.source} />
         <div
           className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full border-4 border-blue-100 bg-blue-50"
           aria-label={`매칭 ${program.matchScore}%`}
@@ -71,6 +62,6 @@ export default function MatchSpotlightCard({ program }: { program: RecommendedPr
           </Link>
         )}
       </div>
-    </div>
+    </ProgramCardShell>
   )
 }

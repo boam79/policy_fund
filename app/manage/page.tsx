@@ -8,6 +8,7 @@ import {
   computeDaysUntilDeadline,
   formatDeadlineBadgeLabel,
 } from '@/lib/programs/deadline'
+import { getProgramSourceLabel } from '@/lib/gov-support/programSources'
 
 interface SavedProgram {
   id: string
@@ -21,8 +22,6 @@ interface SavedProgram {
     source: string | null
   } | null
 }
-
-const SOURCE_LABEL: Record<string, string> = { bizinfo: '기업마당', kstartup: 'K-Startup', smes24: '중소벤처24' }
 
 export default function ManagePage() {
   const router = useRouter()
@@ -90,7 +89,7 @@ export default function ManagePage() {
                         <p className="text-xs text-gray-500">{prog?.organization ?? '-'}</p>
                         {prog?.source && (
                           <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
-                            {SOURCE_LABEL[prog.source] ?? prog.source}
+                            {getProgramSourceLabel(prog.source)}
                           </span>
                         )}
                         {daysLeft !== null && daysLeft >= 0 && (

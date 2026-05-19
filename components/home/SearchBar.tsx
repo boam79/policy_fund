@@ -11,6 +11,8 @@ import { fetchMyBusinessProfileDefaults } from '@/lib/profile/fetch-my-business-
 import { buildDefaultSearchQueryFromProfile } from '@/lib/profile/business-profile-defaults'
 import ParseFallbackMiniForm from '@/components/home/ParseFallbackMiniForm'
 import { pushRecentSearch } from '@/components/home/RecentSearchChips'
+import { buildKeywordSearchHref } from '@/lib/search/queryParams'
+import { persistSearchQuery, submitNaturalLanguageSearch } from '@/lib/search/searchBarSubmit'
 
 const EXAMPLE_QUERIES = [
   '경기도 제조업 3년차 직원 5명인데 받을 수 있는 지원사업 찾아줘',
@@ -73,84 +75,17 @@ export default function SearchBar({
     setError(null)
     setShowParseMiniForm(false)
 
-    // 유저 여정 연결을 위한 최근 입력값 저장 (문서 생성 화면에서 활용)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('pf:last_query', q)
-      localStorage.setItem('pf:last_query_at', new Date().toISOString())
+      persistSearchQuery(q)
       pushRecentSearch(q)
     }
 
     try {
-      const res = await fetch('/api/query/parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q }),
-      })
-
-      const data = await res.json() as {
-        success?: boolean
-        ok?: boolean
-        error_code?: string
-        message?: string
-        error?: string
-        data?: { parsed: ParseNLResult }
+      const result = await submitNaturalLanguageSearch(q, router)
+      if (!result.ok) {
+        if (result.showMiniForm) setShowParseMiniForm(true)
+        setError(result.error)
       }
-
-      const parseSucceeded = res.ok && data.success === true && data.ok !== false && data?.data?.parsed != null
-
-      if (!parseSucceeded) {
-        const message = String(data.message ?? data.error ?? '')
-        const isInputValidationError =
-          res.status === 400 &&
-          ['PARSE_INVALID_INPUT', 'PARSE_QUERY_TOO_LONG'].includes(String(data.error_code ?? ''))
-
-        // 비어 있거나 잘못된 입력이 아니면 분석 단계 장애와 관계 없이 공고 검색으로 이어짐
-        if (data.error_code === 'PARSE_QUOTA_EXCEEDED') {
-          setError(message.length > 0 ? message : '오늘 AI 분석 횟수를 모두 사용했습니다.')
-          return
-        }
-
-        if (isInputValidationError) {
-          setShowParseMiniForm(true)
-          setError(message.length > 0 ? message : '검색어를 입력해주세요.')
-          return
-        }
-
-        if (!isInputValidationError && q.trim()) {
-          router.push(`/search?keyword=${encodeURIComponent(q)}&q=${encodeURIComponent(q)}`)
-          return
-        }
-
-        setError(message.length > 0 ? message : '조건 추출에 실패했습니다.')
-        return
-      }
-
-      const parsed: ParseNLResult = data.data!.parsed
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('pf:last_parsed', JSON.stringify(parsed))
-      }
-
-      let diagnosisPath = `/diagnosis?q=${encodeURIComponent(q)}&data=${encodeURIComponent(JSON.stringify(parsed))}`
-      try {
-        const sessRes = await fetch('/api/diagnosis/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ raw_query: q, parsed }),
-        })
-        const sessJson = (await sessRes.json()) as { ok?: boolean; sid?: string; token?: string }
-        if (sessRes.ok && sessJson.ok === true && sessJson.sid && sessJson.token) {
-          const params = new URLSearchParams({
-            sid: sessJson.sid,
-            token: sessJson.token,
-            q,
-          })
-          diagnosisPath = `/diagnosis?${params.toString()}`
-        }
-      } catch {
-        /* sid 저장 실패 시 data= URL 유지 */
-      }
-      router.push(diagnosisPath)
     } catch {
       setError('네트워크 오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
@@ -265,7 +200,7 @@ export default function SearchBar({
       {showParseMiniForm && (
         <ParseFallbackMiniForm
           lastQuery={query}
-          onKeywordSearch={(k) => router.push(`/search?keyword=${encodeURIComponent(k)}&q=${encodeURIComponent(k)}`)}
+          onKeywordSearch={(k) => router.push(buildKeywordSearchHref(k))}
         />
       )}
 

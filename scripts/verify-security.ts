@@ -4,23 +4,13 @@
  */
 /* eslint-disable no-console */
 
-const BASE = process.env.VERIFY_BASE_URL ?? 'http://localhost:3000'
-
-function assert(cond: boolean, msg: string) {
-  if (!cond) throw new Error(msg)
-}
-
-async function fetchJson(path: string, init?: RequestInit) {
-  const res = await fetch(`${BASE}${path}`, init)
-  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
-  return { status: res.status, json, headers: res.headers }
-}
+import { assert, fetchVerifyJson, VERIFY_BASE_URL } from './lib/verify-http'
 
 async function main() {
-  console.log(`[verify-security] base=${BASE}`)
+  console.log(`[verify-security] base=${VERIFY_BASE_URL}`)
 
   // CSRF: 크로스 오리진 POST 차단 (billing confirm)
-  const csrf = await fetchJson('/api/billing/confirm', {
+  const csrf = await fetchVerifyJson('/api/billing/confirm', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -33,7 +23,7 @@ async function main() {
     `billing CSRF/unauth expected 401 or 403, got ${csrf.status}`
   )
 
-  const kakaoCsrf = await fetchJson('/api/billing/kakao/confirm', {
+  const kakaoCsrf = await fetchVerifyJson('/api/billing/kakao/confirm', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -47,7 +37,7 @@ async function main() {
   )
 
   // 관리자 API: 크로스 오리진 PATCH 차단
-  const adminCsrf = await fetchJson('/api/admin/programs', {
+  const adminCsrf = await fetchVerifyJson('/api/admin/programs', {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -58,7 +48,7 @@ async function main() {
   assert(adminCsrf.status === 403, `admin CSRF expected 403, got ${adminCsrf.status}`)
 
   // export CSV: 미로그인 차단 (anon 키 폴백 없음)
-  const exportCsvAnon = await fetchJson('/api/export/csv', {
+  const exportCsvAnon = await fetchVerifyJson('/api/export/csv', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: 'programs' }),
@@ -69,7 +59,7 @@ async function main() {
   )
 
   // 문서 API: 미로그인 401 (미들웨어)
-  const docAnon = await fetchJson('/api/documents/checklist', {
+  const docAnon = await fetchVerifyJson('/api/documents/checklist', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ announcementTitle: 't', announcementText: 'body' }),
@@ -77,7 +67,7 @@ async function main() {
   assert(docAnon.status === 401, `documents anon expected 401, got ${docAnon.status}`)
 
   // export/user: 미로그인 401
-  const exportAnon = await fetchJson('/api/export/user', {
+  const exportAnon = await fetchVerifyJson('/api/export/user', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rows: [{ a: 1 }] }),
@@ -85,7 +75,7 @@ async function main() {
   assert(exportAnon.status === 401, `export anon expected 401, got ${exportAnon.status}`)
 
   // eligibility: 잘못된 program_id
-  const badId = await fetchJson('/api/eligibility', {
+  const badId = await fetchVerifyJson('/api/eligibility', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ program_id: 'not-a-uuid', profile: {} }),
@@ -93,16 +83,16 @@ async function main() {
   assert(badId.status === 400, `eligibility bad uuid expected 400, got ${badId.status}`)
 
   // diagnosis session: 잘못된 id
-  const badSid = await fetchJson('/api/diagnosis/session?id=not-uuid')
+  const badSid = await fetchVerifyJson('/api/diagnosis/session?id=not-uuid')
   assert(badSid.status === 400, `diagnosis bad id expected 400, got ${badSid.status}`)
 
-  const noToken = await fetchJson(
+  const noToken = await fetchVerifyJson(
     '/api/diagnosis/session?id=00000000-0000-4000-8000-000000000001'
   )
   assert(noToken.status === 401, `diagnosis missing token expected 401, got ${noToken.status}`)
 
   // billing confirm: 금액 불일치 (로그인 없으면 401 또는 CSRF 전 401 — Origin 없으면 CSRF 통과 가능)
-  const badAmount = await fetchJson('/api/billing/confirm', {
+  const badAmount = await fetchVerifyJson('/api/billing/confirm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -118,7 +108,7 @@ async function main() {
   )
 
   // 보안 헤더 (홈)
-  const home = await fetch(`${BASE}/`)
+  const home = await fetch(`${VERIFY_BASE_URL}/`)
   const csp = home.headers.get('content-security-policy')
   const xcto = home.headers.get('x-content-type-options')
   assert(Boolean(csp), 'CSP header missing')

@@ -7,17 +7,7 @@ import type { RecommendedProgram } from '@/lib/home/recommendations'
 import { stripHtmlToText } from '@/lib/utils/stripHtml'
 import { formatProgramSupportAmount, boostDisplayMatchScore } from '@/lib/home/program-display'
 import { Building2, Calendar, MapPin, ExternalLink } from 'lucide-react'
-
-const SOURCE_LABEL: Record<string, string> = {
-  bizinfo: '기업마당',
-  kstartup: 'K-Startup',
-  smes24: '중소벤처24',
-}
-
-const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  active: { label: '모집중', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  closing_soon: { label: '마감임박', className: 'bg-red-50 text-red-700 border-red-200' },
-}
+import { ProgramCardShell, ProgramSourceBadge, ProgramStatusBadge } from '@/components/home/ProgramCardShell'
 
 type Variant = 'guest' | 'member'
 
@@ -34,8 +24,6 @@ export default function HomeProgramRichCard({
   rankIndex = 0,
   personalized = false,
 }: Props) {
-  const sourceLabel = SOURCE_LABEL[program.source] ?? program.source
-  const statusBadge = STATUS_BADGE[program.status] ?? STATUS_BADGE.active
   const displayScore = boostDisplayMatchScore(program, { rankIndex, personalized })
   const funding = formatProgramSupportAmount(
     program.support_amount,
@@ -70,12 +58,8 @@ export default function HomeProgramRichCard({
 
       <div className="flex flex-1 flex-col p-4">
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="text-[11px] font-normal">
-            {sourceLabel}
-          </Badge>
-          <Badge variant="outline" className={cn('text-[11px] font-medium', statusBadge.className)}>
-            {statusBadge.label}
-          </Badge>
+          <ProgramSourceBadge source={program.source} className="text-[11px]" />
+          <ProgramStatusBadge status={program.status} variant="emerald" />
           {program.support_type && (
             <Badge variant="secondary" className="text-[11px] font-normal">
               {stripHtmlToText(program.support_type)}

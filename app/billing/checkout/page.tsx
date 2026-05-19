@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Script from 'next/script'
 import { createClient } from '@/lib/supabase/client'
 import { PLANS, normalizePlanId, type PlanId } from '@/lib/billing/plans'
-import { buildSubscriptionProductItems } from '@/lib/billing/naverpay'
-import { Loader2, CreditCard, Shield, ArrowLeft } from 'lucide-react'
+import { Shield, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { SITE_NAME } from '@/lib/site-config'
+import PaymentMethodButtons from '@/components/billing/PaymentMethodButtons'
+import { usePaymentConfirm } from '@/hooks/usePaymentConfirm'
 
 const NAVER_SDK = 'https://nsp.pay.naver.com/sdk/js/naverpay.min.js'
 
@@ -20,23 +21,23 @@ function CheckoutForm() {
   if (planId === 'free') planId = 'starter'
   const plan = PLANS.find((p) => p.id === planId) ?? PLANS[1]
 
-  const [loading, setLoading] = useState<'naver' | 'kakao' | null>(null)
   const [userId, setUserId] = useState('')
-  const [error, setError] = useState('')
   const [sdkReady, setSdkReady] = useState(false)
 
   const pgFlag = process.env.NEXT_PUBLIC_PAYMENT_PG_ENABLED === 'true'
-
   const naverClientId = process.env.NEXT_PUBLIC_NAVER_PAY_CLIENT_ID?.trim() ?? ''
   const naverChainId = process.env.NEXT_PUBLIC_NAVER_PAY_CHAIN_ID?.trim() ?? ''
   const naverMode =
     process.env.NEXT_PUBLIC_NAVER_PAY_MODE === 'production' ? 'production' : 'development'
   const naverEnabled = pgFlag && Boolean(naverClientId && naverChainId)
-
-  const kakaoCid = process.env.NEXT_PUBLIC_KAKAO_PAY_CID?.trim() ?? ''
-  const kakaoEnabled = pgFlag && Boolean(kakaoCid)
-
+  const kakaoEnabled = pgFlag && Boolean(process.env.NEXT_PUBLIC_KAKAO_PAY_CID?.trim())
   const anyPgEnabled = naverEnabled || kakaoEnabled
+
+  const { loading, error, setError, handleNaverPayment, handleKakaoPayment } = usePaymentConfirm(
+    planId,
+    plan.name,
+    plan.price
+  )
 
   useEffect(() => {
     const supabase = createClient()
@@ -48,101 +49,6 @@ function CheckoutForm() {
       setUserId(user.id)
     })
   }, [router])
-
-  const handleNaverPayment = async () => {
-    if (!userId) return
-    if (!naverEnabled) {
-      setError('네이버페이가 아직 활성화되지 않았습니다.')
-      return
-    }
-    if (!window.Naver?.Pay) {
-      setError('네이버페이 결제 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.')
-      return
-    }
-
-    setLoading('naver')
-    setError('')
-
-    try {
-      const readyRes = await fetch('/api/billing/naver/ready', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planId }),
-      })
-      const readyData = (await readyRes.json().catch(() => ({}))) as {
-        orderId?: string
-        amount?: number
-        error?: string
-      }
-      if (!readyRes.ok || !readyData.orderId) {
-        setError(readyData.error ?? '결제 준비에 실패했습니다.')
-        setLoading(null)
-        return
-      }
-
-      const orderId = readyData.orderId
-      const orderName = `${SITE_NAME} ${plan.name} 월 구독`
-      const returnUrl = `${window.location.origin}/billing/success?plan=${planId}&merchantPayKey=${encodeURIComponent(orderId)}&amount=${plan.price}`
-
-      const oPay = window.Naver.Pay.create({
-        mode: naverMode,
-        clientId: naverClientId,
-        chainId: naverChainId,
-        payType: 'normal',
-        openType: 'page',
-      })
-
-      oPay.open({
-        merchantPayKey: orderId,
-        merchantUserKey: userId,
-        productName: orderName,
-        totalPayAmount: plan.price,
-        taxScopeAmount: plan.price,
-        taxExScopeAmount: 0,
-        productCount: 1,
-        returnUrl,
-        productItems: buildSubscriptionProductItems(planId, orderName),
-      })
-    } catch {
-      setError('결제 처리 중 오류가 발생했습니다. 다시 시도해주세요.')
-      setLoading(null)
-    }
-  }
-
-  const handleKakaoPayment = async () => {
-    if (!userId) return
-    if (!kakaoEnabled) {
-      setError('카카오페이가 아직 활성화되지 않았습니다.')
-      return
-    }
-
-    setLoading('kakao')
-    setError('')
-
-    try {
-      const res = await fetch('/api/billing/kakao/ready', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planId }),
-      })
-
-      const data = (await res.json().catch(() => ({}))) as {
-        redirectUrl?: string
-        error?: string
-      }
-
-      if (!res.ok || !data.redirectUrl) {
-        setError(data.error ?? '카카오페이 결제 준비에 실패했습니다.')
-        setLoading(null)
-        return
-      }
-
-      window.location.href = data.redirectUrl
-    } catch {
-      setError('결제 처리 중 오류가 발생했습니다. 다시 시도해주세요.')
-      setLoading(null)
-    }
-  }
 
   if (!plan) return null
 
@@ -209,55 +115,22 @@ function CheckoutForm() {
               </p>
             )}
 
-            <div className="flex flex-col gap-2">
-              {naverEnabled && (
-                <button
-                  type="button"
-                  onClick={handleNaverPayment}
-                  disabled={loading !== null || !userId || !sdkReady}
-                  className="w-full py-3.5 bg-[#03C75A] text-white rounded-xl font-bold hover:bg-[#02b351] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                >
-                  {loading === 'naver' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CreditCard className="h-4 w-4" />
-                  )}
-                  {loading === 'naver'
-                    ? '결제 처리 중...'
-                    : sdkReady
-                      ? `네이버페이 ${plan.price.toLocaleString()}원`
-                      : '네이버페이 로딩 중...'}
-                </button>
-              )}
-
-              {kakaoEnabled && (
-                <button
-                  type="button"
-                  onClick={() => void handleKakaoPayment()}
-                  disabled={loading !== null || !userId}
-                  className="w-full py-3.5 bg-[#FEE500] text-gray-900 rounded-xl font-bold hover:bg-[#f5dc00] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                >
-                  {loading === 'kakao' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CreditCard className="h-4 w-4" />
-                  )}
-                  {loading === 'kakao'
-                    ? '결제 준비 중...'
-                    : `카카오페이 ${plan.price.toLocaleString()}원`}
-                </button>
-              )}
-
-              {!naverEnabled && !kakaoEnabled && (
-                <button
-                  type="button"
-                  disabled
-                  className="w-full py-3.5 bg-gray-200 text-gray-500 rounded-xl font-bold cursor-not-allowed"
-                >
-                  PG 연동 준비중
-                </button>
-              )}
-            </div>
+            <PaymentMethodButtons
+              planPrice={plan.price}
+              loading={loading}
+              userId={userId}
+              naverEnabled={naverEnabled}
+              kakaoEnabled={kakaoEnabled}
+              sdkReady={sdkReady}
+              onNaver={() =>
+                void handleNaverPayment(userId, {
+                  clientId: naverClientId,
+                  chainId: naverChainId,
+                  mode: naverMode,
+                })
+              }
+              onKakao={() => void handleKakaoPayment()}
+            />
 
             <div className="flex items-center justify-center gap-1.5 mt-3">
               <Shield className="h-3.5 w-3.5 text-gray-400" />

@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toCanonicalIndustry } from '@/lib/industry/canonical'
+import { PROVINCE_OPTIONS } from '@/lib/geo/regions'
+import { INDUSTRY_FILTER_OPTIONS } from '@/lib/industry/options'
 
-const REGIONS = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
-const INDUSTRIES = ['제조업', '서비스업', 'IT/소프트웨어', '유통/도소매', '음식/외식', '건설업', '기타']
+const REGIONS = PROVINCE_OPTIONS
+const INDUSTRIES = INDUSTRY_FILTER_OPTIONS
 
 type Props = {
   onKeywordSearch?: (keyword: string) => void

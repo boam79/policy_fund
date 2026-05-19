@@ -2,12 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Loader2,
   Users,
   Crown,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight,
   Search,
   AlertCircle,
   Download,
@@ -17,21 +14,12 @@ import {
   CreditCard,
 } from 'lucide-react'
 import { readApiError } from '@/lib/api/readApiError'
-import { getPlan, type PlanId } from '@/lib/billing/plans'
 import { UserDetailDrawer } from '@/components/admin/users/UserDetailDrawer'
 import { OnlineUsersPanel } from '@/components/admin/users/OnlineUsersPanel'
-
-interface UserRow {
-  id: string
-  email: string
-  created_at: string
-  plan: PlanId
-  subscription_status: string | null
-  current_period_end: string | null
-  cancel_at_period_end: boolean | null
-  last_sign_in_at: string | null
-  usage: { eligibility_check: number; document_generate: number; evaluation: number }
-}
+import type { UsersFiltersValues } from '@/components/admin/users/UsersFiltersToolbar'
+import { UsersFiltersToolbar } from '@/components/admin/users/UsersFiltersToolbar'
+import type { AdminUserRow } from '@/components/admin/users/UsersTable'
+import { UsersTable } from '@/components/admin/users/UsersTable'
 
 type Summary = {
   totalScanned: number
@@ -43,31 +31,7 @@ type Summary = {
   truncated?: boolean
 }
 
-const PLAN_COLOR: Record<string, string> = {
-  free: 'text-gray-400 bg-gray-700',
-  starter: 'text-blue-400 bg-blue-900/40',
-  pro: 'text-indigo-400 bg-indigo-900/40',
-}
-
-const SUB_STATUS_LABEL: Record<string, string> = {
-  active: '활성',
-  trialing: '체험',
-  canceled: '해지됨',
-  past_due: '연체',
-  unpaid: '미납',
-}
-
-type Filters = {
-  plan: string
-  status: string
-  inactiveDays: string
-  minDocuments: string
-  domain: string
-  segment: string
-  sort: string
-}
-
-const defaultFilters: Filters = {
+const defaultFilters: UsersFiltersValues = {
   plan: 'all',
   status: 'all',
   inactiveDays: '',
@@ -78,7 +42,7 @@ const defaultFilters: Filters = {
 }
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<UserRow[]>([])
+  const [users, setUsers] = useState<AdminUserRow[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [loading, setLoading] = useState(true)
   const [summaryLoading, setSummaryLoading] = useState(true)
@@ -90,8 +54,8 @@ export default function AdminUsersPage() {
   const [scanMode, setScanMode] = useState(false)
   const [q, setQ] = useState('')
   const [qInput, setQInput] = useState('')
-  const [filters, setFilters] = useState<Filters>(defaultFilters)
-  const [appliedFilters, setAppliedFilters] = useState<Filters>(defaultFilters)
+  const [filters, setFilters] = useState<UsersFiltersValues>(defaultFilters)
+  const [appliedFilters, setAppliedFilters] = useState<UsersFiltersValues>(defaultFilters)
   const [scannedPages, setScannedPages] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -182,7 +146,6 @@ export default function AdminUsersPage() {
   const applyKpiFilter = (kind: 'new7' | 'inactive30' | 'docs' | 'past_due' | 'plan_free' | 'plan_starter' | 'plan_pro') => {
     const next = { ...defaultFilters }
     if (kind === 'new7') {
-      /* KPI only — no direct date filter; show all sorted by created */
       next.sort = 'created_desc'
     } else if (kind === 'inactive30') {
       next.inactiveDays = '30'
@@ -261,42 +224,36 @@ export default function AdminUsersPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
         {[
           {
-            key: 'total' as const,
             label: '스캔 회원',
             value: summary?.totalScanned,
             icon: Users,
             onClick: () => resetFilters(),
           },
           {
-            key: 'new7' as const,
             label: '7일 신규',
             value: summary?.newUsers7d,
             icon: UserPlus,
             onClick: () => applyKpiFilter('new7'),
           },
           {
-            key: 'inactive30' as const,
             label: '30일 미접속',
             value: summary?.inactive30d,
             icon: Moon,
             onClick: () => applyKpiFilter('inactive30'),
           },
           {
-            key: 'docs' as const,
             label: '이번 달 문서 사용',
             value: summary?.docUsersThisMonth,
             icon: FileText,
             onClick: () => applyKpiFilter('docs'),
           },
           {
-            key: 'past_due' as const,
             label: '연체 구독',
             value: summary?.pastDue,
             icon: CreditCard,
             onClick: () => applyKpiFilter('past_due'),
           },
           {
-            key: 'pro' as const,
             label: 'Pro',
             value: summary?.byPlan.pro,
             icon: Crown,
@@ -311,9 +268,7 @@ export default function AdminUsersPage() {
           >
             <Icon className="h-4 w-4 text-gray-400 mb-1" />
             <p className="text-[11px] text-gray-500">{label}</p>
-            <p className="text-lg font-bold text-gray-900">
-              {summaryLoading ? '…' : (value ?? '—')}
-            </p>
+            <p className="text-lg font-bold text-gray-900">{summaryLoading ? '…' : value ?? '—'}</p>
           </button>
         ))}
       </div>
@@ -323,107 +278,7 @@ export default function AdminUsersPage() {
         </p>
       )}
 
-      <div className="rounded-xl border border-gray-200 bg-white p-3 mb-4 flex flex-wrap gap-2 items-end">
-        <label className="text-xs text-gray-600">
-          플랜
-          <select
-            value={filters.plan}
-            onChange={(e) => setFilters((f) => ({ ...f, plan: e.target.value }))}
-            className="mt-0.5 block text-sm border rounded-lg px-2 py-1.5"
-          >
-            <option value="all">전체</option>
-            <option value="free">Free</option>
-            <option value="starter">Starter</option>
-            <option value="pro">Pro</option>
-          </select>
-        </label>
-        <label className="text-xs text-gray-600">
-          구독 상태
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-            className="mt-0.5 block text-sm border rounded-lg px-2 py-1.5"
-          >
-            <option value="all">전체</option>
-            <option value="none">없음</option>
-            <option value="active">활성</option>
-            <option value="trialing">체험</option>
-            <option value="past_due">연체</option>
-            <option value="canceled">해지</option>
-          </select>
-        </label>
-        <label className="text-xs text-gray-600">
-          정렬
-          <select
-            value={filters.sort}
-            onChange={(e) => setFilters((f) => ({ ...f, sort: e.target.value }))}
-            className="mt-0.5 block text-sm border rounded-lg px-2 py-1.5"
-          >
-            <option value="created_desc">가입일 최신</option>
-            <option value="created_asc">가입일 오래된</option>
-            <option value="last_sign_in_desc">최근 로그인</option>
-            <option value="last_sign_in_asc">로그인 오래됨</option>
-            <option value="docs_desc">문서 사용 많음</option>
-          </select>
-        </label>
-        <label className="text-xs text-gray-600">
-          세그먼트
-          <select
-            value={filters.segment}
-            onChange={(e) => setFilters((f) => ({ ...f, segment: e.target.value }))}
-            className="mt-0.5 block text-sm border rounded-lg px-2 py-1.5"
-          >
-            <option value="">없음</option>
-            <option value="dormant">휴면(30일+)</option>
-            <option value="high_usage">고사용</option>
-            <option value="onboarding_dropout">온보딩 이탈(7일·문서0)</option>
-          </select>
-        </label>
-        <label className="text-xs text-gray-600">
-          미접속(일)
-          <input
-            type="number"
-            min={0}
-            value={filters.inactiveDays}
-            onChange={(e) => setFilters((f) => ({ ...f, inactiveDays: e.target.value }))}
-            placeholder="30"
-            className="mt-0.5 block text-sm border rounded-lg px-2 py-1.5 w-20"
-          />
-        </label>
-        <label className="text-xs text-gray-600">
-          문서 최소
-          <input
-            type="number"
-            min={0}
-            value={filters.minDocuments}
-            onChange={(e) => setFilters((f) => ({ ...f, minDocuments: e.target.value }))}
-            className="mt-0.5 block text-sm border rounded-lg px-2 py-1.5 w-20"
-          />
-        </label>
-        <label className="text-xs text-gray-600">
-          도메인
-          <input
-            value={filters.domain}
-            onChange={(e) => setFilters((f) => ({ ...f, domain: e.target.value }))}
-            placeholder="gmail.com"
-            className="mt-0.5 block text-sm border rounded-lg px-2 py-1.5 w-28"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={() => applyFilters()}
-          className="text-sm px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500"
-        >
-          필터 적용
-        </button>
-        <button
-          type="button"
-          onClick={() => resetFilters()}
-          className="text-sm px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-        >
-          초기화
-        </button>
-      </div>
+      <UsersFiltersToolbar filters={filters} setFilters={setFilters} onApply={applyFilters} onReset={resetFilters} />
 
       {q && scanMode && (
         <p className="text-sm text-amber-700 mb-2">
@@ -438,114 +293,14 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <div className="flex items-center gap-2 mb-4">
-        <button
-          type="button"
-          disabled={page <= 1 || loading}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-gray-300 bg-white disabled:opacity-40"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          이전
-        </button>
-        <button
-          type="button"
-          disabled={!hasMore || loading}
-          onClick={() => setPage((p) => p + 1)}
-          className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-gray-300 bg-white disabled:opacity-40"
-        >
-          다음
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-
-      {loading && users.length === 0 ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-        </div>
-      ) : (
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-x-auto">
-          <table className="w-full text-sm min-w-[960px]">
-            <thead>
-              <tr className="border-b border-gray-700">
-                {[
-                  '이메일',
-                  '플랜',
-                  '구독 상태',
-                  '다음 결제',
-                  '해지',
-                  '이번 달 사용량',
-                  '가입일',
-                  '마지막 로그인',
-                ].map((h) => (
-                  <th key={h} className="px-3 py-3 text-left text-xs text-gray-400 font-medium whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
-                    회원이 없습니다
-                  </td>
-                </tr>
-              ) : (
-                users.map((u) => {
-                  const plan = getPlan(u.plan)
-                  const subLabel =
-                    u.subscription_status != null
-                      ? SUB_STATUS_LABEL[u.subscription_status] ?? u.subscription_status
-                      : '—'
-                  return (
-                    <tr
-                      key={u.id}
-                      onClick={() => openUser(u.id)}
-                      className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors cursor-pointer"
-                    >
-                      <td className="px-3 py-2.5 text-gray-200 max-w-[220px] truncate" title={u.email}>
-                        {u.email || '—'}
-                      </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full font-medium inline-flex items-center gap-1 ${PLAN_COLOR[u.plan] ?? PLAN_COLOR.free}`}
-                        >
-                          {u.plan !== 'free' && <Crown className="h-3 w-3" />}
-                          {plan.name}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-xs text-gray-300 whitespace-nowrap">{subLabel}</td>
-                      <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap">
-                        {u.current_period_end
-                          ? new Date(u.current_period_end).toLocaleDateString('ko-KR')
-                          : '—'}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs whitespace-nowrap">
-                        {u.cancel_at_period_end ? (
-                          <span className="text-orange-300">예정</span>
-                        ) : (
-                          <span className="text-gray-500">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-[11px] text-gray-400 leading-snug whitespace-nowrap">
-                        자격 {u.usage.eligibility_check} · 문서 {u.usage.document_generate} · 심사{' '}
-                        {u.usage.evaluation}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap">
-                        {new Date(u.created_at).toLocaleDateString('ko-KR')}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap">
-                        {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('ko-KR') : '—'}
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <UsersTable
+        users={users}
+        loading={loading}
+        page={page}
+        setPage={setPage}
+        hasMore={hasMore}
+        onOpenUser={openUser}
+      />
 
       <UserDetailDrawer
         userId={selectedId}

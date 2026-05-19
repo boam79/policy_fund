@@ -1,9 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
-import { getPlan, normalizePlanId } from '@/lib/billing/plans'
+import { normalizePlanId } from '@/lib/billing/plans'
 import { getNaverPayServerConfig } from '@/lib/billing/naverpay'
-import { SITE_NAME } from '@/lib/site-config'
+import { createPendingOrder } from '@/lib/billing/createPendingOrder'
 import { takeRateLimit } from '@/lib/security/rateLimit'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 
@@ -36,31 +34,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '유효하지 않은 플랜입니다.' }, { status: 400 })
     }
 
-    const plan = getPlan(planNorm)
-    const orderId = `JW-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
-    const orderName = `${SITE_NAME} ${plan.name} 월 구독`
-
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
-    const { error: insertError } = await supabase.from('payments').insert({
-      user_id: user.id,
-      order_id: orderId,
-      order_name: orderName,
-      amount_krw: plan.price,
-      status: 'pending',
-      payment_provider: 'naverpay',
-      metadata: { plan: planNorm },
+    const { orderId, amount, orderName } = await createPendingOrder({
+      userId: user.id,
+      planNorm,
+      paymentProvider: 'naverpay',
     })
 
-    if (insertError) {
-      console.error('[billing/naver/ready] insert', insertError)
-      return NextResponse.json({ error: '주문 정보 저장에 실패했습니다.' }, { status: 500 })
-    }
-
-    return NextResponse.json({ ok: true, orderId, amount: plan.price, plan: planNorm })
+    return NextResponse.json({ ok: true, orderId, amount, plan: planNorm, orderName })
   } catch (err) {
     console.error('[billing/naver/ready]', err)
     return NextResponse.json({ error: '서버 오류' }, { status: 500 })

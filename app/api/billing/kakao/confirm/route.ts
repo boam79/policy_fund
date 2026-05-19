@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
 import { getPlan, normalizePlanId } from '@/lib/billing/plans'
 import { getKakaoPayServerConfig, kakaoPaymentApprove } from '@/lib/billing/kakaopay'
+import { finalizeSubscription } from '@/lib/billing/finalizeSubscription'
 import { takeRateLimit } from '@/lib/security/rateLimit'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { requireServiceRoleClient } from '@/lib/supabase/serviceRole'
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,10 +53,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '유효하지 않은 주문 ID입니다.' }, { status: 400 })
     }
 
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = requireServiceRoleClient()
 
     const { data: pending, error: findError } = await supabase
       .from('payments')
@@ -106,41 +103,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '승인 금액이 일치하지 않습니다.' }, { status: 400 })
     }
 
-    const now = new Date()
-    const periodEnd = new Date(now)
-    periodEnd.setMonth(periodEnd.getMonth() + 1)
-
     const orderName = data.item_name ?? `${getPlan(planNorm).name} 월 구독`
 
-    await supabase
-      .from('payments')
-      .update({
-        status: 'done',
-        amount_krw: amountNum,
-        order_name: orderName,
-        provider_payment_id: data.tid,
-        paid_at: now.toISOString(),
-        metadata: { aid: data.aid, tid: data.tid },
-      })
-      .eq('id', pending.id)
-
-    await supabase.from('subscriptions').upsert(
-      {
-        user_id: user.id,
-        plan_code: planNorm,
-        status: 'active',
-        current_period_start: now.toISOString(),
-        current_period_end: periodEnd.toISOString(),
-        payment_provider: 'kakaopay',
-        updated_at: now.toISOString(),
-      },
-      { onConflict: 'user_id' }
-    )
-
-    const { data: sub } = await supabase.from('subscriptions').select('id').eq('user_id', user.id).single()
-    if (sub) {
-      await supabase.from('payments').update({ subscription_id: sub.id }).eq('id', pending.id)
-    }
+    await finalizeSubscription({
+      supabase,
+      userId: user.id,
+      pendingPaymentId: pending.id,
+      planNorm,
+      amountNum,
+      orderName,
+      paymentProvider: 'kakaopay',
+      providerPaymentId: data.tid,
+      metadata: { aid: data.aid, tid: data.tid },
+    })
 
     return NextResponse.json({ success: true })
   } catch (err) {

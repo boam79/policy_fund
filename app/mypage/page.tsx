@@ -10,6 +10,12 @@ import {
   buildSearchUrlFromProfile,
   type SavedBusinessProfileDefaults,
 } from '@/lib/profile/business-profile-defaults'
+import { PROVINCE_OPTIONS } from '@/lib/geo/regions'
+import { INDUSTRY_FILTER_OPTIONS } from '@/lib/industry/options'
+
+const REGIONS = PROVINCE_OPTIONS
+const INDUSTRIES = INDUSTRY_FILTER_OPTIONS
+const STAGES = ['', '예비창업', '창업 1년 미만', '초기(1~3년)', '성장(3~7년)', '도약(7년 이상)']
 
 interface Profile {
   company_name: string
@@ -25,10 +31,6 @@ interface Profile {
   startup_stage: string
   support_purpose: string
 }
-
-const REGIONS = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
-const INDUSTRIES = ['제조업', 'IT/소프트웨어', '서비스업', '도소매업', '건설업', '농림어업', '바이오/헬스케어', '문화/콘텐츠', '기타']
-const STAGES = ['', '예비창업', '창업 1년 미만', '초기(1~3년)', '성장(3~7년)', '도약(7년 이상)']
 
 export default function MyPage() {
   const router = useRouter()

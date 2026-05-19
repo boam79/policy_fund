@@ -10,6 +10,7 @@ import {
   computeDaysUntilDeadline,
   formatDeadlineBadgeLabel,
 } from '@/lib/programs/deadline'
+import { getProgramSourceLabel } from '@/lib/gov-support/programSources'
 
 const LEGAL_DISCLAIMER = '본 자격판정 결과는 AI 기반 참고 정보이며 법적 효력이 없습니다. 실제 신청 가능 여부는 해당 지원기관의 공식 공고문과 담당자에게 반드시 확인하세요. 지원둥지는 판정 결과의 정확성을 보장하지 않습니다.'
 
@@ -26,12 +27,6 @@ async function getProgram(id: string) {
     .eq('id', id)
     .single()
   return data
-}
-
-const SOURCE_LABEL: Record<string, string> = {
-  bizinfo: '기업마당',
-  kstartup: 'K-Startup',
-  smes24: '중소벤처24',
 }
 
 function DaysLeftBadge({ endDate }: { endDate: string | null }) {
@@ -89,7 +84,7 @@ export default async function ProgramDetailPage({
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 {program.source && (
                   <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
-                    {SOURCE_LABEL[program.source] ?? program.source}
+                    {getProgramSourceLabel(program.source)}
                   </span>
                 )}
                 {program.industry && (

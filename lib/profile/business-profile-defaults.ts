@@ -1,5 +1,5 @@
 import type { ParseNLResult, ParsedConditions, ExtractedCondition } from '@/lib/query/parseNaturalLanguage'
-import { toCanonicalIndustry } from '@/lib/industry/canonical'
+import { buildSearchUrlFromProfileQuery } from '@/lib/search/queryParams'
 
 /** 마이페이지 `business_profiles`에서 쓰는 기본값 입력 스키마 */
 export type SavedBusinessProfileDefaults = {
@@ -74,21 +74,7 @@ export function buildDefaultSearchQueryFromProfile(p: SavedBusinessProfileDefaul
 /** 마이페이지·검색 화면 URL (`/search?region=...`) */
 export function buildSearchUrlFromProfile(p: SavedBusinessProfileDefaults): string | null {
   if (!hasMeaningfulProfile(p)) return null
-  const params = new URLSearchParams()
-  if (p.region?.trim()) params.set('region', p.region.trim())
-  if (p.city?.trim()) params.set('city', p.city.trim())
-  if (p.industry?.trim()) params.set('industry', toCanonicalIndustry(p.industry.trim()))
-  if (p.business_age_years != null && Number.isFinite(p.business_age_years)) {
-    params.set('business_age_years', String(p.business_age_years))
-  }
-  if (p.employee_count != null && Number.isFinite(p.employee_count)) {
-    params.set('employee_count', String(p.employee_count))
-  }
-  if (p.support_purpose?.trim()) params.set('support_purpose', p.support_purpose.trim())
-  if (p.tax_arrears === true) params.set('tax_arrears', 'yes')
-  else if (p.tax_arrears === false) params.set('tax_arrears', 'no')
-  const qs = params.toString()
-  return qs ? `/search?${qs}` : null
+  return buildSearchUrlFromProfileQuery(p)
 }
 
 /** 진단 화면: LLM 추출 결과에 마이페이지 저장값을 보강(누락·저신뢰만) */

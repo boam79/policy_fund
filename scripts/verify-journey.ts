@@ -6,39 +6,9 @@
 /* eslint-disable no-console */
 export {}
 
+import { assert, fetchPage, fetchStoryJson, STORY_BASE_URL, STORY_SESSION_COOKIE } from './lib/verify-http'
+
 type Json = Record<string, unknown>
-
-const BASE = process.env.STORY_BASE_URL ?? 'http://localhost:3000'
-const STORY_SESSION_COOKIE = process.env.STORY_SESSION_COOKIE?.trim()
-
-function withAuth(init?: RequestInit): RequestInit {
-  if (!STORY_SESSION_COOKIE) return init ?? {}
-  const h = new Headers(init?.headers)
-  h.set('Cookie', STORY_SESSION_COOKIE)
-  return { ...init, headers: h }
-}
-
-function assert(cond: boolean, msg: string) {
-  if (!cond) throw new Error(msg)
-}
-
-async function fetchJson(path: string, init?: RequestInit) {
-  const res = await fetch(`${BASE}${path}`, withAuth(init))
-  const text = await res.text()
-  let json: Json = {}
-  try {
-    json = text ? (JSON.parse(text) as Json) : {}
-  } catch {
-    json = { raw: text.slice(0, 500) }
-  }
-  return { status: res.status, json, text }
-}
-
-async function fetchPage(path: string) {
-  const res = await fetch(`${BASE}${path}`)
-  const text = await res.text()
-  return { status: res.status, text }
-}
 
 function hasDbHtmlLeak(s: string): boolean {
   return (
@@ -50,7 +20,7 @@ function hasDbHtmlLeak(s: string): boolean {
 }
 
 async function run() {
-  console.log(`[verify-journey] base=${BASE}`)
+  console.log(`[verify-journey] base=${STORY_BASE_URL}`)
 
   const profile = {
     region: '경기',
@@ -62,7 +32,7 @@ async function run() {
   }
 
   // 1) 검색
-  const search = await fetchJson('/api/search', {
+  const search = await fetchStoryJson('/api/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...profile, page: 1, limit: 5 }),
@@ -76,7 +46,7 @@ async function run() {
   assert(!hasDbHtmlLeak(title), `HTML leak in search result title: ${title.slice(0, 60)}`)
 
   // 2) 공고 상세 페이지
-  const detail = await fetchPage(`/search/${programId}`)
+  const detail = await fetchPage(STORY_BASE_URL, `/search/${programId}`)
   assert(detail.status === 200, `Detail page ${programId} expected 200, got ${detail.status}`)
   assert(
     detail.text.includes('내 조건으로 자격판정') || detail.text.includes('자격판정'),
@@ -84,17 +54,17 @@ async function run() {
   )
   assert(detail.text.includes('신청 준비 시작하기'), 'Detail page missing documents CTA')
   // 3) 자격판정 페이지 (program_id)
-  const eligPage = await fetchPage(`/eligibility?program_id=${encodeURIComponent(programId)}`)
+  const eligPage = await fetchPage(STORY_BASE_URL, `/eligibility?program_id=${encodeURIComponent(programId)}`)
   assert(eligPage.status === 200, `Eligibility page expected 200, got ${eligPage.status}`)
   assert(!eligPage.text.includes('공고 정보가 없습니다'), 'Eligibility page missing program_id handling')
 
   // 4a) 공개 API — 비로그인 사용자도 홈·트렌딩 조회 가능
-  const homeRecRes = await fetch(`${BASE}/api/home/recommendations`)
+  const homeRecRes = await fetch(`${STORY_BASE_URL}/api/home/recommendations`)
   const homeRecJson = (await homeRecRes.json().catch(() => ({}))) as Json
   assert(homeRecRes.status === 200, `GET /api/home/recommendations expected 200, got ${homeRecRes.status}`)
   assert(homeRecJson.ok === true, 'home recommendations expected ok: true')
 
-  const trendingRes = await fetch(`${BASE}/api/programs/trending`)
+  const trendingRes = await fetch(`${STORY_BASE_URL}/api/programs/trending`)
   assert(trendingRes.status === 200, `GET /api/programs/trending expected 200, got ${trendingRes.status}`)
   const trendingJson = (await trendingRes.json().catch(() => ({}))) as Json
   assert(
@@ -103,7 +73,7 @@ async function run() {
   )
 
   // 4b) 진단 → 검색 파라미터 (Phase 12-2)
-  const diagParse = await fetchJson('/api/query/parse', {
+  const diagParse = await fetchStoryJson('/api/query/parse', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query: '서울 소프트웨어 업력 3년 지원사업' }),
@@ -116,7 +86,7 @@ async function run() {
   const diagIndustry = (diagConds.industry as Json | undefined)?.value
   assert(String(diagIndustry) === 'IT/소프트웨어', 'Journey: expected IT/소프트웨어 industry')
 
-  const sessionPost = await fetchJson('/api/diagnosis/session', {
+  const sessionPost = await fetchStoryJson('/api/diagnosis/session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -128,7 +98,7 @@ async function run() {
     const sid = String(sessionPost.json.sid)
     const token = String(sessionPost.json.token ?? '')
     assert(Boolean(token), 'Journey: diagnosis session token missing')
-    const sessionGet = await fetchJson(
+    const sessionGet = await fetchStoryJson(
       `/api/diagnosis/session?id=${encodeURIComponent(sid)}&token=${encodeURIComponent(token)}`
     )
     assert(sessionGet.status === 200, 'Journey: diagnosis session GET failed')
@@ -143,7 +113,7 @@ async function run() {
     )
   }
 
-  const diagSearch = await fetchJson('/api/search', {
+  const diagSearch = await fetchStoryJson('/api/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -158,7 +128,7 @@ async function run() {
   assert(diagSearch.status === 200 && diagSearch.json.ok === true, 'Journey: diagnosis-aligned search failed')
 
   // 4) 자격판정 API
-  const elig = await fetchJson('/api/eligibility', {
+  const elig = await fetchStoryJson('/api/eligibility', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ program_id: programId, profile }),
@@ -170,6 +140,7 @@ async function run() {
   // 5) 신청 준비 페이지 (각 탭)
   for (const tab of ['plan', 'checklist', 'timeline'] as const) {
     const docPage = await fetchPage(
+      STORY_BASE_URL,
       `/documents/plan?program_id=${encodeURIComponent(programId)}&tab=${tab}`
     )
     assert(docPage.status === 200, `Documents page tab=${tab} expected 200`)
@@ -190,7 +161,7 @@ async function run() {
         ? String(programs[0].application_end_date).slice(0, 10)
         : '2026-12-31'
 
-    const rPlan = await fetch(`${BASE}/api/documents/plan`, {
+    const rPlan = await fetch(`${STORY_BASE_URL}/api/documents/plan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -200,7 +171,7 @@ async function run() {
     })
     assert(rPlan.status === 401, `비로그인 documents/plan 기대 401, 실제 ${rPlan.status}`)
 
-    const rCheck = await fetch(`${BASE}/api/documents/checklist`, {
+    const rCheck = await fetch(`${STORY_BASE_URL}/api/documents/checklist`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -212,7 +183,7 @@ async function run() {
     })
     assert(rCheck.status === 401, `비로그인 documents/checklist 기대 401, 실제 ${rCheck.status}`)
 
-    const rTime = await fetch(`${BASE}/api/documents/timeline`, {
+    const rTime = await fetch(`${STORY_BASE_URL}/api/documents/timeline`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -237,7 +208,7 @@ async function run() {
       : '2026-12-31'
 
   // 6) 체크리스트 API
-  const checklist = await fetchJson('/api/documents/checklist', {
+  const checklist = await fetchStoryJson('/api/documents/checklist', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -252,7 +223,7 @@ async function run() {
   assert(typeof checklist.json.totalDocuments === 'number', 'Checklist missing totalDocuments')
 
   // 7) 타임라인 API
-  const timeline = await fetchJson('/api/documents/timeline', {
+  const timeline = await fetchStoryJson('/api/documents/timeline', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -265,7 +236,7 @@ async function run() {
   assert(Array.isArray(timeline.json.milestones), 'Timeline missing milestones')
 
   // 8) 사업계획서 API
-  const plan = await fetchJson('/api/documents/plan', {
+  const plan = await fetchStoryJson('/api/documents/plan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

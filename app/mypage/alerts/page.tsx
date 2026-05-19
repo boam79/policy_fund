@@ -8,9 +8,11 @@ import { createClient } from '@/lib/supabase/client'
 import { readApiError } from '@/lib/api/readApiError'
 import { SITE_NAME } from '@/lib/site-config'
 import { normalizeProgramSourceList, PROGRAM_SOURCES, PROGRAM_SOURCE_LABEL } from '@/lib/gov-support/programSources'
+import { PROVINCE_OPTIONS } from '@/lib/geo/regions'
+import { INDUSTRY_FILTER_OPTIONS } from '@/lib/industry/options'
 
-const REGIONS = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
-const INDUSTRIES = ['제조업', 'IT/소프트웨어', '서비스업', '도소매업', '건설업', '농림어업', '바이오/헬스케어', '문화/콘텐츠', '기타']
+const REGIONS = PROVINCE_OPTIONS
+const INDUSTRIES = INDUSTRY_FILTER_OPTIONS
 const SOURCES = PROGRAM_SOURCES.filter((id) => id !== 'manual').map((id) => ({
   id,
   label: PROGRAM_SOURCE_LABEL[id] ?? id,

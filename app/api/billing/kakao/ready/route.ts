@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
 import { getPlan, normalizePlanId } from '@/lib/billing/plans'
 import { SITE_NAME } from '@/lib/site-config'
 import { getKakaoPayServerConfig, kakaoPaymentReady, pickKakaoRedirectUrl } from '@/lib/billing/kakaopay'
+import { createPendingOrder } from '@/lib/billing/createPendingOrder'
 import { takeRateLimit } from '@/lib/security/rateLimit'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { requireServiceRoleClient } from '@/lib/supabase/serviceRole'
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,8 +37,12 @@ export async function POST(request: NextRequest) {
     }
 
     const plan = getPlan(planNorm)
-    const orderId = `JW-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
-    const itemName = `${SITE_NAME} ${plan.name} 월 구독`
+    const { orderId, orderName: itemName } = await createPendingOrder({
+      userId: user.id,
+      planNorm,
+      paymentProvider: 'kakaopay',
+      orderName: `${SITE_NAME} ${plan.name} 월 구독`,
+    })
     const origin = request.nextUrl.origin
 
     const approvalUrl = `${origin}/billing/kakao/success?plan=${planNorm}&orderId=${encodeURIComponent(orderId)}&amount=${plan.price}`
@@ -63,24 +67,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabase = requireServiceRoleClient()
+    const { error: updateError } = await supabase
+      .from('payments')
+      .update({
+        provider_payment_id: data.tid,
+        metadata: { plan: planNorm, tid: data.tid },
+      })
+      .eq('user_id', user.id)
+      .eq('order_id', orderId)
 
-    const { error: insertError } = await supabase.from('payments').insert({
-      user_id: user.id,
-      order_id: orderId,
-      order_name: itemName,
-      amount_krw: plan.price,
-      status: 'pending',
-      payment_provider: 'kakaopay',
-      provider_payment_id: data.tid,
-      metadata: { plan: planNorm, tid: data.tid },
-    })
-
-    if (insertError) {
-      console.error('[billing/kakao/ready] insert', insertError)
+    if (updateError) {
+      console.error('[billing/kakao/ready] tid update', updateError)
       return NextResponse.json({ error: '주문 정보 저장에 실패했습니다.' }, { status: 500 })
     }
 
